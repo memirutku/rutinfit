@@ -1,0 +1,321 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model UserProfile {
+  id              String   @id @default("default-user")
+  heightCm        Float    @default(181)
+  age             Int      @default(25)
+  sex             String   @default("male")
+  currentWeightKg Float    @default(112)
+  calorieTarget   Int      @default(2080)
+  calorieCeiling  Int      @default(2100)
+  proteinTargetG  Int      @default(165)
+  fatTargetG      Int      @default(60)
+  carbTargetG     Int      @default(220)
+  wakeTime        String   @default("06:00")
+  workdayHomeTime String   @default("19:30")
+  isOnboarded     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model FoodItem {
+  id         String   @id @default(cuid())
+  name       String
+  category   String   @default("Genel")
+  brand      String?
+  barcode    String?  @unique
+  basisGrams Float    @default(100)
+  calories   Float
+  proteinG   Float
+  carbsG     Float
+  fatG       Float
+  source     String   @default("Katalog")
+  confidence String   @default("Yüksek") // Yüksek, Tahmini, Kullanıcı
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  recipeIngredients RecipeIngredient[]
+  foodLogs          FoodLog[]
+}
+
+model Recipe {
+  id           String   @id @default(cuid())
+  name         String
+  instructions String?
+  prepMinutes  Int      @default(15)
+  servings     Int      @default(1)
+  tags         String? // JSON string: ["yüksek protein", "hızlı"]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ingredients  RecipeIngredient[]
+  plannedMeals PlannedMeal[]
+  foodLogs     FoodLog[]
+}
+
+model RecipeIngredient {
+  id         String @id @default(cuid())
+  recipeId   String
+  foodItemId String
+  grams      Float
+
+  recipe   Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  foodItem FoodItem @relation(fields: [foodItemId], references: [id])
+}
+
+model MealPlan {
+  id        String   @id @default(cuid())
+  date      String   @unique // YYYY-MM-DD
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  meals PlannedMeal[]
+}
+
+model PlannedMeal {
+  id          String   @id @default(cuid())
+  mealPlanId  String
+  mealType    String // breakfast, lunch, workSnack, dinner
+  recipeId    String?
+  customName  String?
+  plannedTime String?
+  servings    Float    @default(1)
+  isCompleted Boolean  @default(false)
+
+  mealPlan MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  recipe   Recipe?  @relation(fields: [recipeId], references: [id])
+}
+
+model FoodLog {
+  id               String   @id @default(cuid())
+  date             String // YYYY-MM-DD
+  time             String // HH:mm
+  mealType         String // breakfast, lunch, workSnack, dinner, extra
+  foodItemId       String?
+  recipeId         String?
+  name             String
+  grams            Float
+  caloriesSnapshot Float
+  proteinSnapshot  Float
+  carbsSnapshot    Float
+  fatSnapshot      Float
+  createdAt        DateTime @default(now())
+
+  foodItem FoodItem? @relation(fields: [foodItemId], references: [id])
+  recipe   Recipe?   @relation(fields: [recipeId], references: [id])
+}
+
+model WorkoutTemplate {
+  id                    String @id @default(cuid())
+  name                  String // Ağırlık A, Kolay Koşu, vb.
+  type                  String // strength, easy_run, rest
+  dayOfWeek             Int // 1: Pzt, 2: Sal, ... 7: Paz
+  targetDurationMinutes Int    @default(40)
+  notes                 String?
+
+  exercises WorkoutExercise[]
+  sessions  WorkoutSession[]
+}
+
+model WorkoutExercise {
+  id           String @id @default(cuid())
+  templateId   String
+  exerciseName String
+  targetSets   Int    @default(3)
+  repMin       Int    @default(8)
+  repMax       Int    @default(12)
+  restSeconds  Int    @default(90)
+  orderIndex   Int    @default(0)
+
+  template WorkoutTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+}
+
+model WorkoutSession {
+  id              String   @id @default(cuid())
+  date            String // YYYY-MM-DD
+  templateId      String?
+  name            String
+  durationMinutes Int      @default(0)
+  rpe             Int? // 1 - 10
+  notes           String?
+  completed       Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  template WorkoutTemplate? @relation(fields: [templateId], references: [id])
+  setLogs  SetLog[]
+}
+
+model SetLog {
+  id               String  @id @default(cuid())
+  workoutSessionId String
+  exerciseName     String
+  setNumber        Int
+  weightKg         Float
+  reps             Int
+  isTargetMet      Boolean @default(false)
+
+  session WorkoutSession @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
+}
+
+model WeightLog {
+  id             String   @id @default(cuid())
+  date           String   @unique // YYYY-MM-DD
+  weightKg       Float
+  conditionsNote String?
+  createdAt      DateTime @default(now())
+}
+
+model BodyMeasurement {
+  id        String   @id @default(cuid())
+  date      String   @unique // YYYY-MM-DD
+  waistCm   Float
+  createdAt DateTime @default(now())
+}
+
+model DailyWellbeing {
+  id           String   @id @default(cuid())
+  date         String   @unique // YYYY-MM-DD
+  energy1to5   Int      @default(3)
+  hunger1to5   Int      @default(3)
+  sleepMinutes Int      @default(420) // 7 saat
+  stress1to5   Int      @default(3)
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model SupplementLog {
+  id        String   @id @default(cuid())
+  date      String // YYYY-MM-DD
+  name      String   @default("Kreatin Monohidrat")
+  doseGrams Float    @default(5.0)
+  taken     Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([date, name])
+}
+
+model ShoppingListItem {
+  id        String   @id @default(cuid())
+  weekStart String // YYYY-MM-DD
+  category  String // Manav, Kasap/Balık, Süt Ürünleri, Kuru Gıda/Bakliyat, Diğer
+  name      String
+  amount    Float
+  unit      String   @default("g")
+  checked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model AISettings {
+  id               String    @id @default("default-ai")
+  providerType     String    @default("ollama") // ollama, lmstudio, openai
+  baseUrl          String    @default("http://127.0.0.1:11434/v1")
+  modelName        String    @default("llama3.2")
+  connectionStatus String    @default("untested") // connected, failed, untested
+  lastTestedAt     DateTime?
+}
+
+model AIConversation {
+  id        String   @id @default(cuid())
+  title     String   @default("Yeni Sohbet")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages AIMessage[]
+}
+
+model AIMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String   // user, assistant, system
+  content        String
+  fileIds        String?  // JSON string array of UploadedFile ids: ["cuid1", "cuid2"]
+  draftId        String?  // Associated ActionDraft id if any
+  actionProposal String?  // JSON string containing action proposal preview metadata
+  createdAt      DateTime @default(now())
+
+  conversation AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  draft        ActionDraft?   @relation(fields: [draftId], references: [id])
+}
+
+model UploadedFile {
+  id             String    @id @default(cuid())
+  originalName   String
+  mimeType       String
+  sizeBytes      Int
+  hash           String    @unique // SHA-256 for deduplication
+  storagePath    String
+  status         String    @default("uploaded") // uploaded, parsing, needs_review, ready_to_apply, applied, failed
+  parseErrors    String?   // JSON error logs or messages
+  retentionUntil DateTime?
+  createdAt      DateTime  @default(now())
+
+  artifacts ExtractedArtifact[]
+}
+
+model ExtractedArtifact {
+  id             String   @id @default(cuid())
+  fileId         String
+  normalizedType String   // meal_plan, workout_plan, weight_logs, recipe, unstructured
+  structuredData String   // JSON string of normalized payload
+  confidence     String   @default("medium") // high, medium, low
+  uncertainties  String?  // JSON string of ambiguous fields/warnings
+  sourceSummary  String?
+  createdAt      DateTime @default(now())
+
+  file UploadedFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+}
+
+model ActionDraft {
+  id                String   @id @default(cuid())
+  draftType         String   // meal_plan, food_log, recipe, nutrition_targets, workout_session, weight_wellbeing, bulk_import
+  proposedChanges   String   // JSON string of proposed payload and diff
+  impactSummary     String   // Plain-text impact summary (macros, calories, shopping diff)
+  status            String   @default("pending") // pending, approved, applied, rejected
+  approvalTokenHash String   @unique // SHA-256 hash of approval token
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  messages AIMessage[]
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  actionType String   // APPLY_DRAFT, REJECT_DRAFT, FILE_UPLOAD, FILE_PARSE, MANUAL_OVERRIDE
+  entityType String   // MealPlan, FoodLog, Recipe, UploadedFile, ActionDraft, etc.
+  entityId   String?
+  status     String   // SUCCESS, FAILED, REVERTED
+  details    String?  // JSON string containing payload/diff or error
+  createdAt  DateTime @default(now())
+}
+
+model PantryItem {
+  id         String   @id @default(cuid())
+  name       String
+  amount     Float    // e.g. 500
+  unit       String   @default("g") // g, ml, adet
+  category   String   @default("Genel") // Kuru Gıda, Süt Ürünleri, Kasap/Balık, Manav, vb.
+  expiryDate String?  // YYYY-MM-DD
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model OpenFoodFactsCache {
+  id        String   @id @default(cuid())
+  queryKey  String   @unique // e.g. barcode:3017620422003 or search:yulaf
+  payload   String   // JSON string of normalized search/barcode result
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+
