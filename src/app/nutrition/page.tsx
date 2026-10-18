@@ -17,12 +17,11 @@ import {
   Package,
   RefreshCw,
 } from "lucide-react";
+import { getLocalDateString } from "@/lib/date-utils";
 
 export default function NutritionPage() {
   const [activeTab, setActiveTab] = useState<"plan" | "shopping" | "prep">("plan");
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split("T")[0]
-  );
+  const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
   const [mealPlans, setMealPlans] = useState<any[]>([]);
   const [shoppingData, setShoppingData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -242,7 +241,7 @@ export default function NutritionPage() {
               className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <button
-              onClick={() => setSelectedDate(new Date().toISOString().split("T")[0])}
+              onClick={() => setSelectedDate(getLocalDateString())}
               className="px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-xs font-semibold"
             >
               Bugüne Git

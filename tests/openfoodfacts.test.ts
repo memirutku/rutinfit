@@ -83,4 +83,26 @@ describe('Open Food Facts Client & Nutriments Normalizer', () => {
     expect(OFF_ATTRIBUTION).toContain('Open Food Facts');
     expect(OFF_ATTRIBUTION).toContain('ODbL');
   });
+
+  it('should safely handle non-numeric, string or NaN nutrients without returning NaN', () => {
+    const corruptedData = {
+      product_name: 'Bozuk Verili Ürün',
+      nutriments: {
+        'energy-kcal_100g': 'N/A',
+        proteins_100g: 'undefined',
+        carbohydrates_100g: null,
+        fat_100g: -5, // Negative numbers fallback safely to 0
+      },
+    };
+
+    const product = normalizeNutriments(corruptedData, '9999999999999');
+    expect(Number.isFinite(product.calories)).toBe(true);
+    expect(Number.isFinite(product.proteinG)).toBe(true);
+    expect(Number.isFinite(product.carbsG)).toBe(true);
+    expect(Number.isFinite(product.fatG)).toBe(true);
+    expect(product.calories).toBe(0);
+    expect(product.proteinG).toBe(0);
+    expect(product.carbsG).toBe(0);
+    expect(product.fatG).toBe(0);
+  });
 });

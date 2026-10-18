@@ -35,6 +35,12 @@ const CACHE_TTL_HOURS = 24;
 export const OFF_ATTRIBUTION =
   'Veriler Open Food Facts veritabanından (Open Database License - ODbL) temin edilmiştir.';
 
+export function safeNumber(val: any, fallback = 0): number {
+  if (val === null || val === undefined || val === '') return fallback;
+  const num = typeof val === 'number' ? val : Number(val);
+  return Number.isFinite(num) && num >= 0 ? num : fallback;
+}
+
 /**
  * Normalizes Open Food Facts raw product nutriments into RutinFit standard values.
  */
@@ -55,20 +61,20 @@ export function normalizeNutriments(raw: any, barcode: string): OpenFoodFactsPro
   // Calories: energy-kcal_100g or energy_100g / 4.184
   let calories = 0;
   if (nutriments['energy-kcal_100g'] !== undefined) {
-    calories = Number(nutriments['energy-kcal_100g']);
+    calories = safeNumber(nutriments['energy-kcal_100g']);
   } else if (nutriments['energy-kcal'] !== undefined) {
-    calories = Number(nutriments['energy-kcal']);
+    calories = safeNumber(nutriments['energy-kcal']);
   } else if (nutriments['energy_100g'] !== undefined) {
     // Energy in kJ converted to kcal
-    calories = Math.round(Number(nutriments['energy_100g']) / 4.184);
+    calories = Math.round(safeNumber(nutriments['energy_100g']) / 4.184);
   }
 
   // Protein, Carbs, Fat
-  const proteinG = Number(nutriments.proteins_100g ?? nutriments.proteins ?? 0);
-  const carbsG = Number(nutriments.carbohydrates_100g ?? nutriments.carbohydrates ?? 0);
-  const fatG = Number(nutriments.fat_100g ?? nutriments.fat ?? 0);
-  const fiberG = nutriments.fiber_100g !== undefined ? Number(nutriments.fiber_100g) : null;
-  const saltG = nutriments.salt_100g !== undefined ? Number(nutriments.salt_100g) : null;
+  const proteinG = safeNumber(nutriments.proteins_100g ?? nutriments.proteins ?? 0);
+  const carbsG = safeNumber(nutriments.carbohydrates_100g ?? nutriments.carbohydrates ?? 0);
+  const fatG = safeNumber(nutriments.fat_100g ?? nutriments.fat ?? 0);
+  const fiberG = nutriments.fiber_100g !== undefined ? safeNumber(nutriments.fiber_100g) : null;
+  const saltG = nutriments.salt_100g !== undefined ? safeNumber(nutriments.salt_100g) : null;
 
   // Validation & Confidence Assessment
   let confidence: 'Yüksek' | 'Tahmini' = 'Yüksek';
@@ -151,16 +157,19 @@ export async function getProductByBarcode(barcode: string): Promise<ProductSearc
     const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 
     const url = `https://world.openfoodfacts.org/api/v3/product/${cleanBarcode}.json`;
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'User-Agent': USER_AGENT,
-        Accept: 'application/json',
-      },
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'User-Agent': USER_AGENT,
+          Accept: 'application/json',
+        },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!res.ok) {
       if (res.status === 404) {
@@ -273,24 +282,22 @@ export async function searchProductsByName(query: string): Promise<ProductSearch
   }
 
   try {
+    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(cleanQuery)}&search_simple=1&action=process&json=1&page_size=20`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
-
-    // Open Food Facts CGI search endpoint returning clean JSON
-    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
-      cleanQuery
-    )}&search_simple=1&action=process&json=1&page_size=10`;
-
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'User-Agent': USER_AGENT,
-        Accept: 'application/json',
-      },
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeout);
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'User-Agent': USER_AGENT,
+          Accept: 'application/json',
+        },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!res.ok) {
       throw new Error(`Open Food Facts arama hatası (HTTP ${res.status})`);

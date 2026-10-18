@@ -6,12 +6,13 @@ import {
 } from '@/lib/shopping-aggregator';
 import { calculateNetShoppingList } from '@/lib/pantry-service';
 import { z } from 'zod';
+import { getLocalDateString, addDaysToDateString } from '@/lib/date-utils';
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const weekStart =
-      searchParams.get('weekStart') || new Date().toISOString().split('T')[0];
+      searchParams.get('weekStart') || getLocalDateString();
     const deductPantry = searchParams.get('deductPantry') !== 'false';
 
     // Önce veritabanında bu haftaya ait kaydedilmiş liste var mı kontrol et
@@ -24,15 +25,11 @@ export async function GET(req: Request) {
 
     // Eğer henüz kaydedilmiş liste yoksa, bu haftanın yemek planından otomatik türet
     if (items.length === 0) {
-      const start = new Date(weekStart);
-      const end = new Date(start);
-      end.setDate(end.getDate() + 7);
-
       const plans = await prisma.mealPlan.findMany({
         where: {
           date: {
             gte: weekStart,
-            lt: end.toISOString().split('T')[0],
+            lt: addDaysToDateString(weekStart, 7),
           },
         },
         include: {
@@ -164,7 +161,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { weekStart, deductPantry = true } = body;
 
-    const targetWeek = weekStart || new Date().toISOString().split('T')[0];
+    const targetWeek = weekStart || getLocalDateString();
 
     // Mevcut haftalık listeyi temizle
     await prisma.shoppingListItem.deleteMany({
@@ -172,15 +169,11 @@ export async function POST(req: Request) {
     });
 
     // GET mantığını tetikleyerek yeni listeyi oluştur
-    const start = new Date(targetWeek);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 7);
-
     const plans = await prisma.mealPlan.findMany({
       where: {
         date: {
           gte: targetWeek,
-          lt: end.toISOString().split('T')[0],
+          lt: addDaysToDateString(targetWeek, 7),
         },
       },
       include: {

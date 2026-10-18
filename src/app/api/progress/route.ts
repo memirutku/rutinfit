@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { getLocalDateString } from "@/lib/date-utils";
 
 const ProgressLogSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -69,7 +70,7 @@ export async function GET() {
     const last7Dates = Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
-      return d.toISOString().split("T")[0];
+      return getLocalDateString(d);
     });
 
     const creatineCompliance = last7Dates.map((date) => {
@@ -80,7 +81,7 @@ export async function GET() {
       };
     });
 
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = getLocalDateString();
     const todayCreatine = supplements.find((s) => s.date === todayStr);
     const todayWellbeing = wellbeings.find((w) => w.date === todayStr);
     const todayWeight = weights.find((w) => w.date === todayStr);

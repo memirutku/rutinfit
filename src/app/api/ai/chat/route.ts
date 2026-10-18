@@ -6,14 +6,15 @@ import { AIActionResponseSchema } from '@/lib/ai-schema';
 import { getOpenGymSummary } from '@/lib/ai-tools/read-tools';
 import { createActionDraft } from '@/lib/ai-tools/action-tools';
 import { calculateRecipeNutrition } from '@/lib/ai-tools/draft-tools';
+import { getLocalDateString } from '@/lib/date-utils';
 
 const ChatMessageSchema = z.object({
-  role: z.enum(['system', 'user', 'assistant']),
-  content: z.string(),
+  role: z.enum(['user', 'assistant']), // Client is strictly forbidden from injecting 'system' role
+  content: z.string().max(4000, 'Mesaj en fazla 4000 karakter olabilir.'),
 });
 
 const ChatRequestSchema = z.object({
-  messages: z.array(ChatMessageSchema),
+  messages: z.array(ChatMessageSchema).max(30, 'En fazla 30 mesaj geçmişi gönderilebilir.'),
   conversationId: z.string().optional(),
   fileIds: z.array(z.string()).optional(),
 });
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
     const aiSettings = await prisma.aISettings.findFirst();
     const profile = await prisma.userProfile.findFirst();
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
     const todayLogs = await prisma.foodLog.findMany({
       where: { date: todayStr },
     });
@@ -247,27 +248,29 @@ Kullanıcı onaylamadan hiçbir değişiklik veritabanına uygulanmaz.`;
     let actionProposal: any = null;
     let draftId: string | null = null;
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
-
-      const aiRes = await fetch(chatEndpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          model,
-          messages: requestMessages,
-          temperature: 0.7,
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
+      let aiRes: Response;
+      try {
+        aiRes = await fetch(chatEndpoint, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            model,
+            messages: requestMessages,
+            temperature: 0.7,
+          }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!aiRes.ok) {
-        const errorText = await aiRes.text();
         return NextResponse.json({
-          reply: `⚠️ Yerel yapay zekâ sunucusu hata verdi (${aiRes.status}): ${errorText}. Lütfen Ayarlar sekmesinden bağlantıyı kontrol edin.`,
+          reply: `⚠️ Yerel yapay zekâ sunucusu hata verdi (${aiRes.status}). Lütfen Ayarlar sekmesinden model bağlantısını kontrol edin.`,
           conversationId: convId,
           isError: true,
         });

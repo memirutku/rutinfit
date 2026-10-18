@@ -1,3 +1,5 @@
+import { getLocalDateString } from "./date-utils";
+
 export interface ImportedSet {
   exerciseName: string;
   setNumber: number;
@@ -90,7 +92,7 @@ export function parseWorkoutCsv(csvText: string): WorkoutImportResult {
     if (row.length < 3) continue;
 
     const rawDate = dateIdx !== -1 ? row[dateIdx] : "";
-    const parsedDate = normalizeDate(rawDate) || new Date().toISOString().split("T")[0];
+    const parsedDate = normalizeDate(rawDate) || getLocalDateString();
     const workoutName =
       workoutNameIdx !== -1 && row[workoutNameIdx]
         ? row[workoutNameIdx]
@@ -180,7 +182,7 @@ function normalizeDate(raw: string): string | null {
   }
   const parsed = new Date(raw);
   if (!isNaN(parsed.getTime())) {
-    return parsed.toISOString().split("T")[0];
+    return getLocalDateString(parsed);
   }
   return null;
 }

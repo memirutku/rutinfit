@@ -145,4 +145,38 @@ describe('AI Tools & Action Draft Engine', () => {
     expect(delta.newItemsToAdd.length).toBeGreaterThanOrEqual(1);
     expect(delta.impactSummary).toContain('Alışveriş listesine');
   });
+
+  it('should reject creating draft when proposed changes fail schema validation', async () => {
+    await expect(
+      createActionDraft({
+        draftType: 'food_log',
+        proposedChanges: {
+          name: 'Hatalı Besin',
+          grams: -50, // Geçersiz negatif gram
+        },
+        impactSummary: 'TEST_ Gecersiz gram',
+      })
+    ).rejects.toThrow();
+  });
+
+  it('should reject applying draft when edited changes fail schema validation', async () => {
+    const draft = await createActionDraft({
+      draftType: 'workout_session',
+      proposedChanges: {
+        name: 'TEST_Gecerli_Seans',
+        durationMinutes: 45,
+        sets: [{ exerciseName: 'Barbell Row', weightKg: 50, reps: 10 }],
+      },
+      impactSummary: 'TEST_ Gecerli seans',
+    });
+
+    // Attempt to apply with invalid edited changes (empty name)
+    await expect(
+      verifyAndApplyActionDraft(draft.draftId, draft.approvalToken, {
+        name: '', // Invalid empty string
+        sets: [],
+      })
+    ).rejects.toThrow();
+  });
 });
+

@@ -82,4 +82,42 @@ describe('Pantry Service & Net Shopping List Deduction', () => {
     await deletePantryItem(p1.id);
     await deletePantryItem(p2.id);
   });
+
+  it('should correctly convert units (1 kg stock satisfies 250g requirement)', async () => {
+    const pKg = await upsertPantryItem({
+      name: 'TEST_KILER_Un',
+      amount: 1,
+      unit: 'kg',
+      category: 'Kuru Gıda',
+    });
+
+    const needed = [
+      { name: 'TEST_KILER_Un', amount: 250, unit: 'g', category: 'Kuru Gıda' },
+    ];
+
+    const result = await calculateNetShoppingList(needed);
+    expect(result.totalCovered).toBe(1);
+    expect(result.totalToBuy).toBe(0);
+
+    await deletePantryItem(pKg.id);
+  });
+
+  it('should flag unit mismatch instead of incorrect deduction (adet vs g)', async () => {
+    const pAdet = await upsertPantryItem({
+      name: 'TEST_KILER_Yumurta',
+      amount: 6,
+      unit: 'adet',
+      category: 'Kuru Gıda',
+    });
+
+    const needed = [
+      { name: 'TEST_KILER_Yumurta', amount: 150, unit: 'g', category: 'Kuru Gıda' },
+    ];
+
+    const result = await calculateNetShoppingList(needed);
+    expect(result.totalToBuy).toBe(1);
+    expect(result.itemsToBuy[0].notes).toContain('Birim uyuşmazlığı');
+
+    await deletePantryItem(pAdet.id);
+  });
 });

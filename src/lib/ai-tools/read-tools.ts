@@ -3,6 +3,7 @@ import { calculateDailySummary } from '../nutrition-calculator';
 import { getOpenGymLocalState, checkOpenGymHealth } from '../opengym-client';
 import { getPantryInventory } from '../pantry-service';
 import { getProductByBarcode, searchProductsByName } from '../openfoodfacts-client';
+import { getLocalDateString } from '../date-utils';
 
 export async function getUserProfile() {
   const profile = await prisma.userProfile.findFirst();
@@ -44,7 +45,7 @@ export async function getNutritionTargets() {
 }
 
 export async function getDashboardSummary(dateStr?: string) {
-  const date = dateStr || new Date().toISOString().split('T')[0];
+  const date = dateStr || getLocalDateString();
   const [profile, logs, workoutSessions] = await Promise.all([
     prisma.userProfile.findFirst(),
     prisma.foodLog.findMany({ where: { date } }),
@@ -174,7 +175,7 @@ export async function getSavedRecipes() {
 }
 
 export async function getActiveMealPlan(dateStr?: string) {
-  const date = dateStr || new Date().toISOString().split('T')[0];
+  const date = dateStr || getLocalDateString();
   const plan = await prisma.mealPlan.findUnique({
     where: { date },
     include: {
@@ -243,7 +244,7 @@ export async function getWorkoutRoutine() {
 
 export async function getOpenGymSummary() {
   const health = await checkOpenGymHealth();
-  const state = getOpenGymLocalState();
+  const state = await getOpenGymLocalState();
 
   const totalWorkouts = state?.workouts?.length ?? 0;
   const recentWorkouts = (state?.workouts ?? []).slice(-5).map((w) => ({
@@ -299,7 +300,7 @@ export async function getWeightAndWellbeingHistory() {
 }
 
 export async function getSupplementSchedule() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString();
   const logs = await prisma.supplementLog.findMany({
     where: { date: today },
   });

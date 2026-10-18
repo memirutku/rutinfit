@@ -65,4 +65,55 @@ describe("openGym Entegrasyon ve Veri Eşleme", () => {
     expect(ogWeights[0]).toEqual({ date: "2026-10-17", weight: 112.4 });
     expect(ogWeights[1]).toEqual({ date: "2026-10-18", weight: 111.9 });
   });
+
+  it("getOpenGymDataDir çevre değişkenini önceliklendirmeli ve getOpenGymLocalState asenkron okumalı", async () => {
+    const fs = await import("fs");
+    const path = await import("path");
+    const os = await import("os");
+    const { getOpenGymDataDir, getOpenGymLocalState, syncWeightsToOpenGymState } = await import(
+      "../src/lib/opengym-client"
+    );
+
+    const tmpDir = path.join(os.tmpdir(), `opengym_test_${Date.now()}`);
+    fs.mkdirSync(tmpDir, { recursive: true });
+    process.env.OPENGYM_DATA_DIR = tmpDir;
+
+    try {
+      expect(getOpenGymDataDir()).toBe(tmpDir);
+
+      // Başlangıçta state dosyası yokken null dönmeli
+      const emptyState = await getOpenGymLocalState();
+      expect(emptyState).toBeNull();
+
+      // State dosyası oluştur
+      const stateFilePath = path.join(tmpDir, "state-mock.json");
+      const sampleState = {
+        workouts: [{ id: "w1", date: "2026-10-18", name: "Göğüs", exercises: [] }],
+        bodyWeight: [{ date: "2026-10-17", weight: 112.0 }],
+      };
+      fs.writeFileSync(stateFilePath, JSON.stringify(sampleState, null, 2), "utf-8");
+
+      // Asenkron okuma doğrulaması
+      const readState = await getOpenGymLocalState();
+      expect(readState).not.toBeNull();
+      expect(readState?.workouts?.length).toBe(1);
+      expect(readState?.bodyWeight?.length).toBe(1);
+
+      // Kilo senkronizasyonu doğrulaması (tekrar eden tarih eklenmemeli, yeni tarih eklenmeli)
+      const newWeights = [
+        { date: "2026-10-17", weightKg: 112.0 }, // Mevcut
+        { date: "2026-10-18", weightKg: 111.5 }, // Yeni
+      ];
+      const added = await syncWeightsToOpenGymState(newWeights);
+      expect(added).toBe(1);
+
+      const updatedState = await getOpenGymLocalState();
+      expect(updatedState?.bodyWeight?.length).toBe(2);
+      expect(updatedState?.bodyWeight?.[1]).toEqual({ date: "2026-10-18", weight: 111.5 });
+    } finally {
+      delete process.env.OPENGYM_DATA_DIR;
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 });
+

@@ -80,4 +80,120 @@ describe("AI Yanıt ve Öneri Şeması Doğrulama", () => {
     const parsed = AIActionResponseSchema.safeParse(validAdjustment);
     expect(parsed.success).toBe(true);
   });
+
+  describe("Tüm 7 Eylem Taslağı Şeması Doğrulaması", () => {
+    it("meal_plan taslağını doğrulamalı ve geçersiz öğün tipini reddetmeli", async () => {
+      const { validateDraftChanges } = await import("../src/lib/ai-schema");
+      const valid = {
+        date: "2026-10-18",
+        notes: "Örnek haftalık plan",
+        meals: [{ mealType: "breakfast", customName: "Kahvaltı", servings: 1 }],
+      };
+      expect(() => validateDraftChanges("meal_plan", valid)).not.toThrow();
+
+      const invalid = {
+        date: "18-10-2026", // Geçersiz format
+      };
+      expect(() => validateDraftChanges("meal_plan", invalid)).toThrow();
+    });
+
+    it("food_log taslağını doğrulamalı ve sıfır/negatif gramajı reddetmeli", async () => {
+      const { validateDraftChanges } = await import("../src/lib/ai-schema");
+      const valid = {
+        name: "Yulaf",
+        grams: 50,
+        calories: 180,
+      };
+      expect(() => validateDraftChanges("food_log", valid)).not.toThrow();
+
+      const invalid = {
+        name: "Yulaf",
+        grams: -10, // Negatif
+      };
+      expect(() => validateDraftChanges("food_log", invalid)).toThrow();
+    });
+
+    it("recipe taslağını ve pozitif porsiyon kontrolünü doğrulamalı", async () => {
+      const { validateDraftChanges } = await import("../src/lib/ai-schema");
+      const valid = {
+        name: "Proteinli Yulaf Lapası",
+        instructions: "Karıştır ve pişir",
+        prepMinutes: 10,
+        servings: 2,
+        ingredients: [{ foodItemId: "food-1", grams: 100 }],
+      };
+      expect(() => validateDraftChanges("recipe", valid)).not.toThrow();
+
+      const invalid = {
+        name: "", // Boş ad
+        servings: 0,
+      };
+      expect(() => validateDraftChanges("recipe", invalid)).toThrow();
+    });
+
+    it("nutrition_targets taslağını ve pozitif kalori kontrolünü doğrulamalı", async () => {
+      const { validateDraftChanges } = await import("../src/lib/ai-schema");
+      const valid = {
+        calorieTarget: 2200,
+        proteinTargetG: 160,
+        fatTargetG: 70,
+        carbTargetG: 230,
+      };
+      expect(() => validateDraftChanges("nutrition_targets", valid)).not.toThrow();
+
+      const invalid = {
+        calorieTarget: -500, // Negatif
+        proteinTargetG: -20,
+        fatTargetG: 70,
+        carbTargetG: 200,
+      };
+      expect(() => validateDraftChanges("nutrition_targets", invalid)).toThrow();
+    });
+
+    it("workout_session taslağını ve set/tekrar sınırlarını doğrulamalı", async () => {
+      const { validateDraftChanges } = await import("../src/lib/ai-schema");
+      const valid = {
+        name: "Üst Vücut Güç",
+        durationMinutes: 50,
+        sets: [
+          { exerciseName: "Bench Press", setNumber: 1, weightKg: 80, reps: 8, rpe: 8 },
+        ],
+      };
+      expect(() => validateDraftChanges("workout_session", valid)).not.toThrow();
+
+      const invalid = {
+        name: "", // Boş ad
+        sets: [{ exerciseName: "Bench Press", reps: -5 }], // Negatif tekrar
+      };
+      expect(() => validateDraftChanges("workout_session", invalid)).toThrow();
+    });
+
+    it("weight_wellbeing taslağını ve 1-5 arası skor sınırlamasını doğrulamalı", async () => {
+      const { validateDraftChanges } = await import("../src/lib/ai-schema");
+      const valid = {
+        date: "2026-10-18",
+        weightKg: 111.5,
+        energy1to5: 4,
+        hunger1to5: 2,
+        stress1to5: 3,
+        sleepMinutes: 450,
+      };
+      expect(() => validateDraftChanges("weight_wellbeing", valid)).not.toThrow();
+
+      const invalid = {
+        energy1to5: 6, // 1-5 sınırının üstü
+      };
+      expect(() => validateDraftChanges("weight_wellbeing", invalid)).toThrow();
+    });
+
+    it("bulk_import taslağını doğrulamalı", async () => {
+      const { validateDraftChanges } = await import("../src/lib/ai-schema");
+      const valid = {
+        importSource: "openFoodFacts",
+        itemsCount: 10,
+        records: [{ barcode: "123456" }],
+      };
+      expect(() => validateDraftChanges("bulk_import", valid)).not.toThrow();
+    });
+  });
 });

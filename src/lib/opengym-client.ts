@@ -1,5 +1,7 @@
 import fs from "fs";
+import { promises as fsp } from "fs";
 import path from "path";
+import { getStoragePaths } from "./storage-paths";
 
 export interface OpenGymHealth {
   isOnline: boolean;
@@ -41,7 +43,24 @@ export interface OpenGymState {
   routines?: any[];
 }
 
-const OPENGYM_DATA_DIR = path.join(process.cwd(), "opengym", "data");
+/**
+ * OpenGym veri dizinini çevre değişkenine veya OS uygulama depolama dizinine göre çözümler.
+ */
+export function getOpenGymDataDir(): string {
+  if (process.env.OPENGYM_DATA_DIR) {
+    return path.resolve(process.env.OPENGYM_DATA_DIR);
+  }
+  try {
+    const appStorageDir = getStoragePaths().dataDir;
+    const appDataOpenGym = path.join(appStorageDir, "opengym", "data");
+    if (fs.existsSync(appDataOpenGym)) {
+      return appDataOpenGym;
+    }
+  } catch {
+    // getStoragePaths hatası durumunda varsayılan yola geçilir
+  }
+  return path.join(process.cwd(), "opengym", "data");
+}
 
 /**
  * openGym HTTP API sağlık durumunu kontrol eder.
@@ -82,15 +101,16 @@ export async function checkOpenGymHealth(
 }
 
 /**
- * openGym yerel veri klasöründeki kullanıcı durum dosyasını (state-*.json) okur.
+ * openGym yerel veri klasöründeki kullanıcı durum dosyasını (state-*.json) asenkron okur.
  */
-export function getOpenGymLocalState(): OpenGymState | null {
+export async function getOpenGymLocalState(): Promise<OpenGymState | null> {
   try {
-    if (!fs.existsSync(OPENGYM_DATA_DIR)) {
+    const dataDir = getOpenGymDataDir();
+    if (!fs.existsSync(dataDir)) {
       return null;
     }
 
-    const files = fs.readdirSync(OPENGYM_DATA_DIR);
+    const files = await fsp.readdir(dataDir);
     const stateFile = files.find(
       (f) => f.startsWith("state-") && f.endsWith(".json")
     );
@@ -99,14 +119,64 @@ export function getOpenGymLocalState(): OpenGymState | null {
       return null;
     }
 
-    const content = fs.readFileSync(
-      path.join(OPENGYM_DATA_DIR, stateFile),
+    const content = await fsp.readFile(
+      path.join(dataDir, stateFile),
       "utf-8"
     );
     return JSON.parse(content) as OpenGymState;
   } catch (err) {
     console.error("openGym local state okuma hatası:", err);
     return null;
+  }
+}
+
+/**
+ * RutinFit tartı kayıtlarını openGym state dosyasına asenkron olarak yazar.
+ */
+export async function syncWeightsToOpenGymState(
+  rfWeights: { date: string; weightKg: number }[]
+): Promise<number> {
+  try {
+    const dataDir = getOpenGymDataDir();
+    if (!fs.existsSync(dataDir) || rfWeights.length === 0) {
+      return 0;
+    }
+
+    const files = await fsp.readdir(dataDir);
+    const stateFile = files.find(
+      (f) => f.startsWith("state-") && f.endsWith(".json")
+    );
+
+    if (!stateFile) {
+      return 0;
+    }
+
+    const filePath = path.join(dataDir, stateFile);
+    const content = await fsp.readFile(filePath, "utf-8");
+    const currentState = JSON.parse(content);
+
+    const currentWeights: { date: string; weight: number }[] =
+      currentState.bodyWeight || [];
+    const dateSet = new Set(currentWeights.map((w) => w.date));
+
+    let addedCount = 0;
+    for (const w of rfWeights) {
+      if (!dateSet.has(w.date)) {
+        currentWeights.push({ date: w.date, weight: w.weightKg });
+        addedCount++;
+      }
+    }
+
+    if (addedCount > 0) {
+      currentWeights.sort((a, b) => a.date.localeCompare(b.date));
+      currentState.bodyWeight = currentWeights;
+      await fsp.writeFile(filePath, JSON.stringify(currentState, null, 2), "utf-8");
+    }
+
+    return addedCount;
+  } catch (err) {
+    console.error("openGym tartı senkronizasyon hatası:", err);
+    return 0;
   }
 }
 

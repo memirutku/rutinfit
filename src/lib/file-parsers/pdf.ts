@@ -10,7 +10,7 @@ export async function parsePdfFile(input: ParseFileInput): Promise<ParsedFileRes
 
   try {
     // Dynamic require or import of pdf-parse to handle CJS/ESM compatibility
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    // eslint-disable-next-line
     const pdfParseModule = require('pdf-parse');
     const PDFParse = pdfParseModule.PDFParse || pdfParseModule.default?.PDFParse || pdfParseModule;
 

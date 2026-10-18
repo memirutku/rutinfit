@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { MuscleHeatmap } from "@/components/MuscleHeatmap";
 import { PlateCalculator } from "@/components/PlateCalculator";
+import { getLocalDateString } from "@/lib/date-utils";
 
 export default function WorkoutsPage() {
   const [workoutSubTab, setWorkoutSubTab] = useState<"workouts" | "heatmap" | "plates">("workouts");
@@ -59,7 +60,7 @@ export default function WorkoutsPage() {
     setLogs: [],
   });
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getLocalDateString();
 
   useEffect(() => {
     loadWorkouts();

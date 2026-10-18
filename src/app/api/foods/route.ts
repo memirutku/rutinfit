@@ -19,6 +19,8 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search") || "";
     const category = searchParams.get("category") || "";
+    const limitParam = searchParams.get("limit");
+    const take = limitParam ? Math.min(Math.max(1, parseInt(limitParam, 10) || 50), 200) : 100;
 
     const where: any = {};
     if (search) {
@@ -31,6 +33,7 @@ export async function GET(req: Request) {
     const foods = await prisma.foodItem.findMany({
       where,
       orderBy: { name: "asc" },
+      take,
     });
 
     return NextResponse.json(foods);

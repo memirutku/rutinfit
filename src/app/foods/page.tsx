@@ -16,6 +16,7 @@ import {
   AlertCircle,
   Download,
 } from "lucide-react";
+import { getLocalDateString } from "@/lib/date-utils";
 
 export default function FoodsPage() {
   const [activeTab, setActiveTab] = useState<"foods" | "recipes" | "packaged">("foods");
@@ -189,7 +190,7 @@ export default function FoodsPage() {
 
   // Ürünü doğrudan bugünkü besin günlüğüne kaydetme
   async function handleLogProductAsMeal(product: any, grams = 100) {
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = getLocalDateString();
     const factor = grams / (product.basisGrams || 100);
 
     try {

@@ -140,3 +140,15 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 ### Recharts
 * **License:** MIT License
 * **Copyright:** (c) 2015-2026 Recharts Group
+
+---
+
+## 6. openGym & Exercise Media Isolation
+
+* **Upstream Project:** [openGym](https://github.com/DuarteSantos8/openGym) by DuarteSantos8
+* **Upstream License:** GNU Affero General Public License v3.0 (AGPL-3.0)
+* **Integration Model:** Out-of-process Sidecar / Local REST API & JSON state file bridge.
+* **Architecture Boundary Notice:**  
+  RutinFit is licensed under the MIT License and **does not** embed, relicense, or statically compile openGym source code into the core RutinFit distribution. openGym operates as an optional, independent companion process (sidecar) communicating via localhost HTTP/JSON.
+* **Exercise Media Notice:**  
+  Exercise illustrations and animations in openGym originate from Gym Visual. These media assets are subject to third-party copyright and **are NOT bundled** with RutinFit binaries. RutinFit only renders user-supplied assets or references local openGym sidecar endpoints at runtime without unauthorized redistribution.

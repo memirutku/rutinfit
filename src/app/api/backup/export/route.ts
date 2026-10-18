@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getLocalDateString } from "@/lib/date-utils";
 
 export async function GET() {
   try {
@@ -49,9 +50,7 @@ export async function GET() {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        "Content-Disposition": `attachment; filename="rutinfit-backup-${
-          new Date().toISOString().split("T")[0]
-        }.json"`,
+        "Content-Disposition": `attachment; filename="rutinfit-backup-${getLocalDateString()}.json"`,
       },
     });
   } catch (error) {

@@ -17,6 +17,7 @@ import {
   Utensils,
   ExternalLink,
 } from "lucide-react";
+import { getLocalDateString } from "@/lib/date-utils";
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
@@ -33,11 +34,12 @@ export default function DashboardPage() {
   // Hızlı yemek ekleme modalı
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [foodsList, setFoodsList] = useState<any[]>([]);
+  const [isLoadingFoods, setIsLoadingFoods] = useState(false);
   const [selectedFoodId, setSelectedFoodId] = useState("");
   const [selectedMealType, setSelectedMealType] = useState("lunch");
   const [quickGrams, setQuickGrams] = useState("100");
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getLocalDateString();
 
   useEffect(() => {
     loadAllData();
@@ -46,31 +48,28 @@ export default function DashboardPage() {
   async function loadAllData() {
     setLoading(true);
     try {
-      const [profRes, foodRes, workoutRes, progRes, allFoodsRes] =
+      const [profRes, foodRes, workoutRes, progRes] =
         await Promise.all([
           fetch("/api/profile"),
           fetch(`/api/food-logs?date=${todayStr}`),
           fetch(`/api/workouts?date=${todayStr}`),
           fetch("/api/progress"),
-          fetch("/api/foods"),
         ]);
 
-      const profJson = await profRes.json();
-      const foodJson = await foodRes.json();
-      const workoutJson = await workoutRes.json();
-      const progJson = await progRes.json();
-      const allFoodsJson = await allFoodsRes.json();
+      const profJson = profRes.ok ? await profRes.json() : null;
+      const foodJson = foodRes.ok ? await foodRes.json() : null;
+      const workoutJson = workoutRes.ok ? await workoutRes.json() : null;
+      const progJson = progRes.ok ? await progRes.json() : null;
 
       setProfile(profJson);
       setFoodData(foodJson);
       setWorkoutData(workoutJson);
       setProgressData(progJson);
-      setFoodsList(allFoodsJson);
 
-      if (progJson.today?.weightKg) {
+      if (progJson?.today?.weightKg) {
         setQuickWeight(String(progJson.today.weightKg));
       }
-      if (progJson.today?.energy1to5) {
+      if (progJson?.today?.energy1to5) {
         setQuickEnergy(progJson.today.energy1to5);
       }
       if (progJson.today?.sleepMinutes) {
@@ -127,6 +126,27 @@ export default function DashboardPage() {
       console.error(e);
     } finally {
       setIsSavingProgress(false);
+    }
+  }
+
+  async function handleOpenQuickAdd() {
+    setIsQuickAddOpen(true);
+    if (foodsList.length === 0) {
+      setIsLoadingFoods(true);
+      try {
+        const res = await fetch("/api/foods?limit=50");
+        if (res.ok) {
+          const data = await res.json();
+          setFoodsList(data);
+          if (data.length > 0 && !selectedFoodId) {
+            setSelectedFoodId(data[0].id);
+          }
+        }
+      } catch (err) {
+        console.error("Besin listesi yüklenemedi:", err);
+      } finally {
+        setIsLoadingFoods(false);
+      }
     }
   }
 
@@ -221,7 +241,7 @@ export default function DashboardPage() {
             <span>AI Koçuna Danış</span>
           </Link>
           <button
-            onClick={() => setIsQuickAddOpen(true)}
+            onClick={handleOpenQuickAdd}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4" />

@@ -1,15 +1,10 @@
 import crypto from 'crypto';
 import { prisma } from '../prisma';
+import { getLocalDateString } from '../date-utils';
+import { DraftType, validateDraftChanges } from '../ai-schema';
 
 export interface CreateDraftParams {
-  draftType:
-    | 'meal_plan'
-    | 'food_log'
-    | 'recipe'
-    | 'nutrition_targets'
-    | 'workout_session'
-    | 'weight_wellbeing'
-    | 'bulk_import';
+  draftType: DraftType;
   proposedChanges: Record<string, any>;
   impactSummary: string;
   ttlMinutes?: number;
@@ -22,6 +17,9 @@ export function hashApprovalToken(token: string): string {
 export async function createActionDraft(params: CreateDraftParams) {
   const { draftType, proposedChanges, impactSummary, ttlMinutes = 120 } = params;
 
+  // Validate proposed changes against schema before saving draft
+  const validatedChanges = validateDraftChanges(draftType, proposedChanges);
+
   const rawApprovalToken = crypto.randomBytes(24).toString('hex');
   const approvalTokenHash = hashApprovalToken(rawApprovalToken);
   const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
@@ -29,7 +27,7 @@ export async function createActionDraft(params: CreateDraftParams) {
   const draft = await prisma.actionDraft.create({
     data: {
       draftType,
-      proposedChanges: JSON.stringify(proposedChanges),
+      proposedChanges: JSON.stringify(validatedChanges),
       impactSummary,
       status: 'pending',
       approvalTokenHash,
@@ -42,7 +40,7 @@ export async function createActionDraft(params: CreateDraftParams) {
     approvalToken: rawApprovalToken,
     draftType: draft.draftType,
     impactSummary: draft.impactSummary,
-    proposedChanges,
+    proposedChanges: validatedChanges,
     expiresAt: draft.expiresAt,
   };
 }
@@ -83,7 +81,8 @@ export async function verifyAndApplyActionDraft(
     throw new Error('Geçersiz onay anahtarı (approvalToken). Yetkisiz veya sahte işlem engellendi.');
   }
 
-  const changesToApply = editedChanges || JSON.parse(draft.proposedChanges || '{}');
+  const rawChanges = editedChanges || JSON.parse(draft.proposedChanges || '{}');
+  const changesToApply = validateDraftChanges(draft.draftType as DraftType, rawChanges);
   let affectedEntityId: string | undefined;
 
   // Execute mutation safely inside transaction
@@ -91,7 +90,7 @@ export async function verifyAndApplyActionDraft(
     switch (draft.draftType) {
       case 'meal_plan': {
         const { date, meals, notes } = changesToApply;
-        const targetDate = date || new Date().toISOString().split('T')[0];
+        const targetDate = date || getLocalDateString();
 
         // Upsert meal plan
         const plan = await tx.mealPlan.upsert({
@@ -122,7 +121,7 @@ export async function verifyAndApplyActionDraft(
 
       case 'food_log': {
         const { date, time, mealType, name, grams, calories, proteinG, carbsG, fatG } = changesToApply;
-        const targetDate = date || new Date().toISOString().split('T')[0];
+        const targetDate = date || getLocalDateString();
         const log = await tx.foodLog.create({
           data: {
             date: targetDate,
@@ -189,7 +188,7 @@ export async function verifyAndApplyActionDraft(
 
       case 'workout_session': {
         const { date, name, durationMinutes, rpe, sets } = changesToApply;
-        const targetDate = date || new Date().toISOString().split('T')[0];
+        const targetDate = date || getLocalDateString();
         const session = await tx.workoutSession.create({
           data: {
             date: targetDate,
@@ -221,7 +220,7 @@ export async function verifyAndApplyActionDraft(
 
       case 'weight_wellbeing': {
         const { date, weightKg, energy1to5, hunger1to5, sleepMinutes, stress1to5, notes } = changesToApply;
-        const targetDate = date || new Date().toISOString().split('T')[0];
+        const targetDate = date || getLocalDateString();
 
         if (weightKg !== undefined) {
           const wLog = await tx.weightLog.upsert({

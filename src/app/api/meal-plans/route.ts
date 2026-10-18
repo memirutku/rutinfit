@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { calculateRecipeMacros } from "@/lib/nutrition-calculator";
+import { addDaysToDateString } from "@/lib/date-utils";
 
 const PlannedMealItemSchema = z.object({
   mealType: z.string(),
@@ -29,12 +30,9 @@ export async function GET(req: Request) {
       where.date = date;
     } else if (weekStart) {
       // 7 günlük aralık
-      const start = new Date(weekStart);
-      const end = new Date(start);
-      end.setDate(end.getDate() + 7);
       where.date = {
         gte: weekStart,
-        lt: end.toISOString().split("T")[0],
+        lt: addDaysToDateString(weekStart, 7),
       };
     }
 

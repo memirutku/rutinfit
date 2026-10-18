@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.rutinfit.desktop",
   "build": {
-    "frontendDist": "../out",
+    "frontendDist": "http://127.0.0.1:3005",
     "devUrl": "http://localhost:3005",
     "beforeDevCommand": "pnpm dev -p 3005",
     "beforeBuildCommand": "pnpm build"
@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self' http://127.0.0.1:* http://localhost:*; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; connect-src 'self' http://127.0.0.1:* http://localhost:* https://world.openfoodfacts.org; font-src 'self' data:;"
     }
   },
   "bundle": {

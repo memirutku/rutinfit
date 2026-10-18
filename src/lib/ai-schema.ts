@@ -44,3 +44,106 @@ export const AIActionResponseSchema = z.discriminatedUnion("type", [
 export type MealProposal = z.infer<typeof MealProposalSchema>;
 export type WorkoutAdjustment = z.infer<typeof WorkoutAdjustmentSchema>;
 export type AIActionResponse = z.infer<typeof AIActionResponseSchema>;
+
+// --- Draft Types & Schemas (7 Distinct Types) ---
+
+export const PlannedMealItemSchema = z.object({
+  mealType: z.enum(["breakfast", "lunch", "dinner", "workSnack", "snack", "extra"]).default("snack"),
+  recipeId: z.string().optional().nullable(),
+  customName: z.string().optional().nullable(),
+  name: z.string().optional().nullable(),
+  plannedTime: z.string().optional().nullable(),
+  servings: z.number().positive().default(1),
+});
+
+export const MealPlanDraftSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Geçersiz tarih formatı (YYYY-MM-DD)").optional(),
+  notes: z.string().optional().nullable(),
+  meals: z.array(PlannedMealItemSchema).optional().default([]),
+});
+
+export const FoodLogDraftSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  time: z.string().optional(),
+  mealType: z.enum(["breakfast", "lunch", "dinner", "workSnack", "snack", "extra"]).default("extra"),
+  name: z.string().min(1, "Besin adı boş olamaz"),
+  grams: z.number().positive("Gram miktarı pozitif olmalıdır"),
+  calories: z.number().nonnegative().optional(),
+  proteinG: z.number().nonnegative().optional(),
+  carbsG: z.number().nonnegative().optional(),
+  fatG: z.number().nonnegative().optional(),
+  foodItemId: z.string().optional().nullable(),
+});
+
+export const RecipeIngredientDraftSchema = z.object({
+  foodItemId: z.string().min(1),
+  grams: z.number().positive(),
+});
+
+export const RecipeDraftSchema = z.object({
+  name: z.string().min(1, "Tarif adı boş olamaz"),
+  instructions: z.string().optional().default(""),
+  prepMinutes: z.number().int().nonnegative().default(15),
+  servings: z.number().int().positive().default(1),
+  ingredients: z.array(RecipeIngredientDraftSchema).optional().default([]),
+});
+
+export const NutritionTargetDraftSchema = z.object({
+  calorieTarget: z.number().positive("Kalori hedefi pozitif olmalıdır"),
+  calorieCeiling: z.number().positive().optional(),
+  proteinTargetG: z.number().nonnegative("Protein hedefi negatif olamaz"),
+  fatTargetG: z.number().nonnegative("Yağ hedefi negatif olamaz"),
+  carbTargetG: z.number().nonnegative("Karbonhidrat hedefi negatif olamaz"),
+});
+
+export const SetLogDraftSchema = z.object({
+  exerciseName: z.string().min(1, "Egzersiz adı boş olamaz"),
+  setNumber: z.number().int().positive().optional(),
+  weightKg: z.number().nonnegative().default(0),
+  reps: z.number().int().positive().default(10),
+  rpe: z.number().min(1).max(10).optional().nullable(),
+});
+
+export const WorkoutSessionDraftSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  name: z.string().min(1, "Antrenman adı boş olamaz"),
+  durationMinutes: z.number().int().positive().default(45),
+  rpe: z.number().min(1).max(10).optional().nullable(),
+  sets: z.array(SetLogDraftSchema).optional().default([]),
+});
+
+export const WeightWellbeingDraftSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  weightKg: z.number().positive("Kilo pozitif olmalıdır").optional(),
+  energy1to5: z.number().int().min(1).max(5).optional(),
+  hunger1to5: z.number().int().min(1).max(5).optional(),
+  sleepMinutes: z.number().int().nonnegative().optional(),
+  stress1to5: z.number().int().min(1).max(5).optional(),
+  notes: z.string().optional().nullable(),
+});
+
+export const BulkImportDraftSchema = z.object({
+  importSource: z.string().optional(),
+  itemsCount: z.number().int().nonnegative().optional(),
+  records: z.array(z.record(z.any())).optional(),
+});
+
+export const DraftSchemas = {
+  meal_plan: MealPlanDraftSchema,
+  food_log: FoodLogDraftSchema,
+  recipe: RecipeDraftSchema,
+  nutrition_targets: NutritionTargetDraftSchema,
+  workout_session: WorkoutSessionDraftSchema,
+  weight_wellbeing: WeightWellbeingDraftSchema,
+  bulk_import: BulkImportDraftSchema,
+} as const;
+
+export type DraftType = keyof typeof DraftSchemas;
+
+export function validateDraftChanges(draftType: DraftType, data: unknown): any {
+  const schema = DraftSchemas[draftType];
+  if (!schema) {
+    throw new Error(`Bilinmeyen taslak türü: ${draftType}`);
+  }
+  return schema.parse(data);
+}

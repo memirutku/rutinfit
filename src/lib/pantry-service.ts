@@ -99,6 +99,40 @@ export async function deletePantryItem(id: string) {
 }
 
 /**
+ * Standart birim dönüşüm fonksiyonu (kg <-> g, L <-> ml)
+ */
+export function convertUnitAmount(
+  amount: number,
+  fromUnit: string = 'g',
+  toUnit: string = 'g'
+): { convertedAmount: number; isCompatible: boolean } {
+  const from = fromUnit.toLowerCase().trim();
+  const to = toUnit.toLowerCase().trim();
+
+  if (from === to) {
+    return { convertedAmount: amount, isCompatible: true };
+  }
+
+  // Ağırlık dönüşümleri: kg <-> g
+  if (from === 'kg' && (to === 'g' || to === 'gr')) {
+    return { convertedAmount: amount * 1000, isCompatible: true };
+  }
+  if ((from === 'g' || from === 'gr') && to === 'kg') {
+    return { convertedAmount: amount / 1000, isCompatible: true };
+  }
+
+  // Hacim dönüşümleri: l/lt/litre <-> ml
+  if ((from === 'l' || from === 'lt' || from === 'litre' || from === 'liter') && to === 'ml') {
+    return { convertedAmount: amount * 1000, isCompatible: true };
+  }
+  if (from === 'ml' && (to === 'l' || to === 'lt' || to === 'litre' || to === 'liter')) {
+    return { convertedAmount: amount / 1000, isCompatible: true };
+  }
+
+  return { convertedAmount: amount, isCompatible: false };
+}
+
+/**
  * Haftalık menü veya tarif gereksinimlerinden kiler stoklarını düşerek
  * net satın alınması gereken kalemleri deterministik olarak hesaplar.
  */
@@ -106,11 +140,24 @@ export async function calculateNetShoppingList(
   neededIngredients: NeededIngredient[]
 ): Promise<NetShoppingResult> {
   const pantryItems = await getPantryInventory();
-  const pantryMap = new Map<string, number>();
+  // Malzeme adı -> { amount: number, unit: string }
+  const pantryMap = new Map<string, { amount: number; unit: string }>();
 
   for (const p of pantryItems) {
     const key = p.name.toLowerCase().trim();
-    pantryMap.set(key, (pantryMap.get(key) || 0) + p.amount);
+    const existing = pantryMap.get(key);
+    if (!existing) {
+      pantryMap.set(key, { amount: p.amount, unit: p.unit || 'g' });
+    } else {
+      // Mevcut stok ile aynı birimdeyse topla
+      const conv = convertUnitAmount(p.amount, p.unit || 'g', existing.unit);
+      if (conv.isCompatible) {
+        existing.amount += conv.convertedAmount;
+      } else {
+        // Uyuşmuyorsa miktarı doğrudan topla
+        existing.amount += p.amount;
+      }
+    }
   }
 
   const itemsToBuy: NetShoppingResult['itemsToBuy'] = [];
@@ -118,32 +165,9 @@ export async function calculateNetShoppingList(
 
   for (const ing of neededIngredients) {
     const key = ing.name.toLowerCase().trim();
-    const inStock = pantryMap.get(key) || 0;
+    const stockItem = pantryMap.get(key);
 
-    if (inStock >= ing.amount) {
-      // Tamamen kiler stoklarından karşılanıyor
-      coveredByPantry.push({
-        name: ing.name,
-        amount: ing.amount,
-        unit: ing.unit,
-        category: ing.category || 'Diğer',
-      });
-      // Kalan sanal stoğu düş (aynı malzeme başka öğünde de istenirse)
-      pantryMap.set(key, inStock - ing.amount);
-    } else if (inStock > 0) {
-      // Kısmi karşılama
-      const deficit = Math.round((ing.amount - inStock) * 10) / 10;
-      itemsToBuy.push({
-        name: ing.name,
-        amount: deficit,
-        unit: ing.unit,
-        category: ing.category || 'Diğer',
-        neededAmount: ing.amount,
-        pantryAmount: inStock,
-        notes: `Gereken: ${ing.amount}${ing.unit}, Kilerde: ${inStock}${ing.unit}`,
-      });
-      pantryMap.set(key, 0);
-    } else {
+    if (!stockItem || stockItem.amount <= 0) {
       // Kilerde hiç yok
       itemsToBuy.push({
         name: ing.name,
@@ -153,6 +177,55 @@ export async function calculateNetShoppingList(
         neededAmount: ing.amount,
         pantryAmount: 0,
       });
+      continue;
+    }
+
+    // Birim dönüşümünü kontrol et
+    const { convertedAmount: stockInNeededUnit, isCompatible } = convertUnitAmount(
+      stockItem.amount,
+      stockItem.unit,
+      ing.unit
+    );
+
+    if (!isCompatible) {
+      // Birimler uyuşmuyor (örn. adet vs g)
+      itemsToBuy.push({
+        name: ing.name,
+        amount: ing.amount,
+        unit: ing.unit,
+        category: ing.category || 'Diğer',
+        neededAmount: ing.amount,
+        pantryAmount: stockItem.amount,
+        notes: `Birim uyuşmazlığı: Kilerde ${stockItem.amount} ${stockItem.unit}, Tarifte ${ing.amount} ${ing.unit}. Otomatik çıkarma yapılmadı.`,
+      });
+      continue;
+    }
+
+    if (stockInNeededUnit >= ing.amount) {
+      // Tamamen kiler stoklarından karşılanıyor
+      coveredByPantry.push({
+        name: ing.name,
+        amount: ing.amount,
+        unit: ing.unit,
+        category: ing.category || 'Diğer',
+      });
+      // Kalan stoğu düş
+      const remainingNeededUnit = stockInNeededUnit - ing.amount;
+      const backConv = convertUnitAmount(remainingNeededUnit, ing.unit, stockItem.unit);
+      stockItem.amount = backConv.convertedAmount;
+    } else {
+      // Kısmi karşılama
+      const deficit = Math.round((ing.amount - stockInNeededUnit) * 10) / 10;
+      itemsToBuy.push({
+        name: ing.name,
+        amount: deficit,
+        unit: ing.unit,
+        category: ing.category || 'Diğer',
+        neededAmount: ing.amount,
+        pantryAmount: Math.round(stockInNeededUnit * 10) / 10,
+        notes: `Gereken: ${ing.amount}${ing.unit}, Kilerde: ${Math.round(stockInNeededUnit * 10) / 10}${ing.unit}`,
+      });
+      stockItem.amount = 0;
     }
   }
 
