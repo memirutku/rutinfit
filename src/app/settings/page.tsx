@@ -568,12 +568,15 @@ export default function SettingsPage() {
           <h3 className="font-bold text-slate-900 text-base">
             Yerel Veri Yedekleme & Geri Yükleme
           </h3>
+          <span className="text-[11px] bg-blue-50 text-blue-700 font-semibold px-2.5 py-0.5 rounded-full ml-auto">
+            Akıllı Birleştirme (Upsert)
+          </span>
         </div>
 
         <p className="text-xs text-slate-500 leading-relaxed">
           Tüm besin kataloğunuz, antrenman geçmişiniz, yemek planlarınız, kiler envanteriniz ve kilo
-          kayıtlarınız tek bir JSON dosyasında yedeklenir. Veri kaybı yaşamadan
-          başka bir cihaza kayıpsız aktarabilirsiniz.
+          kayıtlarınız tek bir JSON dosyasında yedeklenir. Geri yükleme işlemi <strong>Akıllı Birleştirme (Smart Merge)</strong> prensibiyle çalışır:
+          Mevcut kayıtlarınız silinmez; yedekteki aynı kimliğe sahip kayıtlar güncellenir, yeni kayıtlar eklenir.
         </p>
 
         {importMessage && (

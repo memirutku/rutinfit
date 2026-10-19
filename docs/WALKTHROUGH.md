@@ -25,9 +25,9 @@ RutinFit'in tek pencerede çalışan, kurulabilir bir masaüstü uygulamasına d
 ## 2. Doğrulama ve Test Sonuçları
 
 ### 2.1. Otomatik Testler (`vitest`)
-Toplam **14 test dosyasında 68 testin tamamı başarılı** (%100 yeşil):
+Toplam **14 test dosyasında 72 testin tamamı başarılı** (%100 yeşil):
 * `tests/qol-features.test.ts` (5 test) — Son kullanılan besinler LIFO mantığı, geri alma (undo) veri yükü bütünlüğü ve set tamamlama draft hesaplamaları.
-* `tests/backup-restore.test.ts` (4 test) — Tam tablolu dışa aktarma, transactional geri yükleme, tanılama endpoint'i ve geçersiz JSON koruması.
+* `tests/backup-restore.test.ts` (8 test) — Tam tablolu dışa aktarma, transactional geri yükleme, Zod şema/sürüm denetimi, kısmi yedek içe aktarma, smart merge bütünlüğü ve rollback senaryoları.
 * `tests/workout-importer.test.ts` (3 test) — Strong CSV ve Hevy CSV ayrıştırma ve normalizasyon testleri.
 * `tests/openfoodfacts.test.ts` (6 test) — Besin normalizasyonu, eksik kalori 4-4-9 hesabı, ODbL atfı ve SQLite önbelleği.
 * `tests/pantry.test.ts` (4 test) — Kiler envanter CRUD ve tariflerden net stok düşme mantığı.

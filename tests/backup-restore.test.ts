@@ -174,6 +174,128 @@ describe("Yedekleme ve Geri Yükleme Tam Döngü (Round-Trip) Bütünlük Testi"
     expect(json.error).toBeDefined();
   });
 
+  it("desteklenmeyen sürüm (örn: v9.9) içeren yedeği 400 hatası ile reddetmeli", async () => {
+    const unsupportedReq = new Request("http://localhost:3005/api/backup/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        version: "9.9",
+        exportedAt: new Date().toISOString(),
+        data: { foods: [] },
+      }),
+    });
+
+    const res = await importBackup(unsupportedReq);
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toContain("Desteklenmeyen yedek sürümü");
+  });
+
+  it("bozuk JSON dizesi içeren isteği 400 hatası ile reddetmeli", async () => {
+    const malformedReq = new Request("http://localhost:3005/api/backup/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "NOT_VALID_JSON{foo:bar",
+    });
+
+    const res = await importBackup(malformedReq);
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe("Geçersiz JSON formatı");
+  });
+
+  it("kısmi tablolar içeren (örn: yalnızca profil ve besinler) yedeği güvenle içe aktarabilmeli", async () => {
+    const partialPayload = {
+      version: "1.0",
+      data: {
+        profile: {
+          id: "default-user",
+          calorieTarget: 2080,
+        },
+        foods: [
+          {
+            id: "test-partial-food-1",
+            name: `${TEST_PREFIX}Kısmi Besin`,
+            category: "Test",
+            basisGrams: 100,
+            calories: 100,
+            proteinG: 10,
+            carbsG: 10,
+            fatG: 2,
+          },
+        ],
+      },
+    };
+
+    const req = new Request("http://localhost:3005/api/backup/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(partialPayload),
+    });
+
+    const res = await importBackup(req);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.success).toBe(true);
+    expect(json.counts.foods).toBe(1);
+
+    // Temizlik
+    await prisma.foodItem.deleteMany({ where: { id: "test-partial-food-1" } });
+  });
+
+  it("akıllı birleştirme (smart merge) esnasında yedekte bulunmayan mevcut kayıtların silinmediğini kanıtlamalı", async () => {
+    // 1. Veritabanında önceden var olan bağımsız bir kiler öğesi oluştur
+    const existingPantry = await prisma.pantryItem.create({
+      data: {
+        name: `${TEST_PREFIX}Mevcut Elma`,
+        amount: 5,
+        unit: "adet",
+        category: "Meyve",
+      },
+    });
+
+    // 2. Yedek dosyasında sadece 'Armut' olsun (Elma yedekte yok)
+    const mergePayload = {
+      version: "1.1",
+      data: {
+        pantryItems: [
+          {
+            id: "test-merge-pantry-pear",
+            name: `${TEST_PREFIX}Yedekten Gelen Armut`,
+            amount: 3,
+            unit: "adet",
+            category: "Meyve",
+          },
+        ],
+      },
+    };
+
+    const req = new Request("http://localhost:3005/api/backup/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(mergePayload),
+    });
+
+    const res = await importBackup(req);
+    expect(res.status).toBe(200);
+
+    // 3. Mevcut 'Elma'nın silinmediğini, 'Armut'un ise eklendiğini doğrula
+    const stillExistingPantry = await prisma.pantryItem.findUnique({
+      where: { id: existingPantry.id },
+    });
+    const importedPantry = await prisma.pantryItem.findUnique({
+      where: { id: "test-merge-pantry-pear" },
+    });
+
+    expect(stillExistingPantry).not.toBeNull();
+    expect(stillExistingPantry?.name).toBe(`${TEST_PREFIX}Mevcut Elma`);
+    expect(importedPantry).not.toBeNull();
+
+    // Temizlik
+    await prisma.pantryItem.delete({ where: { id: existingPantry.id } });
+    await prisma.pantryItem.delete({ where: { id: "test-merge-pantry-pear" } });
+  });
+
   it("sistem tanılama rotasının (/api/diagnostics) depolama ve kayıt metriklerini döndürmesini doğrulamalı", async () => {
     const { GET: getDiagnostics } = await import("../src/app/api/diagnostics/route");
     const res = await getDiagnostics();

@@ -1,18 +1,30 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { BackupEnvelopeSchema } from "@/lib/backup-schema";
 
 export async function POST(req: Request) {
   try {
-    const json = await req.json();
-
-    if (!json.data) {
+    let json: unknown;
+    try {
+      json = await req.json();
+    } catch {
       return NextResponse.json(
-        { error: "Geçersiz yedek dosyası formatı" },
+        { error: "Geçersiz JSON formatı" },
         { status: 400 }
       );
     }
 
-    const { data } = json;
+    const validationResult = BackupEnvelopeSchema.safeParse(json);
+    if (!validationResult.success) {
+      const issue = validationResult.error.issues[0];
+      const errorMessage = issue?.message || "Geçersiz yedek dosyası formatı";
+      return NextResponse.json(
+        { error: errorMessage, details: validationResult.error.flatten() },
+        { status: 400 }
+      );
+    }
+
+    const { data } = validationResult.data;
     const counts: Record<string, number> = {};
 
     await prisma.$transaction(async (tx) => {

@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/memirutku/rutinfit/actions/workflows/ci.yml"><img src="https://github.com/memirutku/rutinfit/actions/workflows/ci.yml/badge.svg" alt="CI Durumu" /></a>
-  <a href="tests/"><img src="https://img.shields.io/badge/Vitest-68%20passing-10b981.svg?style=for-the-badge&logo=vitest&logoColor=white" alt="Vitest 68 Passing" /></a>
+  <a href="tests/"><img src="https://img.shields.io/badge/Vitest-72%20passing-10b981.svg?style=for-the-badge&logo=vitest&logoColor=white" alt="Vitest 72 Passing" /></a>
   <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-15.2.0-000000.svg?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js 15" /></a>
   <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Tauri-2.12-24c8db.svg?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri 2" /></a>
   <a href="https://www.prisma.io/"><img src="https://img.shields.io/badge/Prisma-6.4.0%20SQLite-2d3748.svg?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma SQLite" /></a>
@@ -244,7 +244,7 @@ pnpm run db:seed
 
 #### 3. Testleri ve Tür Denetimini Çalıştırma
 ```bash
-# 14 test dosyasında 68 testi çalıştırır
+# 14 test dosyasında 72 testi çalıştırır
 pnpm test
 
 # TypeScript tür denetimi
