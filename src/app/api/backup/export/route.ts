@@ -24,10 +24,11 @@ export async function GET() {
     const wellbeings = await prisma.dailyWellbeing.findMany();
     const supplementLogs = await prisma.supplementLog.findMany();
     const shoppingListItems = await prisma.shoppingListItem.findMany();
+    const pantryItems = await prisma.pantryItem.findMany();
     const aiSettings = await prisma.aISettings.findFirst();
 
     const backup = {
-      version: "1.0",
+      version: "1.1",
       exportedAt: new Date().toISOString(),
       data: {
         profile,
@@ -42,6 +43,7 @@ export async function GET() {
         wellbeings,
         supplementLogs,
         shoppingListItems,
+        pantryItems,
         aiSettings,
       },
     };

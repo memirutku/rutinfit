@@ -35,6 +35,12 @@ export default function WorkoutsPage() {
   const [restTimerTotal, setRestTimerTotal] = useState<number>(90);
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
 
+  // Kaldığın Yerden Devam Etme (Draft Persistence)
+  const [savedDraft, setSavedDraft] = useState<{
+    activeSession: any;
+    sessionForm: any;
+    isShortenedMode: boolean;
+  } | null>(null);
 
   // Aktif seans formu
   const [sessionForm, setSessionForm] = useState<{
@@ -50,6 +56,7 @@ export default function WorkoutsPage() {
       reps: number;
       targetRepMin: number;
       targetRepMax: number;
+      completed?: boolean;
     }[];
   }>({
     templateId: "",
@@ -64,7 +71,32 @@ export default function WorkoutsPage() {
 
   useEffect(() => {
     loadWorkouts();
+    try {
+      const draftStr = localStorage.getItem("rutinfit_active_workout_draft");
+      if (draftStr) {
+        const parsed = JSON.parse(draftStr);
+        if (parsed && parsed.sessionForm && parsed.activeSession) {
+          setSavedDraft(parsed);
+        }
+      }
+    } catch {
+      // ignore
+    }
   }, []);
+
+  // Aktif seans değiştikçe localStorage'a otomatik kaydet
+  useEffect(() => {
+    if (activeSession && sessionForm.name) {
+      try {
+        localStorage.setItem(
+          "rutinfit_active_workout_draft",
+          JSON.stringify({ activeSession, sessionForm, isShortenedMode })
+        );
+      } catch {
+        // ignore
+      }
+    }
+  }, [activeSession, sessionForm, isShortenedMode]);
 
   async function loadWorkouts() {
     setLoading(true);
@@ -77,6 +109,44 @@ export default function WorkoutsPage() {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  }
+
+  function handleResumeDraft() {
+    if (!savedDraft) return;
+    setActiveSession(savedDraft.activeSession);
+    setSessionForm(savedDraft.sessionForm);
+    setIsShortenedMode(savedDraft.isShortenedMode || false);
+    setSavedDraft(null);
+  }
+
+  function handleDiscardDraft() {
+    setSavedDraft(null);
+    try {
+      localStorage.removeItem("rutinfit_active_workout_draft");
+    } catch {
+      // ignore
+    }
+  }
+
+  function handleCancelSession() {
+    setActiveSession(null);
+    try {
+      localStorage.removeItem("rutinfit_active_workout_draft");
+    } catch {
+      // ignore
+    }
+  }
+
+  function toggleSetCompleted(idx: number) {
+    const updatedSets = [...sessionForm.setLogs];
+    const nextCompleted = !updatedSets[idx].completed;
+    updatedSets[idx].completed = nextCompleted;
+    setSessionForm({ ...sessionForm, setLogs: updatedSets });
+
+    if (nextCompleted) {
+      // Otomatik dinlenme sayacını başlat
+      startRestTimer(restTimerTotal || 90);
     }
   }
 
@@ -123,6 +193,7 @@ export default function WorkoutsPage() {
           reps: ex.repMax,
           targetRepMin: ex.repMin,
           targetRepMax: ex.repMax,
+          completed: false,
         });
       }
     }
@@ -146,18 +217,38 @@ export default function WorkoutsPage() {
   async function handleFinishSession(e: React.FormEvent) {
     e.preventDefault();
     try {
+      const payload = {
+        date: todayStr,
+        templateId: sessionForm.templateId || undefined,
+        name: sessionForm.name,
+        durationMinutes: sessionForm.durationMinutes,
+        rpe: sessionForm.rpe,
+        notes: sessionForm.notes,
+        completed: true,
+        setLogs: sessionForm.setLogs.map((s) => ({
+          exerciseName: s.exerciseName,
+          setNumber: s.setNumber,
+          weightKg: s.weightKg,
+          reps: s.reps,
+          targetRepMin: s.targetRepMin,
+          targetRepMax: s.targetRepMax,
+          isTargetMet: s.completed ?? (s.reps >= s.targetRepMin),
+        })),
+      };
+
       const res = await fetch("/api/workouts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          date: todayStr,
-          ...sessionForm,
-          completed: true,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       setProgressionFeedback(data.progressionFeedbacks);
       setActiveSession(null);
+      try {
+        localStorage.removeItem("rutinfit_active_workout_draft");
+      } catch {
+        // ignore
+      }
       loadWorkouts();
     } catch (e) {
       console.error("Antrenman bitirme hatası:", e);
@@ -270,6 +361,41 @@ export default function WorkoutsPage() {
       {/* 3. ANTRENMAN ŞABLONLARI & SEANS SEKMESİ */}
       {workoutSubTab === "workouts" && (
         <>
+          {/* Kaldığın Yerden Devam Etme Bildirimi */}
+          {savedDraft && !activeSession && (
+            <div className="p-4 bg-amber-50 border border-amber-300 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold shrink-0">
+                  <Dumbbell className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-amber-950">
+                    Yarım Kalan Antrenmanınız Bulundu: {savedDraft.sessionForm?.name}
+                  </h4>
+                  <p className="text-xs text-amber-700">
+                    {savedDraft.sessionForm?.setLogs?.filter((s: any) => s.completed).length || 0} / {savedDraft.sessionForm?.setLogs?.length || 0} set tamamlandı.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleResumeDraft}
+                  className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-colors shadow-xs"
+                >
+                  Kaldığın Yerden Devam Et
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDiscardDraft}
+                  className="px-3 py-2 rounded-xl text-slate-500 hover:text-slate-700 text-xs font-semibold"
+                >
+                  Vazgeç
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* AKTİF SEANS GİRİŞ MODU */}
           {activeSession ? (
             <div className="bg-white p-6 rounded-2xl border border-brand-300 shadow-md space-y-6">
@@ -286,7 +412,7 @@ export default function WorkoutsPage() {
               </p>
             </div>
             <button
-              onClick={() => setActiveSession(null)}
+              onClick={handleCancelSession}
               className="text-xs text-slate-500 hover:text-slate-700 font-medium"
             >
               Vazgeç
@@ -386,10 +512,20 @@ export default function WorkoutsPage() {
               {sessionForm.setLogs.map((set, idx) => (
                 <div
                   key={idx}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 gap-3"
+                  className={`flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl border gap-3 transition-colors ${
+                    set.completed
+                      ? "bg-emerald-50/70 border-emerald-300"
+                      : "bg-slate-50 border-slate-200/80"
+                  }`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="w-6 h-6 rounded-lg bg-slate-900 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                    <span
+                      className={`w-6 h-6 rounded-lg font-bold text-xs flex items-center justify-center shrink-0 ${
+                        set.completed
+                          ? "bg-emerald-600 text-white"
+                          : "bg-slate-900 text-white"
+                      }`}
+                    >
                       {set.setNumber}
                     </span>
                     <div>
@@ -402,7 +538,7 @@ export default function WorkoutsPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
                     <div className="flex items-center gap-1.5">
                       <label className="text-xs font-semibold text-slate-600">
                         Ağırlık:
@@ -436,6 +572,19 @@ export default function WorkoutsPage() {
                         className="w-16 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-900 text-center"
                       />
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => toggleSetCompleted(idx)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shrink-0 ${
+                        set.completed
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                          : "bg-white hover:bg-slate-100 border border-slate-300 text-slate-700"
+                      }`}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>{set.completed ? "Tamamlandı" : "Tamamla"}</span>
+                    </button>
                   </div>
                 </div>
               ))}

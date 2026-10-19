@@ -16,6 +16,12 @@ import {
   Sparkles,
   Utensils,
   ExternalLink,
+  RotateCcw,
+  Trash2,
+  Coffee,
+  Sun,
+  X,
+  Compass,
 } from "lucide-react";
 import { getLocalDateString } from "@/lib/date-utils";
 
@@ -39,10 +45,91 @@ export default function DashboardPage() {
   const [selectedMealType, setSelectedMealType] = useState("lunch");
   const [quickGrams, setQuickGrams] = useState("100");
 
+  // Son kullanılan besinler ve Geri Alma (Undo) state'i
+  const [recentFoods, setRecentFoods] = useState<{ id: string; name: string; defaultGrams: number }[]>([]);
+  const [undoToast, setUndoToast] = useState<{
+    id: string;
+    name: string;
+    calories: number;
+    action: "added" | "deleted";
+    payload?: any;
+  } | null>(null);
+
   const todayStr = getLocalDateString();
+
+  function getRhythmStep(homeTime: string = "19:30") {
+    const currentHour = new Date().getHours();
+    if (currentHour < 11) {
+      return {
+        title: "Sabah Rutini & Hidrasyon",
+        time: "07:00 - 11:00",
+        description: "Güne 500ml su ile başla, tartılmanı kaydet ve günlük 5g kreatinini almayı unutma.",
+        icon: Sun,
+        badge: "Güne Başlangıç",
+        color: "text-amber-600 bg-amber-50 border-amber-200",
+        actionText: progressData?.today?.creatineTaken ? "Kreatin Alındı ✓" : "Kreatin İşaretle",
+        actionFn: handleToggleCreatine,
+      };
+    } else if (currentHour < 16) {
+      return {
+        title: "Öğle Beslenmesi & Odak",
+        time: "12:00 - 15:30",
+        description: "Yüksek proteinli öğle öğününü kaydet, hidrasyonu sürdür ve enerjini dengede tut.",
+        icon: Coffee,
+        badge: "Öğle Zamanı",
+        color: "text-emerald-700 bg-emerald-50 border-emerald-200",
+        actionText: "Öğle Yemeği Ekle",
+        actionFn: () => handleOpenQuickAdd("lunch"),
+      };
+    } else if (currentHour < 19) {
+      return {
+        title: "İş Çıkışı & Antrenman Hazırlığı",
+        time: `17:00 - ${homeTime}`,
+        description: `İş çıkışı hafif karbonhidrat desteği ile antrenman için enerji topla. Eve varış hedefi: ${homeTime}.`,
+        icon: Dumbbell,
+        badge: "İş Çıkışı",
+        color: "text-indigo-700 bg-indigo-50 border-indigo-200",
+        actionText: "Ara Öğün Ekle",
+        actionFn: () => handleOpenQuickAdd("workSnack"),
+      };
+    } else if (currentHour < 22) {
+      return {
+        title: "Toparlanma & Akşam Yemeği",
+        time: `${homeTime} - 21:30`,
+        description: "Antrenman sonrası kas onarımı için protein ağırlıklı akşam yemeğini ye ve günün kaydını tamamla.",
+        icon: Utensils,
+        badge: "Akşam Dinlenmesi",
+        color: "text-orange-700 bg-orange-50 border-orange-200",
+        actionText: "Akşam Yemeği Ekle",
+        actionFn: () => handleOpenQuickAdd("dinner"),
+      };
+    } else {
+      return {
+        title: "Gece Kapanışı & Kaliteli Uyku",
+        time: "22:00 - 07:00",
+        description: "Mavi ışık maruziyetini azalt, yatak odasını serinlet ve 7.5 saatlik dinlenmeye geç.",
+        icon: Moon,
+        badge: "Gece Rutini",
+        color: "text-blue-700 bg-blue-50 border-blue-200",
+        actionText: "Uyku & İyilik Halini Kaydet",
+        actionFn: () => {
+          const el = document.getElementById("quick-wellbeing-section");
+          if (el) el.scrollIntoView({ behavior: "smooth" });
+        },
+      };
+    }
+  }
 
   useEffect(() => {
     loadAllData();
+    try {
+      const saved = localStorage.getItem("rutinfit_recent_foods");
+      if (saved) {
+        setRecentFoods(JSON.parse(saved));
+      }
+    } catch {
+      // ignore
+    }
   }, []);
 
   async function loadAllData() {
@@ -129,7 +216,10 @@ export default function DashboardPage() {
     }
   }
 
-  async function handleOpenQuickAdd() {
+  async function handleOpenQuickAdd(preferredMealType?: string) {
+    if (preferredMealType) {
+      setSelectedMealType(preferredMealType);
+    }
     setIsQuickAddOpen(true);
     if (foodsList.length === 0) {
       setIsLoadingFoods(true);
@@ -175,15 +265,92 @@ export default function DashboardPage() {
     };
 
     try {
-      await fetch("/api/food-logs", {
+      const res = await fetch("/api/food-logs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+
+      if (res.ok) {
+        const created = await res.json();
+        // Son kullanılanlara ekle
+        const updatedRecent = [
+          { id: food.id, name: food.name, defaultGrams: gramsNum },
+          ...recentFoods.filter((rf) => rf.id !== food.id),
+        ].slice(0, 5);
+        setRecentFoods(updatedRecent);
+        try {
+          localStorage.setItem("rutinfit_recent_foods", JSON.stringify(updatedRecent));
+        } catch {
+          // ignore
+        }
+
+        // Undo toast göster
+        setUndoToast({
+          id: created.id,
+          name: created.name,
+          calories: created.caloriesSnapshot,
+          action: "added",
+        });
+        setTimeout(() => {
+          setUndoToast((curr) => (curr?.id === created.id ? null : curr));
+        }, 7000);
+      }
+
       setIsQuickAddOpen(false);
       loadAllData();
     } catch (e) {
       console.error("Yemek ekleme hatası:", e);
+    }
+  }
+
+  async function handleUndo() {
+    if (!undoToast) return;
+    try {
+      if (undoToast.action === "added") {
+        await fetch(`/api/food-logs?id=${undoToast.id}`, { method: "DELETE" });
+      } else if (undoToast.action === "deleted" && undoToast.payload) {
+        await fetch("/api/food-logs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(undoToast.payload),
+        });
+      }
+      setUndoToast(null);
+      loadAllData();
+    } catch (e) {
+      console.error("Geri alma hatası:", e);
+    }
+  }
+
+  async function handleDeleteFoodLog(log: any) {
+    try {
+      await fetch(`/api/food-logs?id=${log.id}`, { method: "DELETE" });
+      setUndoToast({
+        id: log.id,
+        name: log.name,
+        calories: log.caloriesSnapshot,
+        action: "deleted",
+        payload: {
+          date: log.date,
+          time: log.time,
+          mealType: log.mealType,
+          foodItemId: log.foodItemId,
+          recipeId: log.recipeId,
+          name: log.name,
+          grams: log.grams,
+          caloriesSnapshot: log.caloriesSnapshot,
+          proteinSnapshot: log.proteinSnapshot,
+          carbsSnapshot: log.carbsSnapshot,
+          fatSnapshot: log.fatSnapshot,
+        },
+      });
+      setTimeout(() => {
+        setUndoToast((curr) => (curr?.id === log.id ? null : curr));
+      }, 7000);
+      loadAllData();
+    } catch (e) {
+      console.error("Öğün silme hatası:", e);
     }
   }
 
@@ -241,7 +408,7 @@ export default function DashboardPage() {
             <span>AI Koçuna Danış</span>
           </Link>
           <button
-            onClick={handleOpenQuickAdd}
+            onClick={() => handleOpenQuickAdd()}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4" />
@@ -270,6 +437,44 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Günün Sıradaki Adımı / Ritim Çizelgesi */}
+      {(() => {
+        const step = getRhythmStep(profile?.workdayHomeTime);
+        const Icon = step.icon;
+        return (
+          <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-5 rounded-2xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0 mt-0.5">
+                <Icon className="w-5 h-5 text-brand-400" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-brand-400">
+                    Sıradaki Adım · {step.time}
+                  </span>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-slate-300 font-medium">
+                    {step.badge}
+                  </span>
+                </div>
+                <h3 className="text-base font-bold text-white mt-0.5">
+                  {step.title}
+                </h3>
+                <p className="text-xs text-slate-300 mt-1 max-w-xl">
+                  {step.description}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={step.actionFn}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-slate-950 font-bold text-xs transition-colors shrink-0 shadow-sm"
+            >
+              <span>{step.actionText}</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Ana Metrikler: Kalori & Makrolar */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -490,7 +695,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Günlük Kreatin & İyilik Hali Hızlı Giriş */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div id="quick-wellbeing-section" className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
@@ -599,6 +804,88 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Bugün Kaydedilen Öğünler ve Hızlı Yönetim */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <Utensils className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                Bugün Kaydedilen Öğünler
+              </h3>
+              <p className="text-xs text-slate-500">
+                Günün besin kayıtları · Yanlış girişleri silebilir ve anında geri alabilirsiniz.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => handleOpenQuickAdd()}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Öğün Ekle</span>
+          </button>
+        </div>
+
+        {(!foodData?.logs || foodData.logs.length === 0) ? (
+          <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+            <Utensils className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+            <p className="text-sm font-medium text-slate-600">Henüz bugün için bir öğün kaydetmediniz</p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Yukarıdaki &quot;Hızlı Öğün Ekle&quot; butonuna basarak veya son kullanılanlardan seçerek başlayın.
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {foodData.logs.map((log: any) => {
+              const mealLabel =
+                log.mealType === "breakfast"
+                  ? "Kahvaltı"
+                  : log.mealType === "lunch"
+                  ? "Öğle Yemeği"
+                  : log.mealType === "workSnack"
+                  ? "İş Çıkışı"
+                  : log.mealType === "dinner"
+                  ? "Akşam Yemeği"
+                  : "Ara Öğün";
+
+              return (
+                <div
+                  key={log.id}
+                  className="py-3 flex items-center justify-between gap-3 group hover:bg-slate-50/50 px-2 rounded-xl transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 shrink-0">
+                      {mealLabel}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-800 truncate">
+                        {log.name}
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {log.grams}g · {log.caloriesSnapshot} kcal · P: {log.proteinSnapshot}g · K: {log.carbsSnapshot}g · Y: {log.fatSnapshot}g
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => handleDeleteFoodLog(log)}
+                      title="Öğünü Sil (Geri alınabilir)"
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Hızlı Öğün Ekleme Modalı */}
       {isQuickAddOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
@@ -607,8 +894,36 @@ export default function DashboardPage() {
               Hızlı Öğün Kaydı
             </h3>
             <p className="text-xs text-slate-500 mb-4">
-              Katalogdan bir besin seçin ve miktarını girin.
+              Katalogdan bir besin seçin veya son kullanılanlara tıklayın.
             </p>
+
+            {/* Son Kullanılan Besinler Çipleri */}
+            {recentFoods.length > 0 && (
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                  Son Kullanılanlar (Tek Tıkla Seç)
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {recentFoods.map((rf) => (
+                    <button
+                      key={rf.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedFoodId(rf.id);
+                        setQuickGrams(String(rf.defaultGrams));
+                      }}
+                      className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${
+                        selectedFoodId === rf.id
+                          ? "bg-brand-50 border-brand-300 text-brand-800 font-semibold"
+                          : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      {rf.name} ({rf.defaultGrams}g)
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <form onSubmit={handleQuickAddFood} className="space-y-4">
               <div>
@@ -679,6 +994,31 @@ export default function DashboardPage() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Geri Alma (Undo) Bildirimi */}
+      {undoToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-5">
+          <div className="text-xs">
+            <span className="font-semibold text-brand-300">{undoToast.name}</span>{" "}
+            {undoToast.action === "added"
+              ? "başarıyla eklendi."
+              : "öğünlerden kaldırıldı."}
+          </div>
+          <button
+            onClick={handleUndo}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-500 hover:bg-brand-400 text-slate-950 font-bold text-xs transition-colors"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Geri Al</span>
+          </button>
+          <button
+            onClick={() => setUndoToast(null)}
+            className="text-slate-400 hover:text-white p-0.5 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
     </div>

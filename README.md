@@ -10,7 +10,8 @@
 </p>
 
 <p align="center">
-  <a href="tests/"><img src="https://img.shields.io/badge/Vitest-38%20passing-10b981.svg?style=for-the-badge&logo=vitest&logoColor=white" alt="Vitest 38 Passing" /></a>
+  <a href="https://github.com/memirutku/rutinfit/actions/workflows/ci.yml"><img src="https://github.com/memirutku/rutinfit/actions/workflows/ci.yml/badge.svg" alt="CI Durumu" /></a>
+  <a href="tests/"><img src="https://img.shields.io/badge/Vitest-68%20passing-10b981.svg?style=for-the-badge&logo=vitest&logoColor=white" alt="Vitest 68 Passing" /></a>
   <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-15.2.0-000000.svg?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js 15" /></a>
   <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Tauri-2.12-24c8db.svg?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri 2" /></a>
   <a href="https://www.prisma.io/"><img src="https://img.shields.io/badge/Prisma-6.4.0%20SQLite-2d3748.svg?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma SQLite" /></a>
@@ -29,6 +30,32 @@ Geleneksel fitness ve beslenme uygulamaları verilerinizi bulutta saklar, her ö
 * 🚫 **Sıfır Docker Gereksinimi:** Son kullanıcının Docker, OrbStack veya port konfigürasyonuyla uğraşması gerekmez.
 * 🧮 **Deterministik Matematik:** Kaloriler ve makrolar yapay zeka tahminleriyle değil, onaylı 100g gıda verileriyle kuruşu kuruşuna hesaplanır.
 * 🛡️ **2-Aşamalı Onaylı Yerel AI:** Ollama veya LM Studio ile çevrimdışı çalışır; kullanıcı açıkça "Onayla" butonuna basmadan veritabanında hiçbir kayıt değişmez.
+* ⏱️ **Günün Ritmi & Kolay Kullanım:** Eve varış saatinize duyarlı ritim çizelgesi, son kullanılan besinler, 7 saniyelik geri alma (Undo) ve otomatik dinlenme sayaçlı set takibi.
+
+---
+
+## 🚦 Özellik Durum Matrisi (Feature Status Matrix)
+
+RutinFit'in tüm yetenekleri gerçek kod tabanı ve testlerle doğrulanmış 3 net seviyede sınıflandırılır:
+
+| Modül | Özellik | Durum | Açıklama |
+|---|---|:---:|---|
+| **Beslenme & Kiler** | 2.080 kcal Sakin Hedef & 2.100 kcal Üst Sınır Uyarısı | 🟢 **Hazır** | Suçlayıcı olmayan bildirimler, deterministik makro dağılımı. |
+| **Beslenme & Kiler** | Hızlı Öğün Kaydı, Son Kullanılanlar & Geri Alma (Undo) | 🟢 **Hazır** | Tek tıkla besin seçimi, LIFO 5 öğeli geçmiş ve 7s geri alma toast'ı. |
+| **Beslenme & Kiler** | Kiler Envanteri & Eksiklerden Otomatik Alışveriş Listesi | 🟢 **Hazır** | Kilerdeki gramajı menüden düşüp yalnızca net eksiği listeleme. |
+| **Beslenme & Kiler** | Open Food Facts Paketli Gıda Arama & Önbellek | 🟡 **Beta** | ODbL uyumlu SQLite önbellek istemcisi (`openfoodfacts-client.ts`). |
+| **Antrenman & Vücut** | İnteraktif SVG Kas Haritası (`MuscleHeatmap`) | 🟢 **Hazır** | Son 7 gündeki set hacmine göre ön ve arka kasları renklendirme. |
+| **Antrenman & Vücut** | Olimpik Bar & 1RM Plaka Hesaplayıcı (`PlateCalculator`) | 🟢 **Hazır** | 20kg bar manşon çizimi ve Brzycki/Epley 1RM formülleri. |
+| **Antrenman & Vücut** | Set Tamamlama, Dinlenme Sayacı & Kaldığın Yerden Devam | 🟢 **Hazır** | Otomatik geri sayım sayacı, yerel draft kurtarma (`localStorage`). |
+| **Antrenman & Vücut** | openGym İsteğe Bağlı Sidecar Entegrasyonu | 🟡 **Beta** | Docker gerektirmeyen bağımsız veri modeli ve dışa aktarım köprüsü. |
+| **Yerel AI & Ritim** | Günün Sıradaki Adımı / Ritim Çizelgesi | 🟢 **Hazır** | Sabah hidrasyonu, öğle beslenmesi, 19:40 iş çıkışı ve uyku adımları. |
+| **Yerel AI & Ritim** | 2-Aşamalı Onaylı Yerel AI Koçu (Ollama / LM Studio) | 🟢 **Hazır** | `ActionDraft` ve `AuditLog` ile kullanıcı onayı olmadan DB'ye yazmama. |
+| **Yerel AI & Ritim** | Güvenli Çoklu Dosya Ayrıştırıcıları (PDF, XLSX, DOCX, TXT) | 🟢 **Hazır** | `<untrusted_content>` izolasyonu ve Zod doğrulaması. |
+| **Sistem & Veri** | 14 Tablolu Transactional SQLite Yedekleme & Geri Yükleme | 🟢 **Hazır** | `prisma.$transaction` ile kiler dahil tam tablolu sıfır veri kaybı. |
+| **Sistem & Veri** | Canlı Sistem Tanılama & Performans Ekranı | 🟢 **Hazır** | SQLite dosya boyutu, RSS bellek ve çalışma süresi izleme. |
+| **Masaüstü Dağıtımı** | Tauri 2 Masaüstü Geliştirici Modu (`pnpm desktop:dev`) | 🟡 **Beta** | Kaynak koddan derleme, yerel WebKit/WebView2 penceresi. |
+| **Masaüstü Dağıtımı** | İmzalı Tek Tıkla Kurulum Paketleri (`.dmg`, `.msi`, `.deb`) | 🔵 **Planlanıyor** | GitHub Releases üzerinden imzalı bağımsız kurulum dosyaları. |
+| **Mobil / Donanım** | Apple Health / Health Connect Dışa Aktarımı | 🔵 **Planlanıyor** | Akıllı saat ve sağlık verisi senkronizasyon köprüsü. |
 
 ---
 
@@ -183,41 +210,56 @@ Ayrıntılı teknik analizler ve raporlar için:
 
 ---
 
-## 🚀 Hızlı Başlangıç & Kurulum
+## 🚀 Kurulum ve Çalıştırma
 
-### Gereksinimler
-* **Node.js:** v20+ (Node v22.18+ önerilir)
-* **Paket Yöneticisi:** `pnpm` (`npm install -g pnpm`)
-* **Rust & Cargo:** v1.80+ (Tauri 2 masaüstü derleyicisi için)
+> [!NOTE]
+> **Son Kullanıcı / Dağıtım Durumu Bildirimi:**  
+> RutinFit şu an aktif açık kaynak geliştirici önizleme aşamasındadır. Önceden derlenmiş tek tıkla kurulan `.dmg` veya `.msi` yükleyicileri henüz GitHub Releases'da yayınlanmamıştır; mevcut aşamada Node.js ve pnpm ile kaynak koddan çalıştırılmaktadır.
+
+### 💻 Geliştirici Kurulumu
+
+#### Sistem Gereksinimleri
+* **İşletim Sistemi:** macOS (Apple Silicon veya Intel), Windows 10/11 (WebView2 ile) veya Linux (Ubuntu 22.04+)
+* **Node.js:** v20.0+ (Node v22.18+ önerilir)
+* **Paket Yöneticisi:** `pnpm` v9+ (`npm install -g pnpm`)
+* **Rust & Cargo:** v1.80+ (Tauri 2 masaüstü derleyicisi için zorunludur)
 * *(İsteğe bağlı)* **Yerel AI:** [Ollama](https://ollama.com) veya [LM Studio](https://lmstudio.ai)
-* **ÖNEMLİ:** Son kullanıcının **Docker kurması zorunlu DEĞİLDİR**.
+* **ÖNEMLİ:** Docker veya harici port yapılandırması kurmanız **gerekmez**.
 
-### 1. Kurulum ve Veritabanı
+#### 1. Depoyu Klonlama ve Bağımlılıkları Yükleme
 ```bash
-# Depoyu klonlayın
 git clone https://github.com/memirutku/rutinfit.git
 cd rutinfit
 
 # Bağımlılıkları yükleyin
 pnpm install
+```
 
-# Yerel veritabanını oluşturun ve şablon verileri yükleyin
+#### 2. Yerel Veritabanını Başlatma
+```bash
+# SQLite şemasını senkronize edin ve başlangıç şablon verilerini yükleyin
 pnpm run db:push
 pnpm run db:seed
 ```
 
-### 2. Testleri Çalıştırma
+#### 3. Testleri ve Tür Denetimini Çalıştırma
 ```bash
+# 14 test dosyasında 68 testi çalıştırır
 pnpm test
-```
-> 10 test dosyasında 38 birim/entegrasyon testi 700ms içinde %100 başarıyla tamamlanır.
 
-### 3. Uygulamayı Başlatma
-* **Masaüstü Uygulaması (Tauri 2):**
+# TypeScript tür denetimi
+pnpm exec tsc --noEmit
+
+# ESLint statik kod analizi
+pnpm lint
+```
+
+#### 4. Uygulamayı Başlatma
+* **Masaüstü Penceresi (Tauri 2 Yerel Mod):**
   ```bash
   pnpm run desktop:dev
   ```
-* **Web Tarayıcısı Modu:**
+* **Web Tarayıcısı Geliştirici Modu:**
   ```bash
   pnpm dev -p 3005
   ```
@@ -227,7 +269,7 @@ pnpm test
 
 ## 🤖 Yerel Yapay Zeka Bağlantısı (Ollama & LM Studio)
 
-RutinFit, kişisel verilerinizi asla harici bir bulut sunucusuna göndermez:
+RutinFit, kişisel sağlık ve besin verilerinizi asla harici bir bulut sunucusuna göndermez:
 
 1. **Ollama ile:**
    ```bash
@@ -240,9 +282,11 @@ RutinFit, kişisel verilerinizi asla harici bir bulut sunucusuna göndermez:
 
 ---
 
-## 🤝 Katkıda Bulunma (Contributing)
+## 🛡️ Güvenlik Politikası ve Desteklenen Platformlar
 
-Katkıda bulunmak isteyen herkesi memnuniyetle karşılıyoruz! Lütfen önce [Katkıda Bulunma Rehberi'ni (CONTRIBUTING.md)](CONTRIBUTING.md) ve [Davranış Kuralları'nı (CODE_OF_CONDUCT.md)](CODE_OF_CONDUCT.md) inceleyiniz.
+* **Güvenlik Politikası:** Güvenlik açıklarını bildirmek için lütfen [SECURITY.md](SECURITY.md) dosyasını inceleyiniz.
+* **Katkıda Bulunma:** Projeye katkıda bulunmak için [CONTRIBUTING.md](CONTRIBUTING.md) ve [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) rehberlerini takip ediniz.
+* **Üçüncü Taraf Lisans Bildirimleri:** Tüm kütüphane ve model atıfları [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) dosyasında belgelenmiştir.
 
 ---
 

@@ -11,6 +11,10 @@ import {
   Check,
   AlertCircle,
   RefreshCw,
+  Database,
+  Activity,
+  HardDrive,
+  ShieldCheck,
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -31,12 +35,31 @@ export default function SettingsPage() {
   const [isTestingOpenGym, setIsTestingOpenGym] = useState(false);
   const [openGymResult, setOpenGymResult] = useState<any>(null);
 
-  // Yedek İçe Aktarma
+  // Yedek İçe Aktarma & Tanılama
   const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [importCounts, setImportCounts] = useState<any>(null);
+  const [diagnostics, setDiagnostics] = useState<any>(null);
+  const [isLoadingDiagnostics, setIsLoadingDiagnostics] = useState(false);
 
   useEffect(() => {
     loadSettings();
+    loadDiagnostics();
   }, []);
+
+  async function loadDiagnostics() {
+    setIsLoadingDiagnostics(true);
+    try {
+      const res = await fetch("/api/diagnostics");
+      if (res.ok) {
+        const data = await res.json();
+        setDiagnostics(data);
+      }
+    } catch (err) {
+      console.error("Tanılama yükleme hatası:", err);
+    } finally {
+      setIsLoadingDiagnostics(false);
+    }
+  }
 
   async function loadSettings() {
     setLoading(true);
@@ -134,13 +157,17 @@ export default function SettingsPage() {
 
       const data = await res.json();
       if (res.ok) {
-        setImportMessage("Yedek başarıyla geri yüklendi! Sayfa yenileniyor...");
-        setTimeout(() => window.location.reload(), 1500);
+        setImportMessage("Yedek başarıyla geri yüklendi!");
+        setImportCounts(data.counts || null);
+        loadDiagnostics();
+        setTimeout(() => loadSettings(), 1000);
       } else {
         setImportMessage(`Hata: ${data.error}`);
+        setImportCounts(null);
       }
     } catch (err: any) {
       setImportMessage(`Geçersiz JSON dosyası: ${err.message}`);
+      setImportCounts(null);
     }
   }
 
@@ -468,17 +495,16 @@ export default function SettingsPage() {
               OG
             </span>
             <h3 className="font-bold text-slate-900 text-base">
-              openGym Entegrasyonu (OrbStack / Docker)
+              openGym Entegrasyonu (İsteğe Bağlı Yan Servis)
             </h3>
           </div>
           <span className="text-xs bg-emerald-50 text-emerald-700 font-semibold px-2.5 py-1 rounded-full">
-            Port 8080
+            Port 8080 (Opsiyonel)
           </span>
         </div>
 
         <p className="text-xs text-slate-600 leading-relaxed">
-          openGym konteyneri OrbStack üzerinde bağımsız çalışır. 5.600+ hareket kütüphanesi,
-          kas haritası ve Strong/Hevy içe aktarımı sunar.
+          RutinFit masaüstü uygulaması Kas Haritası ve Plaka Hesabını yerel olarak bünyesinde barındırır. openGym ise harici bir yan servis (sidecar) olarak çalıştırılabilir; bağlandığında 5.600+ hareket kataloğu ve iki yönlü tartı senkronizasyonu sağlar. Docker zorunlu değildir.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -545,21 +571,36 @@ export default function SettingsPage() {
         </div>
 
         <p className="text-xs text-slate-500 leading-relaxed">
-          Tüm besin kataloğunuz, antrenman geçmişiniz, yemek planlarınız ve kilo
+          Tüm besin kataloğunuz, antrenman geçmişiniz, yemek planlarınız, kiler envanteriniz ve kilo
           kayıtlarınız tek bir JSON dosyasında yedeklenir. Veri kaybı yaşamadan
-          başka bir cihaza aktarabilirsiniz.
+          başka bir cihaza kayıpsız aktarabilirsiniz.
         </p>
 
         {importMessage && (
-          <div className="p-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-800 text-xs font-medium">
-            {importMessage}
+          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+            <div className="text-slate-800 text-xs font-bold flex items-center gap-2">
+              <Check className="w-4 h-4 text-emerald-600" />
+              <span>{importMessage}</span>
+            </div>
+            {importCounts && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {Object.entries(importCounts).map(([table, count]) => (
+                  <span
+                    key={table}
+                    className="text-[10px] bg-white border border-slate-200 px-2 py-0.5 rounded-md font-semibold text-slate-700"
+                  >
+                    {table}: <strong>{String(count)}</strong>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         <div className="flex flex-wrap gap-3 pt-2">
           <button
             onClick={handleExportBackup}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 shadow-xs"
           >
             <Download className="w-4 h-4" />
             <span>Tüm Verileri JSON Olarak İndir</span>
@@ -576,6 +617,110 @@ export default function SettingsPage() {
             />
           </label>
         </div>
+      </div>
+
+      {/* 5. SİSTEM TANILAMA & VERİTABANI SAĞLIĞI */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2">
+            <Database className="w-5 h-5 text-indigo-600" />
+            <h3 className="font-bold text-slate-900 text-base">
+              Sistem Tanılama & Depolama Sağlığı 🩺
+            </h3>
+          </div>
+          <button
+            onClick={loadDiagnostics}
+            disabled={isLoadingDiagnostics}
+            className="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDiagnostics ? "animate-spin" : ""}`} />
+            <span>Yenile</span>
+          </button>
+        </div>
+
+        {diagnostics ? (
+          <div className="space-y-4 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <span className="text-slate-400 font-semibold block text-[10px] uppercase">
+                  SQLite Veritabanı
+                </span>
+                <span className="font-mono font-bold text-slate-800 mt-0.5 block truncate" title={diagnostics.storage?.dbPath}>
+                  {diagnostics.storage?.dbPath?.split("/").pop()}
+                </span>
+                <p className="text-[11px] text-emerald-600 font-bold mt-1">
+                  Boyut: {diagnostics.storage?.dbSizeFormatted}
+                </p>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <span className="text-slate-400 font-semibold block text-[10px] uppercase">
+                  Yedek Klasörü
+                </span>
+                <span className="font-mono font-bold text-slate-800 mt-0.5 block truncate" title={diagnostics.storage?.backupsDir}>
+                  {diagnostics.storage?.backupsDir?.split("/").pop()}
+                </span>
+                <p className="text-[11px] text-slate-600 mt-1">
+                  Mevcut Yedekler: <strong>{diagnostics.storage?.backupCount || 0} adet</strong>
+                </p>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <span className="text-slate-400 font-semibold block text-[10px] uppercase">
+                  Çalışma Ortamı
+                </span>
+                <span className="font-bold text-slate-800 mt-0.5 block">
+                  Node {diagnostics.system?.nodeVersion} ({diagnostics.system?.platform}-{diagnostics.system?.arch})
+                </span>
+                <p className="text-[11px] text-slate-600 mt-1">
+                  RAM Tüketimi: <strong>{diagnostics.system?.memoryRssMb} MB</strong>
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <span className="font-bold text-slate-700 block mb-2">
+                Veritabanı Tablo Kayıt Dağılımı:
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="p-2.5 bg-slate-50/80 rounded-lg border border-slate-100 flex items-center justify-between">
+                  <span className="text-slate-500">Besinler:</span>
+                  <span className="font-bold text-slate-900">{diagnostics.counts?.foods || 0}</span>
+                </div>
+                <div className="p-2.5 bg-slate-50/80 rounded-lg border border-slate-100 flex items-center justify-between">
+                  <span className="text-slate-500">Öğün Kayıtları:</span>
+                  <span className="font-bold text-slate-900">{diagnostics.counts?.foodLogs || 0}</span>
+                </div>
+                <div className="p-2.5 bg-slate-50/80 rounded-lg border border-slate-100 flex items-center justify-between">
+                  <span className="text-slate-500">Antrenmanlar:</span>
+                  <span className="font-bold text-slate-900">{diagnostics.counts?.workoutSessions || 0}</span>
+                </div>
+                <div className="p-2.5 bg-slate-50/80 rounded-lg border border-slate-100 flex items-center justify-between">
+                  <span className="text-slate-500">Set Kayıtları:</span>
+                  <span className="font-bold text-slate-900">{diagnostics.counts?.setLogs || 0}</span>
+                </div>
+                <div className="p-2.5 bg-slate-50/80 rounded-lg border border-slate-100 flex items-center justify-between">
+                  <span className="text-slate-500">Kiler Ürünleri:</span>
+                  <span className="font-bold text-slate-900">{diagnostics.counts?.pantryItems || 0}</span>
+                </div>
+                <div className="p-2.5 bg-slate-50/80 rounded-lg border border-slate-100 flex items-center justify-between">
+                  <span className="text-slate-500">Tartı Kayıtları:</span>
+                  <span className="font-bold text-slate-900">{diagnostics.counts?.weightLogs || 0}</span>
+                </div>
+                <div className="p-2.5 bg-slate-50/80 rounded-lg border border-slate-100 flex items-center justify-between">
+                  <span className="text-slate-500">Yemek Planları:</span>
+                  <span className="font-bold text-slate-900">{diagnostics.counts?.mealPlans || 0}</span>
+                </div>
+                <div className="p-2.5 bg-slate-50/80 rounded-lg border border-slate-100 flex items-center justify-between">
+                  <span className="text-slate-500">Tarifler:</span>
+                  <span className="font-bold text-slate-900">{diagnostics.counts?.recipes || 0}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-slate-400">Tanılama bilgileri yükleniyor...</p>
+        )}
       </div>
     </div>
   );
