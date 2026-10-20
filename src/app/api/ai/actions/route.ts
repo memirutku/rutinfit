@@ -1,9 +1,34 @@
 import { NextResponse } from 'next/server';
+import { z, ZodError } from 'zod';
 import { prisma } from '@/lib/prisma';
 import {
-  verifyAndApplyActionDraft,
+  DraftActionError,
+  reissueApprovalToken,
   rejectActionDraft,
+  verifyAndApplyActionDraft,
 } from '@/lib/ai-tools/action-tools';
+
+const ActionRequestSchema = z.object({
+  draftId: z.string().min(1, 'draftId parametresi zorunludur.'),
+  action: z.enum(['approve', 'reject', 'reissue']).default('approve'),
+  approvalToken: z.string().optional(),
+  editedChanges: z.record(z.any()).optional(),
+  reason: z.string().max(500).optional(),
+});
+
+function errorResponse(error: unknown) {
+  if (error instanceof DraftActionError) {
+    return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+  }
+  if (error instanceof ZodError) {
+    return NextResponse.json(
+      { error: 'Taslak değişiklikleri geçersiz.', issues: error.issues },
+      { status: 400 }
+    );
+  }
+  console.error('Action execution error:', error);
+  return NextResponse.json({ error: 'Eylem yürütülürken beklenmeyen bir hata oluştu.' }, { status: 500 });
+}
 
 export async function GET(req: Request) {
   try {
@@ -14,10 +39,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'draftId parametresi zorunludur.' }, { status: 400 });
     }
 
-    const draft = await prisma.actionDraft.findUnique({
-      where: { id: draftId },
-    });
-
+    const draft = await prisma.actionDraft.findUnique({ where: { id: draftId } });
     if (!draft) {
       return NextResponse.json({ error: 'Taslak bulunamadı.' }, { status: 404 });
     }
@@ -32,49 +54,40 @@ export async function GET(req: Request) {
       isExpired: new Date() > draft.expiresAt,
       createdAt: draft.createdAt,
     });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error?.message || 'Taslak bilgisi alınamadı.' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return errorResponse(error);
   }
 }
 
 export async function POST(req: Request) {
+  let body: unknown;
   try {
-    const body = await req.json();
-    const { draftId, approvalToken, action = 'approve', editedChanges, reason } = body;
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Geçersiz JSON gövdesi.' }, { status: 400 });
+  }
 
-    if (!draftId) {
-      return NextResponse.json({ error: 'draftId parametresi zorunludur.' }, { status: 400 });
-    }
+  const parsed = ActionRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Geçersiz istek.' }, { status: 400 });
+  }
+  const { draftId, action, approvalToken, editedChanges, reason } = parsed.data;
 
+  try {
     if (action === 'reject') {
-      const result = await rejectActionDraft(draftId, reason);
-      return NextResponse.json(result);
+      return NextResponse.json(await rejectActionDraft(draftId, reason));
     }
-
-    if (action === 'approve') {
-      if (!approvalToken) {
-        return NextResponse.json(
-          { error: 'Onaylama işlemi için geçerli bir approvalToken gereklidir.' },
-          { status: 403 }
-        );
-      }
-
-      const result = await verifyAndApplyActionDraft(draftId, approvalToken, editedChanges);
-      return NextResponse.json(result);
+    if (action === 'reissue') {
+      return NextResponse.json(await reissueApprovalToken(draftId));
     }
-
-    return NextResponse.json(
-      { error: 'Geçersiz aksiyon. "approve" veya "reject" olmalıdır.' },
-      { status: 400 }
-    );
-  } catch (error: any) {
-    console.error('Action execution error:', error);
-    return NextResponse.json(
-      { error: error?.message || 'Eylem yürütülürken hata oluştu.' },
-      { status: 400 }
-    );
+    if (!approvalToken) {
+      return NextResponse.json(
+        { error: 'Onaylama işlemi için geçerli bir approvalToken gereklidir.' },
+        { status: 403 }
+      );
+    }
+    return NextResponse.json(await verifyAndApplyActionDraft(draftId, approvalToken, editedChanges));
+  } catch (error) {
+    return errorResponse(error);
   }
 }

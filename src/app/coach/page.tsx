@@ -68,6 +68,7 @@ export default function CoachPage() {
   const [appliedActions, setAppliedActions] = useState<Record<string, boolean>>({});
   const [rejectedActions, setRejectedActions] = useState<Record<string, boolean>>({});
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  const [busyActionKey, setBusyActionKey] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Record<string, any>>({});
   const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(null);
   const [actionErrorMessage, setActionErrorMessage] = useState<string | null>(null);
@@ -102,13 +103,24 @@ export default function CoachPage() {
       if (res.ok) {
         const data = await res.json();
         setConversationId(id);
-        const mapped: MessageItem[] = (data.conversation.messages || []).map((m: any) => ({
-          role: m.role as 'user' | 'assistant',
-          content: m.content,
-          draftId: m.draftId,
-          approvalToken: m.draft?.approvalTokenHash ? 'existing' : undefined,
-          actionProposal: m.actionProposal ? JSON.parse(m.actionProposal) : undefined,
-        }));
+        const applied: Record<string, boolean> = {};
+        const rejected: Record<string, boolean> = {};
+        const mapped: MessageItem[] = (data.conversation.messages || []).map((m: any, i: number) => {
+          const actionProposal = m.actionProposal ? JSON.parse(m.actionProposal) : undefined;
+          // Taslağın gerçek durumu veritabanından gelir; onay anahtarı gerekirse yeniden alınır.
+          const key = `${i}-${actionProposal?.type}`;
+          if (m.draft?.status === 'applied') applied[key] = true;
+          if (m.draft?.status === 'rejected') rejected[key] = true;
+          return {
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+            draftId: m.draftId,
+            actionProposal,
+          };
+        });
+        setAppliedActions(applied);
+        setRejectedActions(rejected);
+        setEditingDraftId(null);
         setMessages(mapped.length > 0 ? mapped : messages);
       }
     } catch (e) {
@@ -121,6 +133,9 @@ export default function CoachPage() {
   function startNewConversation() {
     setConversationId(null);
     setAttachedFiles([]);
+    setAppliedActions({});
+    setRejectedActions({});
+    setEditingDraftId(null);
     setMessages([
       {
         role: 'assistant',
@@ -246,14 +261,28 @@ export default function CoachPage() {
   async function handleApproveAction(proposal: any, idx: number, editedData?: any) {
     const actionKey = `${idx}-${proposal.type}`;
     const draftId = proposal.draftId;
-    const approvalToken = proposal.approvalToken;
+    if (busyActionKey) return; // çift tıklama koruması
 
-    if (!draftId || !approvalToken) {
-      setActionErrorMessage('Taslak kimliği veya onay anahtarı bulunamadı.');
+    if (!draftId) {
+      setActionErrorMessage('Taslak kimliği bulunamadı.');
       return;
     }
 
+    setBusyActionKey(actionKey);
     try {
+      let approvalToken: string | undefined = proposal.approvalToken;
+      if (!approvalToken) {
+        // Geçmiş sohbetten açılan öneri: ham anahtar saklanmadığı için yenisi istenir.
+        const reissue = await fetch('/api/ai/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ draftId, action: 'reissue' }),
+        });
+        const reissued = await reissue.json();
+        if (!reissue.ok) throw new Error(reissued.error || 'Onay anahtarı alınamadı.');
+        approvalToken = reissued.approvalToken;
+      }
+
       const res = await fetch('/api/ai/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -277,6 +306,8 @@ export default function CoachPage() {
     } catch (err: any) {
       setActionErrorMessage(err.message || 'Onaylama sırasında bir hata oluştu.');
       setTimeout(() => setActionErrorMessage(null), 5000);
+    } finally {
+      setBusyActionKey(null);
     }
   }
 
@@ -290,7 +321,7 @@ export default function CoachPage() {
     }
 
     try {
-      await fetch('/api/ai/actions', {
+      const res = await fetch('/api/ai/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -299,11 +330,16 @@ export default function CoachPage() {
           reason: 'Kullanıcı vazgeçti',
         }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Taslak iptal edilemedi.');
+      }
 
       setRejectedActions((prev) => ({ ...prev, [actionKey]: true }));
       setEditingDraftId(null);
-    } catch (err) {
-      console.error('Vazgeçme hatası:', err);
+    } catch (err: any) {
+      setActionErrorMessage(err.message || 'Vazgeçme sırasında bir hata oluştu.');
+      setTimeout(() => setActionErrorMessage(null), 5000);
     }
   }
 
@@ -556,7 +592,7 @@ export default function CoachPage() {
                           )}
 
                           <button
-                            disabled={isApplied}
+                            disabled={isApplied || busyActionKey === actionKey}
                             onClick={() =>
                               handleApproveAction(
                                 m.actionProposal,

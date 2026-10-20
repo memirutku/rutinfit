@@ -49,6 +49,8 @@ export async function parsePdfFile(input: ParseFileInput): Promise<ParsedFileRes
     structuredData: {
       pageCount,
       textLength: rawText.length,
+      // Modelin PDF'i gerçekten okuyabilmesi için metin (üst sınırlı) saklanır.
+      text: rawText.slice(0, 50_000),
     },
     confidence: rawText.trim() ? analysis.confidence : 'low',
     uncertainties: allUncertainties,

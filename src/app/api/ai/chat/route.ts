@@ -7,6 +7,8 @@ import { createActionDraft } from '@/lib/ai-tools/action-tools';
 import { calculateRecipeNutrition } from '@/lib/ai-tools/draft-tools';
 import { getLocalDateString } from '@/lib/date-utils';
 import { ChatRequestSchema } from '@/lib/schemas/chat';
+import { checkAIBaseUrl, shouldSendOpenAIKey, DEFAULT_AI_BASE_URL } from '@/lib/security/ai-endpoint';
+import { buildUntrustedFileBlock, artifactPromptText } from '@/lib/file-parsers/sanitizer';
 
 // GET: Retrieve conversation list or conversation history
 export async function GET(req: Request) {
@@ -20,7 +22,12 @@ export async function GET(req: Request) {
         include: {
           messages: {
             orderBy: { createdAt: 'asc' },
-            include: { draft: true },
+            // Onay anahtarı özeti istemciye gönderilmez.
+            include: {
+              draft: {
+                select: { id: true, draftType: true, status: true, expiresAt: true, impactSummary: true },
+              },
+            },
           },
         },
       });
@@ -116,10 +123,13 @@ export async function POST(req: Request) {
         fileContextPrompt = '\n\nKULLANICININ YÜKLEDİĞİ DOSYA İÇERİKLERİ:\n';
         for (const f of files) {
           const art = f.artifacts[0];
-          fileContextPrompt += `--- Dosya: ${f.originalName} (${f.mimeType}, Durum: ${f.status}) ---\n`;
           if (art) {
             fileContextPrompt += `Özet: ${art.sourceSummary} | Güven: ${art.confidence}\n`;
-            fileContextPrompt += `<untrusted_content filename="${f.originalName}" mime_type="${f.mimeType}">\n${art.structuredData}\n</untrusted_content>\n\n`;
+            fileContextPrompt += `${buildUntrustedFileBlock({
+              originalName: f.originalName,
+              mimeType: f.mimeType,
+              content: artifactPromptText(art.structuredData),
+            })}\n\n`;
           }
         }
       }
@@ -213,9 +223,19 @@ Kullanıcı onaylamadan hiçbir değişiklik veritabanına uygulanmaz.`;
       });
     }
 
-    const baseUrl = aiSettings?.baseUrl || 'http://127.0.0.1:11434/v1';
+    const baseUrl = aiSettings?.baseUrl || DEFAULT_AI_BASE_URL;
     const model = aiSettings?.modelName || 'llama3.2';
     const providerType = aiSettings?.providerType || 'ollama';
+
+    // Kişisel bağlam yalnız izin verilen (yerel veya resmi OpenAI) adrese gider.
+    const endpointCheck = checkAIBaseUrl(baseUrl);
+    if (!endpointCheck.ok) {
+      return NextResponse.json({
+        reply: `⚠️ Kayıtlı yapay zekâ adresi güvenli değil (${endpointCheck.reason}) Lütfen Ayarlar sekmesinden yeniden yapılandırın.`,
+        conversationId: convId,
+        isError: true,
+      });
+    }
 
     const chatEndpoint = baseUrl.endsWith('/')
       ? `${baseUrl}chat/completions`
@@ -229,7 +249,7 @@ Kullanıcı onaylamadan hiçbir değişiklik veritabanına uygulanmaz.`;
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
-    if (providerType === 'openai' && process.env.OPENAI_API_KEY) {
+    if (shouldSendOpenAIKey(providerType, baseUrl) && process.env.OPENAI_API_KEY) {
       headers['Authorization'] = `Bearer ${process.env.OPENAI_API_KEY}`;
     }
 
@@ -340,7 +360,10 @@ Kullanıcı onaylamadan hiçbir değişiklik veritabanına uygulanmaz.`;
           role: 'assistant',
           content: rawContent,
           draftId,
-          actionProposal: actionProposal ? JSON.stringify(actionProposal) : null,
+          // Ham onay anahtarı kalıcı olarak saklanmaz; yalnız bu yanıtta istemciye verilir.
+          actionProposal: actionProposal
+            ? JSON.stringify({ ...actionProposal, approvalToken: undefined })
+            : null,
         },
       });
 

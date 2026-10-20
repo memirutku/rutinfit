@@ -14,6 +14,57 @@ export function hashApprovalToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+/** Taslak işlemlerinde HTTP durum koduna eşlenen tipli hata. */
+export class DraftActionError extends Error {
+  constructor(
+    message: string,
+    readonly status: 400 | 403 | 404 | 409 | 410,
+    readonly code: 'not_found' | 'bad_token' | 'expired' | 'not_pending' | 'conflict' | 'invalid'
+  ) {
+    super(message);
+    this.name = 'DraftActionError';
+  }
+}
+
+function tokenMatchesHash(token: string, storedHash: string): boolean {
+  const a = Buffer.from(hashApprovalToken(token), 'hex');
+  const b = Buffer.from(storedHash, 'hex');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+async function findDraftOrThrow(draftId: string) {
+  const draft = await prisma.actionDraft.findUnique({ where: { id: draftId } });
+  if (!draft) throw new DraftActionError('Taslak bulunamadı.', 404, 'not_found');
+  return draft;
+}
+
+function assertPendingAndFresh(draft: { status: string; expiresAt: Date }) {
+  if (draft.status !== 'pending') {
+    throw new DraftActionError(`Taslak "${draft.status}" durumunda olduğu için bu işlem yapılamaz.`, 409, 'not_pending');
+  }
+  if (new Date() > draft.expiresAt) {
+    throw new DraftActionError('Taslağın onay süresi doldu. Lütfen koçtan yeni bir öneri isteyin.', 410, 'expired');
+  }
+}
+
+/**
+ * Bekleyen bir taslak için yeni onay anahtarı üretir (eski anahtar geçersizleşir).
+ * Ham anahtar hiçbir yerde saklanmaz; geçmiş sohbetteki öneriyi onaylamak için kullanılır.
+ */
+export async function reissueApprovalToken(draftId: string) {
+  const draft = await findDraftOrThrow(draftId);
+  assertPendingAndFresh(draft);
+
+  const rawApprovalToken = crypto.randomBytes(24).toString('hex');
+  const res = await prisma.actionDraft.updateMany({
+    where: { id: draftId, status: 'pending' },
+    data: { approvalTokenHash: hashApprovalToken(rawApprovalToken) },
+  });
+  if (res.count !== 1) throw new DraftActionError('Taslak bu sırada değişti.', 409, 'conflict');
+
+  return { draftId, approvalToken: rawApprovalToken, expiresAt: draft.expiresAt };
+}
+
 export async function createActionDraft(params: CreateDraftParams) {
   const { draftType, proposedChanges, impactSummary, ttlMinutes = 120 } = params;
 
@@ -50,43 +101,42 @@ export async function verifyAndApplyActionDraft(
   approvalToken: string,
   editedChanges?: Record<string, any>
 ) {
-  const draft = await prisma.actionDraft.findUnique({
-    where: { id: draftId },
-  });
+  const draft = await findDraftOrThrow(draftId);
 
-  if (!draft) {
-    throw new Error(`Taslak (${draftId}) bulunamadı.`);
-  }
+  const alreadyApplied = {
+    success: true,
+    alreadyApplied: true,
+    message: 'Bu taslak daha önce başarıyla onaylanmış ve uygulanmıştır.',
+    draftId: draft.id,
+  };
+  if (draft.status === 'applied') return alreadyApplied;
 
-  if (draft.status === 'applied') {
-    return {
-      success: true,
-      alreadyApplied: true,
-      message: 'Bu taslak daha önce başarıyla onaylanmış ve uygulanmıştır.',
-      draftId: draft.id,
-    };
-  }
+  assertPendingAndFresh(draft);
 
-  if (draft.status !== 'pending') {
-    throw new Error(`Taslak durumu "${draft.status}" olduğu için uygulanamaz.`);
-  }
-
-  if (new Date() > draft.expiresAt) {
-    throw new Error('Taslağın onay süresi doldu. Lütfen yeni bir taslak oluşturun.');
-  }
-
-  // Token verification
-  const computedHash = hashApprovalToken(approvalToken);
-  if (computedHash !== draft.approvalTokenHash) {
-    throw new Error('Geçersiz onay anahtarı (approvalToken). Yetkisiz veya sahte işlem engellendi.');
+  if (!approvalToken || !tokenMatchesHash(approvalToken, draft.approvalTokenHash)) {
+    throw new DraftActionError('Geçersiz onay anahtarı. Yetkisiz veya sahte işlem engellendi.', 403, 'bad_token');
   }
 
   const rawChanges = editedChanges || JSON.parse(draft.proposedChanges || '{}');
   const changesToApply = validateDraftChanges(draft.draftType as DraftType, rawChanges);
   let affectedEntityId: string | undefined;
+  let claimed = false;
 
-  // Execute mutation safely inside transaction
+  // Mutasyon transaction içinde: taslak önce atomik olarak "applied"a çekilir.
+  // Aynı anda gelen ikinci onay 0 satır günceller ve hiçbir şey yazmaz.
   await prisma.$transaction(async (tx) => {
+    const claim = await tx.actionDraft.updateMany({
+      where: {
+        id: draft.id,
+        status: 'pending',
+        approvalTokenHash: draft.approvalTokenHash,
+        expiresAt: { gt: new Date() },
+      },
+      data: { status: 'applied', proposedChanges: JSON.stringify(changesToApply) },
+    });
+    if (claim.count !== 1) return;
+    claimed = true;
+
     switch (draft.draftType) {
       case 'meal_plan': {
         const { date, meals, notes } = changesToApply;
@@ -260,15 +310,6 @@ export async function verifyAndApplyActionDraft(
       }
     }
 
-    // Mark draft as applied
-    await tx.actionDraft.update({
-      where: { id: draft.id },
-      data: {
-        status: 'applied',
-        proposedChanges: JSON.stringify(changesToApply),
-      },
-    });
-
     // Record audit event
     await tx.auditEvent.create({
       data: {
@@ -284,6 +325,12 @@ export async function verifyAndApplyActionDraft(
     });
   });
 
+  if (!claimed) {
+    const current = await prisma.actionDraft.findUnique({ where: { id: draft.id } });
+    if (current?.status === 'applied') return alreadyApplied;
+    throw new DraftActionError('Taslak bu sırada değişti ve uygulanamadı.', 409, 'conflict');
+  }
+
   return {
     success: true,
     draftId: draft.id,
@@ -294,18 +341,18 @@ export async function verifyAndApplyActionDraft(
 }
 
 export async function rejectActionDraft(draftId: string, reason?: string) {
-  const draft = await prisma.actionDraft.findUnique({
-    where: { id: draftId },
-  });
-
-  if (!draft) {
-    throw new Error(`Taslak (${draftId}) bulunamadı.`);
+  const draft = await findDraftOrThrow(draftId);
+  if (draft.status === 'rejected') {
+    return { success: true, draftId, status: 'rejected', message: 'Taslak zaten iptal edilmiş.' };
   }
 
-  await prisma.actionDraft.update({
-    where: { id: draftId },
+  const res = await prisma.actionDraft.updateMany({
+    where: { id: draftId, status: 'pending' },
     data: { status: 'rejected' },
   });
+  if (res.count !== 1) {
+    throw new DraftActionError(`Taslak "${draft.status}" durumunda olduğu için reddedilemez.`, 409, 'not_pending');
+  }
 
   await prisma.auditEvent.create({
     data: {

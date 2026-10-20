@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { BackupEnvelopeSchema } from "@/lib/backup-schema";
+import { checkAIBaseUrl, DEFAULT_AI_BASE_URL } from "@/lib/security/ai-endpoint";
 
 export async function POST(req: Request) {
   try {
@@ -430,21 +431,24 @@ export async function POST(req: Request) {
 
       // 14. AI Ayarları
       if (data.aiSettings) {
+        // Yedek dosyası kişisel verinin gideceği adresi uzak bir sunucuya çeviremez.
+        const restoredUrl =
+          typeof data.aiSettings.baseUrl === "string" && checkAIBaseUrl(data.aiSettings.baseUrl).ok
+            ? data.aiSettings.baseUrl
+            : DEFAULT_AI_BASE_URL;
+        const aiData = {
+          providerType: ["ollama", "lmstudio", "openai"].includes(data.aiSettings.providerType)
+            ? data.aiSettings.providerType
+            : "ollama",
+          baseUrl: restoredUrl,
+          modelName: data.aiSettings.modelName || "llama3.2",
+          // Geri yüklenen bağlantı yeniden test edilene kadar doğrulanmamış sayılır.
+          connectionStatus: "untested",
+        };
         await tx.aISettings.upsert({
-          where: { id: data.aiSettings.id || "default-ai" },
-          update: {
-            providerType: data.aiSettings.providerType || "ollama",
-            baseUrl: data.aiSettings.baseUrl || "http://127.0.0.1:11434/v1",
-            modelName: data.aiSettings.modelName || "llama3.2",
-            connectionStatus: data.aiSettings.connectionStatus || "untested",
-          },
-          create: {
-            id: data.aiSettings.id || "default-ai",
-            providerType: data.aiSettings.providerType || "ollama",
-            baseUrl: data.aiSettings.baseUrl || "http://127.0.0.1:11434/v1",
-            modelName: data.aiSettings.modelName || "llama3.2",
-            connectionStatus: data.aiSettings.connectionStatus || "untested",
-          },
+          where: { id: "default-ai" },
+          update: aiData,
+          create: { id: "default-ai", ...aiData },
         });
         counts.aiSettings = 1;
       }
