@@ -6,7 +6,7 @@ import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "../../src/lib/db/client";
 import { startMockServices } from "./mock-services";
 
 const root = path.resolve(__dirname, "../..");
@@ -23,7 +23,7 @@ async function main() {
   execFileSync(bin("tsx"), ["prisma/seed.ts"], { cwd: root, env, stdio: "inherit" });
 
   const mocks = await startMockServices(MOCK_PORT);
-  const prisma = new PrismaClient({ datasourceUrl: dbUrl });
+  const prisma = createPrismaClient(dbUrl);
   await prisma.aISettings.upsert({
     where: { id: "default-ai" },
     update: { baseUrl: mocks.llmBaseUrl, modelName: "mock-llama", providerType: "ollama", connectionStatus: "connected" },

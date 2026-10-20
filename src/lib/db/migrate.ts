@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "./client";
 
 /**
  * Uygulama içi migration uygulayıcı.

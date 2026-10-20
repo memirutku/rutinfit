@@ -1,10 +1,10 @@
 import path from "node:path";
-import { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "../src/lib/db/client";
 import { runMigrations } from "../src/lib/db/migrate";
 import { getPrismaDatabaseUrl } from "../src/lib/storage-paths";
 
 // DATABASE_URL verilmişse onu (testler/E2E), yoksa uygulamanın kendi veritabanını kullan.
-const prisma = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL || getPrismaDatabaseUrl() });
+const prisma = createPrismaClient(process.env.DATABASE_URL || getPrismaDatabaseUrl());
 
 async function main() {
   await runMigrations(prisma, { migrationsDir: path.join(__dirname, "migrations") });

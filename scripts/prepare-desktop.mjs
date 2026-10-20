@@ -7,6 +7,7 @@
  * 2. Pakette kullanıcı verisi veya gizli dosya OLMADIĞINI doğrular; varsa derlemeyi durdurur.
  * 3. Gömülü Node çalışma zamanını (sabit sürüm + sabit SHA-256) indirip
  *    src-tauri/binaries/node-<hedef> olarak yerleştirir (Tauri sidecar adlandırması).
+ * 4. SQLite yerel eklentisinin (better-sqlite3) bu gömülü Node ile yüklenebildiğini doğrular.
  */
 import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
@@ -32,6 +33,7 @@ const NODE_SHA256 = {
  */
 const ALLOWED_TOP_LEVEL = new Set(["server.js", "package.json", ".next", "node_modules", "prisma"]);
 const ALLOWED_IN_PRISMA = new Set(["migrations"]);
+const NATIVE_ADDON = "node_modules/better-sqlite3/build/Release/better_sqlite3.node";
 /** prepare-desktop'ın kendisinin eklediği girdiler. */
 const ADDED_TOP_LEVEL = new Set(["desktop-entry.cjs", "public"]);
 
@@ -120,9 +122,37 @@ function verifyServer() {
   if (violations.length) {
     throw new Error(`Masaüstü paketi güvenli değil:\n  - ${violations.join("\n  - ")}`);
   }
-  const engine = fs.readdirSync(path.join(serverOut, "node_modules", ".prisma", "client")).find((f) => f.startsWith("libquery_engine"));
-  if (!engine) throw new Error("Prisma sorgu motoru pakette yok.");
-  log(`Sunucu hazır: ${path.relative(root, serverOut)} (Prisma motoru: ${engine})`);
+  // Prisma 7: Rust sorgu motoru yok; veritabanına better-sqlite3 sürücü adaptörüyle bağlanılır.
+  if (!fs.existsSync(path.join(serverOut, NATIVE_ADDON))) throw new Error(`SQLite yerel eklentisi pakette yok: ${NATIVE_ADDON}`);
+  const leftovers = [];
+  const findEngines = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) findEngines(full);
+      else if (/^(lib)?query[-_]engine/.test(entry.name)) leftovers.push(path.relative(serverOut, full));
+    }
+  };
+  findEngines(serverOut);
+  if (leftovers.length) throw new Error(`Eski Prisma sorgu motoru pakette kalmış: ${leftovers.join(", ")}`);
+  log(`Sunucu hazır: ${path.relative(root, serverOut)} (SQLite: ${NATIVE_ADDON})`);
+}
+
+/**
+ * better-sqlite3 Node'un V8 ABI'sine göre derlenir: `pnpm install` hangi Node ile çalıştıysa eklenti
+ * yalnız o ana sürümde yüklenir. Paketteki Node ile yüklenemezse uygulama açılışta çöker.
+ */
+function verifyNativeAddon(nodeBinary) {
+  const pkg = path.join(serverOut, "node_modules", "better-sqlite3");
+  const probe = `const D=require(${JSON.stringify(pkg)});const db=new D(":memory:");db.prepare("select 1").get();db.close();`;
+  try {
+    execFileSync(nodeBinary, ["-e", probe], { stdio: "pipe" });
+  } catch (err) {
+    const detail = String(err.stderr || err.message).split("\n").find((l) => l.includes("NODE_MODULE_VERSION")) || err.message;
+    throw new Error(
+      `SQLite yerel eklentisi gömülü Node ${NODE_VERSION} ile yüklenemedi (kurulum Node ${process.version} ile yapılmış).\n  ${detail}\n  Çözüm: Node 22 ile \`pnpm install\` çalıştırıp yeniden derleyin.`
+    );
+  }
+  log(`SQLite yerel eklentisi gömülü Node ${NODE_VERSION} ile yüklendi.`);
 }
 
 async function ensureNode() {
@@ -133,7 +163,7 @@ async function ensureNode() {
   const marker = `${dest}.version`;
   if (fs.existsSync(dest) && fs.existsSync(marker) && fs.readFileSync(marker, "utf8").trim() === NODE_VERSION) {
     log(`Node ${NODE_VERSION} zaten hazır (${path.relative(root, dest)})`);
-    return;
+    return dest;
   }
 
   const url = `https://nodejs.org/dist/v${NODE_VERSION}/${spec.file}`;
@@ -161,12 +191,13 @@ async function ensureNode() {
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
+  return dest;
 }
 
 try {
   copyServer();
   verifyServer();
-  await ensureNode();
+  verifyNativeAddon(await ensureNode());
 } catch (err) {
   console.error(`[prepare-desktop] HATA: ${err.message}`);
   process.exit(1);

@@ -1,10 +1,22 @@
+// Prisma 7: bağlantı adresi şemada değil; CLI için prisma.config.ts, uygulama için
+// src/lib/db/client.ts (better-sqlite3 sürücü adaptörü).
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
 }
 
+// Rust'sız istemci; src/generated/prisma'ya üretilir (git'e girmez, `pnpm install` sonrası
+// postinstall ve `prisma generate` üretir).
 generator client {
-  provider = "prisma-client-js"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  // Proje CommonJS (package.json'da "type" yok); tsx ve Vitest ile uyumlu çıktı.
+  moduleFormat = "cjs"
+}
+
+// Prisma 7 `Prisma.dmmf`'i dışa vermiyor; yedekleme servisi için alan bilgisi (bkz. dosya başı).
+generator datamodel {
+  provider = "node ./prisma/generators/datamodel.mjs"
+  output   = "../src/generated/datamodel.ts"
 }
 
 model UserProfile {

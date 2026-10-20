@@ -4,6 +4,8 @@ node_modules
 
 # Next.js & Build outputs
 .next
+# Prisma istemcisi ve şema bilgisi (`prisma generate` / postinstall üretir)
+src/generated/
 out
 build
 dist

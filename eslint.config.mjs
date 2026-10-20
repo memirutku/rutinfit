@@ -15,8 +15,11 @@ const config = defineConfig([
     "test-results/**",
     "opengym/**",
     "next-env.d.ts",
+    "src/generated/**",
   ]),
   {
+    // eslint-config-next eklentileri yalnız bu uzantılar için kaydeder (.cjs hariç).
+    files: ["**/*.{js,jsx,mjs,ts,tsx,mts,cts}"],
     rules: {
       "react/no-unescaped-entities": "off",
       // Mevcut kod tabanı `any`'ye dayanıyor; kademeli olarak daraltılacak.

@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { PrismaClient } from "@prisma/client";
+import { createPrismaClient, type PrismaClient } from "../src/lib/db/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { listMigrations, runMigrations, splitSqlStatements } from "@/lib/db/migrate";
 
@@ -12,7 +12,7 @@ let client: PrismaClient;
 
 beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "rutinfit-migrate-"));
-  client = new PrismaClient({ datasourceUrl: `file:${path.join(dir, "app.db")}` });
+  client = createPrismaClient(`file:${path.join(dir, "app.db")}`);
 });
 afterEach(async () => {
   await client.$disconnect();
@@ -77,11 +77,11 @@ describe("migration ↔ şema uyumu", () => {
         [
           "migrate", "diff",
           "--from-migrations", MIGRATIONS,
-          "--to-schema-datamodel", path.resolve(__dirname, "../prisma/schema.prisma"),
-          "--shadow-database-url", `file:${shadow}`,
+          "--to-schema", path.resolve(__dirname, "../prisma/schema.prisma"),
           "--exit-code",
         ],
-        { stdio: "pipe" }
+        // Prisma 7: gölge veritabanı bayrakla değil prisma.config.ts üzerinden verilir.
+        { stdio: "pipe", cwd: path.resolve(__dirname, ".."), env: { ...process.env, SHADOW_DATABASE_URL: `file:${shadow}` } }
       );
     // exit code 2 = fark var; yeni bir migration eklenmesi gerekir (bkz. README "Şema değişikliği")
     expect(run).not.toThrow();

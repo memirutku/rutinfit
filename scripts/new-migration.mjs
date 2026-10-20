@@ -20,10 +20,12 @@ const existing = fs.readdirSync(migrationsDir).filter((d) => /^\d{4}_/.test(d)).
 const next = String((parseInt(existing.at(-1)?.slice(0, 4) ?? "0", 10) || 0) + 1).padStart(4, "0");
 const shadow = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "rutinfit-shadow-")), "shadow.db");
 
+// Prisma 7: --to-schema-datamodel → --to-schema; gölge veritabanı bayrak yerine
+// prisma.config.ts (datasource.shadowDatabaseUrl) üzerinden verilir.
 const sql = execFileSync(
   path.join(root, "node_modules", ".bin", "prisma"),
-  ["migrate", "diff", "--from-migrations", migrationsDir, "--to-schema-datamodel", path.join(root, "prisma", "schema.prisma"), "--shadow-database-url", `file:${shadow}`, "--script"],
-  { encoding: "utf8" }
+  ["migrate", "diff", "--from-migrations", migrationsDir, "--to-schema", path.join(root, "prisma", "schema.prisma"), "--script"],
+  { encoding: "utf8", cwd: root, env: { ...process.env, SHADOW_DATABASE_URL: `file:${shadow}` } }
 );
 
 if (!sql.trim() || /This is an empty migration/.test(sql)) {

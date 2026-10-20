@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "../../src/lib/db/client";
 import type { TestProject } from "vitest/node";
 import { runMigrations } from "../../src/lib/db/migrate";
 
@@ -19,7 +19,7 @@ declare module "vitest" {
 export default async function setup(project: TestProject) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "rutinfit-template-"));
   const templateDb = path.join(dir, "template.db");
-  const client = new PrismaClient({ datasourceUrl: `file:${templateDb}` });
+  const client = createPrismaClient(`file:${templateDb}`);
   await runMigrations(client, { migrationsDir: path.resolve(__dirname, "../../prisma/migrations") });
   await client.$disconnect();
 

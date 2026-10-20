@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/lib/db/client";
+import { datamodel } from "@/generated/datamodel";
 import { GET as exportBackup } from "@/app/api/backup/export/route";
 import { POST as importBackup } from "@/app/api/backup/import/route";
 import { prisma } from "@/lib/prisma";
@@ -53,10 +54,10 @@ async function seedRichData() {
 
 async function snapshot() {
   const out: Record<string, unknown[]> = {};
-  for (const m of Prisma.dmmf.datamodel.models) {
-    if (m.name === "OpenFoodFactsCache") continue;
-    const rows = await (prisma as any)[delegateKey(m.name)].findMany({ orderBy: { id: "asc" } });
-    out[m.name] = rows.map(({ updatedAt: _updatedAt, ...rest }: any) => rest);
+  for (const name of Object.values(Prisma.ModelName)) {
+    if (name === "OpenFoodFactsCache") continue;
+    const rows = await (prisma as any)[delegateKey(name)].findMany({ orderBy: { id: "asc" } });
+    out[name] = rows.map(({ updatedAt: _updatedAt, ...rest }: any) => rest);
   }
   return out;
 }
@@ -66,8 +67,18 @@ describe("Yedek v2 — tam kapsam", () => {
     const res = await callRoute(exportBackup);
     expect(res.status).toBe(200);
     expect(res.json.version).toBe("2.0");
-    const expected = Prisma.dmmf.datamodel.models.map((m) => delegateKey(m.name)).filter((k) => k !== "openFoodFactsCache");
+    const expected = Object.values(Prisma.ModelName).map(delegateKey).filter((k) => k !== "openFoodFactsCache");
     expect(Object.keys(res.json.data).sort()).toEqual(expected.sort());
+  });
+
+  it("üretilen şema bilgisi (src/generated/datamodel.ts) istemcinin tüm modellerini ve ilişki/benzersiz alanlarını içerir", () => {
+    expect(datamodel.models.map((m) => m.name).sort()).toEqual(Object.values(Prisma.ModelName).sort());
+    const ingredient = datamodel.models.find((m) => m.name === "RecipeIngredient")!;
+    expect(ingredient.fields.find((f) => f.name === "recipe")?.relationFromFields).toEqual(["recipeId"]);
+    const food = datamodel.models.find((m) => m.name === "FoodItem")!;
+    expect(food.fields.find((f) => f.name === "barcode")?.isUnique).toBe(true);
+    expect(food.fields.find((f) => f.name === "id")?.isId).toBe(true);
+    expect(food.fields.find((f) => f.name === "updatedAt")?.isUpdatedAt).toBe(true);
   });
 
   it("gidiş-dönüş tüm tablo ve alanları kayıpsız geri yükler (brand, barcode, tags, isCompleted, createdAt...)", async () => {

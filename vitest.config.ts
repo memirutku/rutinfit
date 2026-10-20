@@ -13,7 +13,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**/*.{ts,tsx}"],
-      exclude: ["src/**/*.d.ts"],
+      exclude: ["src/**/*.d.ts", "src/generated/**"],
       reporter: ["text-summary", "html", "json-summary"],
       reportsDirectory: "coverage",
       // Taban çizgisi: kapsam bunun altına düşerse test başarısız olur. Yalnız yukarı çekilir.

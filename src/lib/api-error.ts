@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/lib/db/client";
 import { ZodError } from "zod";
 
 /**

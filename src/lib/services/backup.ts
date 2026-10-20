@@ -1,11 +1,12 @@
-import { Prisma } from '@prisma/client';
+import { datamodel, type DatamodelField } from '../../generated/datamodel';
+import type { Prisma } from '../db/client';
 import { prisma } from '../prisma';
 import { checkAIBaseUrl, DEFAULT_AI_BASE_URL } from '../security/ai-endpoint';
 
 /**
  * Tam kapsamlı yedekleme / geri yükleme.
  *
- * Tablo ve alan bilgisi Prisma şemasından (DMMF) okunur: şemaya yeni tablo/sütun eklendiğinde
+ * Tablo ve alan bilgisi Prisma şemasından (prisma generate → src/generated/datamodel.ts) okunur: şemaya yeni tablo/sütun eklendiğinde
  * yedek kendiliğinden kapsar. Geri yükleme birleştirme (merge) yapar: yedekteki kayıtlar eklenir
  * veya güncellenir, yedekte olmayan yerel kayıtlar silinmez. Tek transaction'da çalışır; herhangi
  * bir hata olursa hiçbir şey yazılmaz.
@@ -91,7 +92,7 @@ export class BackupValidationError extends Error {
 }
 
 type Row = Record<string, unknown>;
-type ScalarField = Prisma.DMMF.Field;
+type ScalarField = DatamodelField;
 
 interface ModelMeta {
   name: string;
@@ -110,7 +111,7 @@ let metaCache: Map<string, ModelMeta> | null = null;
 function metadata(): Map<string, ModelMeta> {
   if (metaCache) return metaCache;
   metaCache = new Map();
-  for (const m of Prisma.dmmf.datamodel.models) {
+  for (const m of datamodel.models) {
     const scalars = m.fields.filter((f) => f.kind === 'scalar' || f.kind === 'enum');
     const foreignKeys = new Map<string, string>();
     for (const f of m.fields) {
@@ -365,10 +366,17 @@ export async function restoreTables(tables: Record<string, unknown>): Promise<Re
         if (ownerFk) {
           const parentModel = m.foreignKeys.get(ownerFk)!;
           const parents = [...(restoredIds.get(parentModel) ?? [])];
-          const keepIds = rows.map((r) => r.id).filter((id): id is string => typeof id === 'string');
+          const keepIds = new Set(rows.map((r) => r.id).filter((id): id is string => typeof id === 'string'));
+          // Prisma 7 (sürücü adaptörü) SQLite'ta sorgu başına en çok 999 parametre gönderir; `in`
+          // listelerini böler ama `notIn` listesini bölemez (P2029). Silinecekler önce okunur,
+          // sonra parça parça silinir.
+          const stale: string[] = [];
           for (const part of chunks(parents)) {
-            await db.deleteMany({ where: { [ownerFk]: { in: part }, id: { notIn: keepIds } } });
+            for (const e of await db.findMany({ where: { [ownerFk]: { in: part } }, select: { id: true } })) {
+              if (!keepIds.has(e.id)) stale.push(e.id);
+            }
           }
+          for (const part of chunks(stale)) await db.deleteMany({ where: { id: { in: part } } });
         }
 
         // 5) Yaz: yeni satırlar toplu, var olanlar tek tek güncellenir
