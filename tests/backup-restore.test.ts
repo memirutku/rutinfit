@@ -42,14 +42,15 @@ describe("Yedekleme ve Geri Yükleme Tam Döngü (Round-Trip) Bütünlük Testi"
     const jsonText = await exportResponse.text();
     const backupJson = JSON.parse(jsonText);
 
-    expect(backupJson.version).toBe("1.1");
+    // v2: tablo başına düz satırlar (Prisma model adlarıyla)
+    expect(backupJson.version).toBe("2.0");
     expect(backupJson.data).toBeDefined();
-    expect(Array.isArray(backupJson.data.pantryItems)).toBe(true);
-    expect(Array.isArray(backupJson.data.foodLogs)).toBe(true);
+    expect(Array.isArray(backupJson.data.pantryItem)).toBe(true);
+    expect(Array.isArray(backupJson.data.foodLog)).toBe(true);
 
     // Dışa aktarılan veri içinde oluşturduğumuz test kayıtlarının varlığını kontrol et
-    const exportedPantry = backupJson.data.pantryItems.find((p: any) => p.name === pantryItem.name);
-    const exportedFoodLog = backupJson.data.foodLogs.find((f: any) => f.name === foodLog.name);
+    const exportedPantry = backupJson.data.pantryItem.find((p: any) => p.name === pantryItem.name);
+    const exportedFoodLog = backupJson.data.foodLog.find((f: any) => f.name === foodLog.name);
 
     expect(exportedPantry).toBeDefined();
     expect(exportedFoodLog).toBeDefined();

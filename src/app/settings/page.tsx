@@ -38,6 +38,8 @@ export default function SettingsPage() {
   // Yedek İçe Aktarma & Tanılama
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [importCounts, setImportCounts] = useState<any>(null);
+  const [importOk, setImportOk] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [diagnostics, setDiagnostics] = useState<any>(null);
   const [isLoadingDiagnostics, setIsLoadingDiagnostics] = useState(false);
 
@@ -142,9 +144,24 @@ export default function SettingsPage() {
   }
 
   async function handleImportBackup(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const input = e.target;
+    const file = input.files?.[0];
+    // Aynı dosya tekrar seçilebilsin diye input her durumda sıfırlanır.
+    const reset = () => {
+      input.value = "";
+    };
     if (!file) return;
 
+    if (
+      !window.confirm(
+        `"${file.name}" yedeği geri yüklensin mi?\n\nYedekteki kayıtlar eklenir veya güncellenir; yedekte olmayan mevcut kayıtlarınız silinmez.`
+      )
+    ) {
+      reset();
+      return;
+    }
+
+    setImporting(true);
     try {
       const text = await file.text();
       const json = JSON.parse(text);
@@ -155,19 +172,25 @@ export default function SettingsPage() {
         body: JSON.stringify(json),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
+        setImportOk(true);
         setImportMessage("Yedek başarıyla geri yüklendi!");
         setImportCounts(data.counts || null);
         loadDiagnostics();
         setTimeout(() => loadSettings(), 1000);
       } else {
-        setImportMessage(`Hata: ${data.error}`);
+        setImportOk(false);
+        setImportMessage(`Hata: ${data.error || "Yedek geri yüklenemedi"}`);
         setImportCounts(null);
       }
     } catch (err: any) {
+      setImportOk(false);
       setImportMessage(`Geçersiz JSON dosyası: ${err.message}`);
       setImportCounts(null);
+    } finally {
+      setImporting(false);
+      reset();
     }
   }
 
@@ -581,8 +604,15 @@ export default function SettingsPage() {
 
         {importMessage && (
           <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-            <div className="text-slate-800 text-xs font-bold flex items-center gap-2">
-              <Check className="w-4 h-4 text-emerald-600" />
+            <div
+              role={importOk ? "status" : "alert"}
+              className={`text-xs font-bold flex items-center gap-2 ${importOk ? "text-slate-800" : "text-rose-700"}`}
+            >
+              {importOk ? (
+                <Check className="w-4 h-4 text-emerald-600" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-rose-600" />
+              )}
               <span>{importMessage}</span>
             </div>
             {importCounts && (
@@ -611,10 +641,11 @@ export default function SettingsPage() {
 
           <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 cursor-pointer border border-slate-200">
             <Upload className="w-4 h-4" />
-            <span>Yedekten Geri Yükle (JSON Seç)</span>
+            <span>{importing ? "Geri yükleniyor..." : "Yedekten Geri Yükle (JSON Seç)"}</span>
             <input
               type="file"
               accept=".json"
+              disabled={importing}
               onChange={handleImportBackup}
               className="hidden"
             />
