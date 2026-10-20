@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { RECENT_FOODS_KEY, parseRecentFoods, pushRecentFood, type RecentFood } from "@/lib/recent-foods";
 import { buildRestorePayload } from "@/lib/food-log-restore";
@@ -11,21 +11,22 @@ import {
   Plus,
   Dumbbell,
   Clock,
-  BatteryMedium,
   Moon,
   AlertCircle,
   ChevronRight,
   Sparkles,
   Utensils,
   ExternalLink,
-  RotateCcw,
   Trash2,
   Coffee,
   Sun,
-  X,
-  Compass,
 } from "lucide-react";
-import { getLocalDateString } from "@/lib/date-utils";
+import { useToday } from "@/hooks/useToday";
+import { apiFetch, errorMessage } from "@/lib/client/api";
+import { DEFAULT_TARGETS } from "@/lib/constants";
+import type { MealType } from "@/lib/schemas/enums";
+import { UndoToast, type UndoToastData } from "@/components/dashboard/UndoToast";
+import { QuickAddModal, type QuickAddValues } from "@/components/dashboard/QuickAddModal";
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
@@ -43,21 +44,20 @@ export default function DashboardPage() {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [foodsList, setFoodsList] = useState<any[]>([]);
   const [isLoadingFoods, setIsLoadingFoods] = useState(false);
-  const [selectedFoodId, setSelectedFoodId] = useState("");
-  const [selectedMealType, setSelectedMealType] = useState("lunch");
-  const [quickGrams, setQuickGrams] = useState("100");
+  const [quickAddMealType, setQuickAddMealType] = useState<MealType>("lunch");
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Son kullanılan besinler ve Geri Alma (Undo) state'i
   const [recentFoods, setRecentFoods] = useState<RecentFood[]>([]);
-  const [undoToast, setUndoToast] = useState<{
-    id: string;
-    name: string;
-    calories: number;
-    action: "added" | "deleted";
-    payload?: any;
+  const [undo, setUndo] = useState<{
+    toast: UndoToastData;
+    logId?: string;
+    payload?: ReturnType<typeof buildRestorePayload>;
   } | null>(null);
 
-  const todayStr = getLocalDateString();
+  // Gece yarısını geçen açık pencerede de doğru gün (kayıtlar yanlış güne düşmez)
+  const todayStr = useToday();
+  const hasLoadedOnce = useRef(false);
 
   function getRhythmStep(homeTime: string = "19:30") {
     const currentHour = new Date().getHours();
@@ -122,17 +122,14 @@ export default function DashboardPage() {
     }
   }
 
-  useEffect(() => {
-    loadAllData();
-    try {
-      setRecentFoods(parseRecentFoods(localStorage.getItem(RECENT_FOODS_KEY)));
-    } catch {
-      // ignore
-    }
-  }, []);
+  function showError(e: unknown, fallback: string) {
+    setActionError(errorMessage(e, fallback));
+    setTimeout(() => setActionError(null), 5000);
+  }
 
-  async function loadAllData() {
-    setLoading(true);
+  // İlk yüklemede tam ekran yükleniyor; sonraki yenilemeler arka planda (titreme, kaydırma kaybı yok).
+  const loadAllData = useCallback(async () => {
+    if (!hasLoadedOnce.current) setLoading(true);
     try {
       const [profRes, foodRes, workoutRes, progRes] =
         await Promise.all([
@@ -158,35 +155,43 @@ export default function DashboardPage() {
       if (progJson?.today?.energy1to5) {
         setQuickEnergy(progJson.today.energy1to5);
       }
-      if (progJson.today?.sleepMinutes) {
+      if (progJson?.today?.sleepMinutes) {
         setQuickSleep(String(progJson.today.sleepMinutes / 60));
       }
     } catch (e) {
       console.error("Dashboard veri yükleme hatası:", e);
     } finally {
+      hasLoadedOnce.current = true;
       setLoading(false);
     }
-  }
+  }, [todayStr]);
+
+  useEffect(() => {
+    loadAllData();
+  }, [loadAllData]);
+
+  useEffect(() => {
+    try {
+      setRecentFoods(parseRecentFoods(localStorage.getItem(RECENT_FOODS_KEY)));
+    } catch {
+      // ignore
+    }
+  }, []);
 
   async function handleToggleCreatine() {
     if (!progressData) return;
     const nextState = !progressData.today.creatineTaken;
     try {
-      await fetch("/api/progress", {
+      await apiFetch("/api/progress", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          date: todayStr,
-          creatineTaken: nextState,
-          creatineDoseGrams: 5.0,
-        }),
+        json: { date: todayStr, creatineTaken: nextState, creatineDoseGrams: 5.0 },
       });
       setProgressData((prev: any) => ({
         ...prev,
         today: { ...prev.today, creatineTaken: nextState },
       }));
     } catch (e) {
-      console.error(e);
+      showError(e, "Kreatin kaydı güncellenemedi.");
     }
   }
 
@@ -195,150 +200,98 @@ export default function DashboardPage() {
     setIsSavingProgress(true);
     setSaveMessage(null);
     try {
-      await fetch("/api/progress", {
+      const weight = quickWeight ? parseFloat(quickWeight.replace(",", ".")) : NaN;
+      const sleepHours = quickSleep ? parseFloat(quickSleep.replace(",", ".")) : NaN;
+      await apiFetch("/api/progress", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        json: {
           date: todayStr,
-          weightKg: quickWeight ? parseFloat(quickWeight) : undefined,
+          weightKg: Number.isFinite(weight) && weight > 0 ? weight : undefined,
           energy1to5: quickEnergy,
-          sleepMinutes: quickSleep ? Math.round(parseFloat(quickSleep) * 60) : 420,
-        }),
+          sleepMinutes: Number.isFinite(sleepHours) ? Math.round(sleepHours * 60) : 420,
+        },
       });
       setSaveMessage("Kayıt güncellendi ✓");
       setTimeout(() => setSaveMessage(null), 3000);
       loadAllData();
     } catch (e) {
-      console.error(e);
+      showError(e, "Kayıt güncellenemedi.");
     } finally {
       setIsSavingProgress(false);
     }
   }
 
   async function handleOpenQuickAdd(preferredMealType?: string) {
-    if (preferredMealType) {
-      setSelectedMealType(preferredMealType);
-    }
+    if (preferredMealType) setQuickAddMealType(preferredMealType as MealType);
     setIsQuickAddOpen(true);
     if (foodsList.length === 0) {
       setIsLoadingFoods(true);
       try {
-        const res = await fetch("/api/foods?limit=50");
-        if (res.ok) {
-          const data = await res.json();
-          setFoodsList(data);
-          if (data.length > 0 && !selectedFoodId) {
-            setSelectedFoodId(data[0].id);
-          }
-        }
+        setFoodsList(await apiFetch<any[]>("/api/foods?limit=50"));
       } catch (err) {
-        console.error("Besin listesi yüklenemedi:", err);
+        showError(err, "Besin listesi yüklenemedi.");
       } finally {
         setIsLoadingFoods(false);
       }
     }
   }
 
-  async function handleQuickAddFood(e: React.FormEvent) {
-    e.preventDefault();
-    const food = foodsList.find((f) => f.id === selectedFoodId);
-    if (!food) return;
+  /** Makrolar sunucuda katalogdan hesaplanır; hata modalda gösterilir. */
+  async function handleQuickAddSubmit(values: QuickAddValues) {
+    const created = await apiFetch<any>("/api/food-logs", {
+      method: "POST",
+      json: {
+        date: todayStr,
+        time: new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }),
+        mealType: values.mealType,
+        foodItemId: values.foodItemId,
+        name: values.name,
+        grams: values.grams,
+      },
+    });
 
-    const gramsNum = parseFloat(quickGrams) || 100;
-    const ratio = gramsNum / food.basisGrams;
-
-    const payload = {
-      date: todayStr,
-      time: new Date().toLocaleTimeString("tr-TR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      mealType: selectedMealType,
-      foodItemId: food.id,
-      name: food.name,
-      grams: gramsNum,
-      caloriesSnapshot: Math.round(food.calories * ratio),
-      proteinSnapshot: Math.round(food.proteinG * ratio * 10) / 10,
-      carbsSnapshot: Math.round(food.carbsG * ratio * 10) / 10,
-      fatSnapshot: Math.round(food.fatG * ratio * 10) / 10,
-    };
-
+    const updatedRecent = pushRecentFood(recentFoods, {
+      id: values.foodItemId,
+      name: values.name,
+      defaultGrams: values.grams,
+    });
+    setRecentFoods(updatedRecent);
     try {
-      const res = await fetch("/api/food-logs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        const created = await res.json();
-        // Son kullanılanlara ekle
-        const updatedRecent = pushRecentFood(recentFoods, {
-          id: food.id,
-          name: food.name,
-          defaultGrams: gramsNum,
-        });
-        setRecentFoods(updatedRecent);
-        try {
-          localStorage.setItem(RECENT_FOODS_KEY, JSON.stringify(updatedRecent));
-        } catch {
-          // ignore
-        }
-
-        // Undo toast göster
-        setUndoToast({
-          id: created.id,
-          name: created.name,
-          calories: created.caloriesSnapshot,
-          action: "added",
-        });
-        setTimeout(() => {
-          setUndoToast((curr) => (curr?.id === created.id ? null : curr));
-        }, 7000);
-      }
-
-      setIsQuickAddOpen(false);
-      loadAllData();
-    } catch (e) {
-      console.error("Yemek ekleme hatası:", e);
+      localStorage.setItem(RECENT_FOODS_KEY, JSON.stringify(updatedRecent));
+    } catch {
+      // ignore
     }
+
+    setUndo({ toast: { key: `add-${created.id}`, name: created.name, action: "added" }, logId: created.id });
+    setIsQuickAddOpen(false);
+    loadAllData();
   }
 
   async function handleUndo() {
-    if (!undoToast) return;
+    if (!undo) return;
     try {
-      if (undoToast.action === "added") {
-        await fetch(`/api/food-logs?id=${undoToast.id}`, { method: "DELETE" });
-      } else if (undoToast.action === "deleted" && undoToast.payload) {
-        await fetch("/api/food-logs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(undoToast.payload),
-        });
+      if (undo.toast.action === "added" && undo.logId) {
+        await apiFetch(`/api/food-logs?id=${encodeURIComponent(undo.logId)}`, { method: "DELETE" });
+      } else if (undo.toast.action === "deleted" && undo.payload) {
+        await apiFetch("/api/food-logs", { method: "POST", json: undo.payload });
       }
-      setUndoToast(null);
+      setUndo(null);
       loadAllData();
     } catch (e) {
-      console.error("Geri alma hatası:", e);
+      showError(e, "Geri alma başarısız oldu.");
     }
   }
 
   async function handleDeleteFoodLog(log: any) {
     try {
-      await fetch(`/api/food-logs?id=${log.id}`, { method: "DELETE" });
-      setUndoToast({
-        id: log.id,
-        name: log.name,
-        calories: log.caloriesSnapshot,
-        action: "deleted",
+      await apiFetch(`/api/food-logs?id=${encodeURIComponent(log.id)}`, { method: "DELETE" });
+      setUndo({
+        toast: { key: `del-${log.id}`, name: log.name, action: "deleted" },
         payload: buildRestorePayload(log),
       });
-      setTimeout(() => {
-        setUndoToast((curr) => (curr?.id === log.id ? null : curr));
-      }, 7000);
       loadAllData();
     } catch (e) {
-      console.error("Öğün silme hatası:", e);
+      showError(e, "Öğün silinemedi.");
     }
   }
 
@@ -352,13 +305,7 @@ export default function DashboardPage() {
   }
 
   const summary = foodData?.summary;
-  const targets = foodData?.targets || {
-    calorieTarget: 2080,
-    calorieCeiling: 2100,
-    proteinTargetG: 165,
-    fatTargetG: 60,
-    carbTargetG: 220,
-  };
+  const targets = foodData?.targets || DEFAULT_TARGETS;
 
   // Haftanın gününe göre günün şablonunu belirle (1: Pazartesi ... 7: Pazar)
   const currentDayOfWeek = new Date().getDay() || 7;
@@ -862,6 +809,7 @@ export default function DashboardPage() {
                     <button
                       onClick={() => handleDeleteFoodLog(log)}
                       title="Öğünü Sil (Geri alınabilir)"
+                      aria-label={`${log.name} öğününü sil`}
                       className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -875,138 +823,25 @@ export default function DashboardPage() {
       </div>
 
       {/* Hızlı Öğün Ekleme Modalı */}
-      {isQuickAddOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
-            <h3 className="text-lg font-bold text-slate-900 mb-1">
-              Hızlı Öğün Kaydı
-            </h3>
-            <p className="text-xs text-slate-500 mb-4">
-              Katalogdan bir besin seçin veya son kullanılanlara tıklayın.
-            </p>
-
-            {/* Son Kullanılan Besinler Çipleri */}
-            {recentFoods.length > 0 && (
-              <div className="mb-4">
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-                  Son Kullanılanlar (Tek Tıkla Seç)
-                </label>
-                <div className="flex flex-wrap gap-1.5">
-                  {recentFoods.map((rf) => (
-                    <button
-                      key={rf.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedFoodId(rf.id);
-                        setQuickGrams(String(rf.defaultGrams));
-                      }}
-                      className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${
-                        selectedFoodId === rf.id
-                          ? "bg-brand-50 border-brand-300 text-brand-800 font-semibold"
-                          : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                      }`}
-                    >
-                      {rf.name} ({rf.defaultGrams}g)
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <form onSubmit={handleQuickAddFood} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Öğün Türü
-                </label>
-                <select
-                  value={selectedMealType}
-                  onChange={(e) => setSelectedMealType(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                >
-                  <option value="breakfast">Kahvaltı</option>
-                  <option value="lunch">Öğle Yemeği</option>
-                  <option value="workSnack">İş Çıkışı Ara Öğünü</option>
-                  <option value="dinner">Akşam Yemeği</option>
-                  <option value="extra">Ek Atıştırmalık</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Besin Seçin
-                </label>
-                <select
-                  value={selectedFoodId}
-                  onChange={(e) => setSelectedFoodId(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  required
-                >
-                  <option value="">-- Listeden seçin --</option>
-                  {foodsList.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name} ({f.calories} kcal / 100g)
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Miktar (Gram)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={quickGrams}
-                  onChange={(e) => setQuickGrams(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  required
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsQuickAddOpen(false)}
-                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100"
-                >
-                  İptal
-                </button>
-                <button
-                  type="submit"
-                  disabled={!selectedFoodId}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50"
-                >
-                  Ekle
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <QuickAddModal
+        open={isQuickAddOpen}
+        onClose={() => setIsQuickAddOpen(false)}
+        foods={foodsList}
+        isLoadingFoods={isLoadingFoods}
+        recentFoods={recentFoods}
+        initialMealType={quickAddMealType}
+        onSubmit={handleQuickAddSubmit}
+      />
 
       {/* Geri Alma (Undo) Bildirimi */}
-      {undoToast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-5">
-          <div className="text-xs">
-            <span className="font-semibold text-brand-300">{undoToast.name}</span>{" "}
-            {undoToast.action === "added"
-              ? "başarıyla eklendi."
-              : "öğünlerden kaldırıldı."}
-          </div>
-          <button
-            onClick={handleUndo}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-500 hover:bg-brand-400 text-slate-950 font-bold text-xs transition-colors"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Geri Al</span>
-          </button>
-          <button
-            onClick={() => setUndoToast(null)}
-            className="text-slate-400 hover:text-white p-0.5 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
+      <UndoToast toast={undo?.toast ?? null} onUndo={handleUndo} onDismiss={() => setUndo(null)} />
+
+      {actionError && (
+        <div
+          role="alert"
+          className="fixed bottom-6 left-6 z-50 max-w-sm bg-rose-600 text-white px-4 py-3 rounded-2xl shadow-2xl text-xs font-semibold"
+        >
+          {actionError}
         </div>
       )}
     </div>

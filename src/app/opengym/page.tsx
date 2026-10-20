@@ -2,20 +2,14 @@
 
 import { useEffect, useState } from "react";
 import {
-  Activity,
   RefreshCw,
   CheckCircle2,
   AlertCircle,
-  Dumbbell,
   Shield,
   Layers,
-  Flame,
   Upload,
-  FileText,
   Calculator,
-  ChevronRight,
   Database,
-  Info,
 } from "lucide-react";
 import { MuscleHeatmap } from "@/components/MuscleHeatmap";
 import { PlateCalculator } from "@/components/PlateCalculator";
@@ -56,8 +50,8 @@ export default function OpenGymPortalPage() {
     setSyncResult(null);
     try {
       const res = await fetch("/api/opengym/sync", { method: "POST" });
-      const data = await res.json();
-      setSyncResult(data);
+      const data = await res.json().catch(() => ({}));
+      setSyncResult(res.ok ? data : { success: false, message: data.error || "Senkronizasyon başarısız oldu." });
       checkStatus();
     } catch (e: any) {
       setSyncResult({ success: false, message: e.message });
@@ -276,6 +270,11 @@ export default function OpenGymPortalPage() {
                   <h3 className="font-bold text-slate-900 text-base">
                     openGym Çevrimdışı / Hibrit Durumu
                   </h3>
+                  {loading && (
+                    <span role="status" className="text-xs text-slate-500">
+                      Bağlantı kontrol ediliyor...
+                    </span>
+                  )}
                   <p className="text-xs text-slate-500">
                     Yerel depolama: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-800">./opengym/data</code>
                   </p>

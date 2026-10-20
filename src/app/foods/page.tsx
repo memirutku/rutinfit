@@ -1,18 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiFetch, errorMessage } from "@/lib/client/api";
 import {
-  BookOpen,
   Search,
   Plus,
-  Utensils,
   Check,
   Flame,
-  Scale,
-  Sparkles,
   Barcode,
-  ExternalLink,
-  ShieldCheck,
   AlertCircle,
   Download,
 } from "lucide-react";
@@ -25,6 +20,7 @@ export default function FoodsPage() {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Open Food Facts state
   const [packagedInput, setPackagedInput] = useState("");
@@ -64,16 +60,16 @@ export default function FoodsPage() {
   async function loadData() {
     setLoading(true);
     try {
-      const [foodsRes, recipesRes] = await Promise.all([
-        fetch("/api/foods"),
-        fetch("/api/recipes"),
+      // Hata gövdesi (ör. { error }) diziye yazılırsa .filter çöküyordu; yalnız başarılı yanıt kullanılır.
+      const [foodsJson, recipesJson] = await Promise.all([
+        apiFetch<any[]>("/api/foods?limit=200"),
+        apiFetch<any[]>("/api/recipes"),
       ]);
-      const foodsJson = await foodsRes.json();
-      const recipesJson = await recipesRes.json();
-      setFoods(foodsJson);
-      setRecipes(recipesJson);
+      setFoods(Array.isArray(foodsJson) ? foodsJson : []);
+      setRecipes(Array.isArray(recipesJson) ? recipesJson : []);
+      setLoadError(null);
     } catch (e) {
-      console.error(e);
+      setLoadError(errorMessage(e, "Besin kataloğu yüklenemedi."));
     } finally {
       setLoading(false);
     }
@@ -546,6 +542,19 @@ export default function FoodsPage() {
           </div>
 
           {/* Besin Tablosu / Kartları */}
+          {loading && (
+            <p role="status" className="text-sm text-slate-500">
+              Besin kataloğu yükleniyor...
+            </p>
+          )}
+          {loadError && (
+            <p role="alert" className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+              {loadError}
+            </p>
+          )}
+          {!loading && !loadError && filteredFoods.length === 0 && (
+            <p className="text-sm text-slate-500">Aramanıza uyan besin bulunamadı.</p>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {filteredFoods.map((f) => (
               <div

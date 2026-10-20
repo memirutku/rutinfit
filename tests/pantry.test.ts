@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { resetDatabase } from './helpers/db';
-import { prisma } from '../src/lib/prisma';
+
 import {
   upsertPantryItem,
   calculateNetShoppingList,

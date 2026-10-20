@@ -15,7 +15,7 @@
     "dev": "next dev -H 127.0.0.1",
     "build": "next build",
     "start": "next start -H 127.0.0.1",
-    "lint": "next lint",
+    "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
     "desktop": "tauri dev",
@@ -45,6 +45,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "3.3.7",
     "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/cli": "^2.12.3",
     "@testing-library/dom": "10.4.2",

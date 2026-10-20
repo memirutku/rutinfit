@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  Settings,
   User,
-  Flame,
   Bot,
   Download,
   Upload,
@@ -12,9 +10,6 @@ import {
   AlertCircle,
   RefreshCw,
   Database,
-  Activity,
-  HardDrive,
-  ShieldCheck,
 } from "lucide-react";
 
 export default function SettingsPage() {

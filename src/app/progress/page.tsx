@@ -2,15 +2,10 @@
 
 import { useEffect, useState } from "react";
 import {
-  TrendingUp,
   Scale,
   BatteryMedium,
-  Moon,
   Info,
-  Calendar,
-  Sparkles,
   CheckCircle2,
-  Circle,
 } from "lucide-react";
 import {
   ResponsiveContainer,

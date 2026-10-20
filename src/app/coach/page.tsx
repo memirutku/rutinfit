@@ -4,14 +4,11 @@ import { useEffect, useState, useRef } from 'react';
 import {
   Bot,
   Send,
-  Sparkles,
   Utensils,
   Dumbbell,
   Check,
   AlertCircle,
-  HelpCircle,
   Clock,
-  Flame,
   ArrowRight,
   Paperclip,
   X,
@@ -21,7 +18,6 @@ import {
   ShieldCheck,
   Calculator,
   Edit3,
-  History,
   Plus,
 } from 'lucide-react';
 

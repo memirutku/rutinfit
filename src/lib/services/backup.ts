@@ -173,7 +173,7 @@ export function legacyToTables(data: Record<string, any>): Record<string, Row[]>
     );
   }
   for (const ws of data.workoutSessions ?? []) {
-    const { setLogs, template, ...session } = ws;
+    const { setLogs, ...session } = ws;
     push('WorkoutSession', [session]);
     push('SetLog', (setLogs ?? []).map((s: Row) => ({ ...s, workoutSessionId: session.id })));
   }

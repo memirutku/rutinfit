@@ -14,7 +14,6 @@ import {
   AlertTriangle,
   Check,
   X,
-  Filter,
 } from 'lucide-react';
 
 interface PantryItem {

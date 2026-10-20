@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Utensils,
@@ -10,10 +10,6 @@ import {
   Circle,
   Clock,
   Flame,
-  Scale,
-  Sparkles,
-  Info,
-  ChevronRight,
   Package,
   RefreshCw,
 } from "lucide-react";
@@ -29,11 +25,7 @@ export default function NutritionPage() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [portionMultipliers, setPortionMultipliers] = useState<Record<string, number>>({});
 
-  useEffect(() => {
-    loadData();
-  }, [selectedDate]);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [planRes, shopRes] = await Promise.all([
@@ -58,7 +50,11 @@ export default function NutritionPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [selectedDate]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   async function handleToggleShoppingItem(id: string, currentChecked: boolean) {
     try {

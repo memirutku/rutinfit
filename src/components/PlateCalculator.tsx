@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Dumbbell, Calculator, Sparkles, AlertCircle, Check } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 interface Plate {
   weight: number;

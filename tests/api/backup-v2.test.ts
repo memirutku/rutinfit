@@ -56,7 +56,7 @@ async function snapshot() {
   for (const m of Prisma.dmmf.datamodel.models) {
     if (m.name === "OpenFoodFactsCache") continue;
     const rows = await (prisma as any)[delegateKey(m.name)].findMany({ orderBy: { id: "asc" } });
-    out[m.name] = rows.map(({ updatedAt, ...rest }: any) => rest);
+    out[m.name] = rows.map(({ updatedAt: _updatedAt, ...rest }: any) => rest);
   }
   return out;
 }
