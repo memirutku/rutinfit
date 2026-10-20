@@ -1,11 +1,33 @@
 import { prisma } from '../prisma';
 import { calculateDailySummary } from '../nutrition-calculator';
 import { calculateNetShoppingList } from '../pantry-service';
+import { normalizeName, wordsTr } from '../text';
 
 export interface IngredientCalculationInput {
   foodItemId?: string;
   name?: string;
   grams: number;
+}
+
+type CatalogFood = NonNullable<Awaited<ReturnType<typeof prisma.foodItem.findFirst>>>;
+
+/**
+ * Model çıktısındaki malzeme adını katalogla eşler.
+ * Öncelik: tam ad → sorgunun tüm kelimelerini içeren en kısa ad. Alt dize eşleşmesi kullanılmaz
+ * ("Yağ" → "Yağsız Yoğurt", "Yulaf" → "Yulaf Sütü" gibi yanlış eşleşmeleri önler).
+ */
+export function matchFoodByName<T extends { name: string }>(query: string, foods: T[]): T | null {
+  const q = normalizeName(query);
+  if (!q) return null;
+  const exact = foods.find((f) => normalizeName(f.name) === q);
+  if (exact) return exact;
+
+  const queryWords = wordsTr(q);
+  const candidates = foods
+    .map((f) => ({ food: f, words: wordsTr(f.name) }))
+    .filter(({ words }) => queryWords.every((w) => words.includes(w)))
+    .sort((a, b) => a.words.length - b.words.length);
+  return candidates[0]?.food ?? null;
 }
 
 export async function calculateRecipeNutrition(ingredients: IngredientCalculationInput[]) {
@@ -15,22 +37,25 @@ export async function calculateRecipeNutrition(ingredients: IngredientCalculatio
   let totalFatG = 0;
   const itemized: any[] = [];
   const warnings: string[] = [];
+  const missingIngredients: string[] = [];
+  let catalog: CatalogFood[] | null = null;
 
   for (const item of ingredients) {
-    let food = null;
+    let food: CatalogFood | null = null;
     if (item.foodItemId) {
       food = await prisma.foodItem.findUnique({ where: { id: item.foodItemId } });
     }
     if (!food && item.name) {
-      food = await prisma.foodItem.findFirst({
-        where: { name: { contains: item.name } },
-      });
+      catalog ??= await prisma.foodItem.findMany();
+      food = matchFoodByName(item.name, catalog);
     }
 
     if (!food) {
-      warnings.push(`"${item.name || item.foodItemId}" için veritabanında besin bulunamadı; varsayılan 0 alındı.`);
+      const label = item.name || item.foodItemId || 'Bilinmeyen Besin';
+      missingIngredients.push(label);
+      warnings.push(`"${label}" katalogda bulunamadı; makro toplamına dahil edilmedi.`);
       itemized.push({
-        name: item.name || 'Bilinmeyen Besin',
+        name: label,
         grams: item.grams,
         calories: 0,
         proteinG: 0,
@@ -71,6 +96,8 @@ export async function calculateRecipeNutrition(ingredients: IngredientCalculatio
     totalFatG: Math.round(totalFatG * 10) / 10,
     itemized,
     warnings,
+    missingIngredients,
+    isComplete: missingIngredients.length === 0,
   };
 }
 

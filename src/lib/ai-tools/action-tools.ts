@@ -117,7 +117,18 @@ export async function verifyAndApplyActionDraft(
     throw new DraftActionError('Geçersiz onay anahtarı. Yetkisiz veya sahte işlem engellendi.', 403, 'bad_token');
   }
 
-  const rawChanges = editedChanges || JSON.parse(draft.proposedChanges || '{}');
+  if (draft.draftType === 'bulk_import') {
+    // Toplu içe aktarma henüz veri yazmıyor; "uygulandı" demek kullanıcıyı yanıltır.
+    throw new DraftActionError(
+      'Toplu içe aktarma taslakları henüz onaylanamıyor. Dosyayı ilgili sayfadan içe aktarın.',
+      400,
+      'invalid'
+    );
+  }
+
+  // Düzenleme yalnız değiştirilen alanları günceller; taslağın geri kalanı korunur.
+  const storedChanges = JSON.parse(draft.proposedChanges || '{}');
+  const rawChanges = editedChanges ? { ...storedChanges, ...editedChanges } : storedChanges;
   const changesToApply = validateDraftChanges(draft.draftType as DraftType, rawChanges);
   let affectedEntityId: string | undefined;
   let claimed = false;
@@ -139,20 +150,20 @@ export async function verifyAndApplyActionDraft(
 
     switch (draft.draftType) {
       case 'meal_plan': {
-        const { date, meals, notes } = changesToApply;
+        const { date, meals, notes, replaceMeals } = changesToApply;
         const targetDate = date || getLocalDateString();
 
-        // Upsert meal plan
         const plan = await tx.mealPlan.upsert({
           where: { date: targetDate },
-          create: { date: targetDate, notes },
-          update: { notes },
+          create: { date: targetDate, notes: notes ?? null },
+          update: notes !== undefined ? { notes } : {},
         });
         affectedEntityId = plan.id;
 
-        if (Array.isArray(meals)) {
-          // Replace or append planned meals
-          await tx.plannedMeal.deleteMany({ where: { mealPlanId: plan.id } });
+        if (Array.isArray(meals) && meals.length > 0) {
+          if (replaceMeals) {
+            await tx.plannedMeal.deleteMany({ where: { mealPlanId: plan.id } });
+          }
           for (const m of meals) {
             await tx.plannedMeal.create({
               data: {
@@ -166,6 +177,47 @@ export async function verifyAndApplyActionDraft(
             });
           }
         }
+        break;
+      }
+
+      case 'planned_meal': {
+        const { date, mealType, title, rationale, prepMinutes, ingredients } = changesToApply;
+        const targetDate = date || getLocalDateString();
+        const matched = (ingredients as Array<{ foodItemId?: string | null; grams: number }>).filter(
+          (i) => !!i.foodItemId
+        );
+
+        // Katalogla eşleşen malzemelerden tarif kurulur: plan makroları ve alışveriş listesi buradan beslenir.
+        const recipe =
+          matched.length > 0
+            ? await tx.recipe.create({
+                data: {
+                  name: title,
+                  instructions: rationale || '',
+                  prepMinutes: prepMinutes || 15,
+                  servings: 1,
+                  ingredients: {
+                    create: matched.map((i) => ({ foodItemId: i.foodItemId as string, grams: i.grams })),
+                  },
+                },
+              })
+            : null;
+
+        const plan = await tx.mealPlan.upsert({
+          where: { date: targetDate },
+          create: { date: targetDate },
+          update: {},
+        });
+        const planned = await tx.plannedMeal.create({
+          data: {
+            mealPlanId: plan.id,
+            mealType: mealType || 'dinner',
+            recipeId: recipe?.id ?? null,
+            customName: title,
+            servings: 1,
+          },
+        });
+        affectedEntityId = planned.id;
         break;
       }
 
@@ -219,33 +271,32 @@ export async function verifyAndApplyActionDraft(
 
       case 'nutrition_targets': {
         const { calorieTarget, calorieCeiling, proteinTargetG, fatTargetG, carbTargetG } = changesToApply;
-        const profile = await tx.userProfile.findFirst();
-        if (profile) {
-          const updated = await tx.userProfile.update({
-            where: { id: profile.id },
-            data: {
-              calorieTarget: Number(calorieTarget) || profile.calorieTarget,
-              calorieCeiling: Number(calorieCeiling) || profile.calorieCeiling,
-              proteinTargetG: Number(proteinTargetG) || profile.proteinTargetG,
-              fatTargetG: Number(fatTargetG) || profile.fatTargetG,
-              carbTargetG: Number(carbTargetG) || profile.carbTargetG,
-            },
-          });
-          affectedEntityId = updated.id;
-        }
+        const targets = {
+          calorieTarget,
+          ...(calorieCeiling !== undefined && { calorieCeiling }),
+          proteinTargetG,
+          fatTargetG,
+          carbTargetG,
+        };
+        const existing = await tx.userProfile.findFirst();
+        const updated = existing
+          ? await tx.userProfile.update({ where: { id: existing.id }, data: targets })
+          : await tx.userProfile.create({ data: { id: 'default-user', ...targets } });
+        affectedEntityId = updated.id;
         break;
       }
 
       case 'workout_session': {
-        const { date, name, durationMinutes, rpe, sets } = changesToApply;
+        const { date, name, durationMinutes, rpe, sets, completed } = changesToApply;
         const targetDate = date || getLocalDateString();
         const session = await tx.workoutSession.create({
           data: {
             date: targetDate,
             name: name || 'Antrenman Seansı',
             durationMinutes: Number(durationMinutes) || 45,
-            rpe: rpe ? Number(rpe) : null,
-            completed: true,
+            rpe: rpe ? Math.min(10, Math.max(1, Math.round(Number(rpe)))) : null,
+            // AI önerisi bir plandır: kullanıcı yapmadan "tamamlandı" sayılmaz.
+            completed: completed === true,
           },
         });
         affectedEntityId = session.id;
@@ -260,7 +311,7 @@ export async function verifyAndApplyActionDraft(
                 setNumber: s.setNumber || i + 1,
                 weightKg: Number(s.weightKg) || 0,
                 reps: Number(s.reps) || 10,
-                isTargetMet: true,
+                isTargetMet: false,
               },
             });
           }
@@ -304,10 +355,6 @@ export async function verifyAndApplyActionDraft(
         break;
       }
 
-      case 'bulk_import': {
-        affectedEntityId = draft.id;
-        break;
-      }
     }
 
     // Record audit event

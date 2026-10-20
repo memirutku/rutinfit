@@ -487,20 +487,36 @@ export default function CoachPage() {
                             &quot;{m.actionProposal.rationale}&quot;
                           </p>
 
-                          <div className="flex gap-2">
-                            <span className="px-2 py-0.5 bg-orange-50 text-orange-700 font-bold rounded">
-                              {m.actionProposal.estimatedMacros?.calories} kcal
-                            </span>
-                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded">
-                              P: {m.actionProposal.estimatedMacros?.proteinG}g
-                            </span>
-                            <span className="px-2 py-0.5 bg-amber-50 text-amber-700 font-medium rounded">
-                              K: {m.actionProposal.estimatedMacros?.carbsG}g
-                            </span>
-                            <span className="px-2 py-0.5 bg-purple-50 text-purple-700 font-medium rounded">
-                              Y: {m.actionProposal.estimatedMacros?.fatG}g
-                            </span>
-                          </div>
+                          {(() => {
+                            // Plana yazılacak değer katalogdan hesaplanandır; model tahmini yalnız yedek.
+                            const det = m.actionProposal.deterministicMacros;
+                            const macros = det
+                              ? { calories: det.totalCalories, proteinG: det.totalProteinG, carbsG: det.totalCarbsG, fatG: det.totalFatG }
+                              : m.actionProposal.estimatedMacros;
+                            return (
+                              <div className="flex flex-wrap gap-2 items-center">
+                                <span className="px-2 py-0.5 bg-orange-50 text-orange-700 font-bold rounded">
+                                  {macros?.calories} kcal
+                                </span>
+                                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded">
+                                  P: {macros?.proteinG}g
+                                </span>
+                                <span className="px-2 py-0.5 bg-amber-50 text-amber-700 font-medium rounded">
+                                  K: {macros?.carbsG}g
+                                </span>
+                                <span className="px-2 py-0.5 bg-purple-50 text-purple-700 font-medium rounded">
+                                  Y: {macros?.fatG}g
+                                </span>
+                                {!det && <span className="text-[10px] text-slate-400">(model tahmini)</span>}
+                              </div>
+                            );
+                          })()}
+                          {m.actionProposal.deterministicMacros?.missingIngredients?.length > 0 && (
+                            <p role="note" className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                              Katalogda bulunamadı, toplama dahil değil:{' '}
+                              {m.actionProposal.deterministicMacros.missingIngredients.join(', ')}
+                            </p>
+                          )}
 
                           {m.actionProposal.ingredients && (
                             <div className="bg-slate-50 p-2.5 rounded-lg text-slate-600 space-y-1">
@@ -552,9 +568,10 @@ export default function CoachPage() {
                             type="text"
                             placeholder="Başlık / İsim"
                             defaultValue={m.actionProposal.title}
-                            onChange={(e) =>
-                              setEditFormData((prev) => ({ ...prev, name: e.target.value }))
-                            }
+                            onChange={(e) => {
+                              const field = m.actionProposal.type === 'meal_proposal' ? 'title' : 'name';
+                              setEditFormData((prev) => ({ ...prev, [field]: e.target.value }));
+                            }}
                             className="w-full px-2.5 py-1.5 text-xs bg-white border border-amber-300 rounded"
                           />
                         </div>
@@ -581,7 +598,9 @@ export default function CoachPage() {
                                   setEditingDraftId(null);
                                 } else {
                                   setEditingDraftId(actionKey);
-                                  setEditFormData({ name: m.actionProposal.title });
+                                  // Öğün taslağında başlık alanı "title", antrenmanda "name".
+                                  const field = m.actionProposal.type === 'meal_proposal' ? 'title' : 'name';
+                                  setEditFormData({ [field]: m.actionProposal.title });
                                 }
                               }}
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold"

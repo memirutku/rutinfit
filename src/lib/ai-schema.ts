@@ -59,7 +59,28 @@ export const PlannedMealItemSchema = z.object({
 export const MealPlanDraftSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Geçersiz tarih formatı (YYYY-MM-DD)").optional(),
   notes: z.string().optional().nullable(),
-  meals: z.array(PlannedMealItemSchema).optional().default([]),
+  // Varsayılan boş liste YOK: verilmezse günün mevcut öğünlerine dokunulmaz.
+  meals: z.array(PlannedMealItemSchema).optional(),
+  /** true ise günün öğünleri bu listeyle değiştirilir; aksi halde eklenir. */
+  replaceMeals: z.boolean().optional().default(false),
+});
+
+/** AI öğün önerisi: onaylanınca o günün planına tarifli öğün olarak eklenir. */
+export const PlannedMealDraftSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  mealType: z.enum(["breakfast", "lunch", "dinner", "workSnack", "snack", "extra"]).default("dinner"),
+  title: z.string().min(1, "Öğün adı boş olamaz"),
+  rationale: z.string().optional().default(""),
+  prepMinutes: z.number().int().positive().default(15),
+  ingredients: z
+    .array(
+      z.object({
+        foodItemId: z.string().optional().nullable(),
+        foodName: z.string().min(1),
+        grams: z.number().positive(),
+      })
+    )
+    .min(1, "En az bir malzeme gerekir"),
 });
 
 export const FoodLogDraftSchema = z.object({
@@ -88,12 +109,15 @@ export const RecipeDraftSchema = z.object({
   ingredients: z.array(RecipeIngredientDraftSchema).optional().default([]),
 });
 
+// Profil sütunları tam sayıdır; kesirli değerler yuvarlanır (aksi halde Prisma hatası).
+const intTarget = (schema: z.ZodNumber) => schema.transform((v) => Math.round(v));
+
 export const NutritionTargetDraftSchema = z.object({
-  calorieTarget: z.number().positive("Kalori hedefi pozitif olmalıdır"),
-  calorieCeiling: z.number().positive().optional(),
-  proteinTargetG: z.number().nonnegative("Protein hedefi negatif olamaz"),
-  fatTargetG: z.number().nonnegative("Yağ hedefi negatif olamaz"),
-  carbTargetG: z.number().nonnegative("Karbonhidrat hedefi negatif olamaz"),
+  calorieTarget: intTarget(z.number().positive("Kalori hedefi pozitif olmalıdır")),
+  calorieCeiling: intTarget(z.number().positive()).optional(),
+  proteinTargetG: intTarget(z.number().nonnegative("Protein hedefi negatif olamaz")),
+  fatTargetG: intTarget(z.number().nonnegative("Yağ hedefi negatif olamaz")),
+  carbTargetG: intTarget(z.number().nonnegative("Karbonhidrat hedefi negatif olamaz")),
 });
 
 export const SetLogDraftSchema = z.object({
@@ -110,6 +134,8 @@ export const WorkoutSessionDraftSchema = z.object({
   durationMinutes: z.number().int().positive().default(45),
   rpe: z.number().min(1).max(10).optional().nullable(),
   sets: z.array(SetLogDraftSchema).optional().default([]),
+  /** AI önerisi planlanmış seanstır; kullanıcı yapınca tamamlanır. */
+  completed: z.boolean().optional().default(false),
 });
 
 export const WeightWellbeingDraftSchema = z.object({
@@ -130,6 +156,7 @@ export const BulkImportDraftSchema = z.object({
 
 export const DraftSchemas = {
   meal_plan: MealPlanDraftSchema,
+  planned_meal: PlannedMealDraftSchema,
   food_log: FoodLogDraftSchema,
   recipe: RecipeDraftSchema,
   nutrition_targets: NutritionTargetDraftSchema,

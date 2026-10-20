@@ -102,7 +102,7 @@ export async function POST(req: Request) {
       where: { dayOfWeek },
     });
     const todaySession = await prisma.workoutSession.findFirst({
-      where: { date: todayStr },
+      where: { date: todayStr, completed: true },
     });
 
     // İyilik hali ve OpenGym hibrit durumu
@@ -299,28 +299,32 @@ Kullanıcı onaylamadan hiçbir değişiklik veritabanına uygulanmaz.`;
 
             // Generate ActionDraft in DB with approvalToken
             if (actionProposal.type === 'meal_proposal') {
-              // Deterministic macro verification
+              // Makrolar modelin tahmininden değil katalogdaki 100 g değerlerinden hesaplanır.
               const ingCalc = await calculateRecipeNutrition(
                 actionProposal.ingredients.map((ing: any) => ({
                   name: ing.foodName,
                   grams: ing.grams,
                 }))
               );
+              const missingNote = ingCalc.missingIngredients.length
+                ? ` Katalogda bulunmayan: ${ingCalc.missingIngredients.join(', ')} (toplama dahil değil).`
+                : '';
 
               const draftResult = await createActionDraft({
-                draftType: 'food_log',
+                draftType: 'planned_meal',
                 proposedChanges: {
                   date: todayStr,
-                  mealType: actionProposal.mealType,
-                  name: actionProposal.title,
-                  grams: actionProposal.ingredients.reduce((acc: number, i: any) => acc + i.grams, 0),
-                  calories: ingCalc.totalCalories || actionProposal.estimatedMacros.calories,
-                  proteinG: ingCalc.totalProteinG || actionProposal.estimatedMacros.proteinG,
-                  carbsG: ingCalc.totalCarbsG || actionProposal.estimatedMacros.carbsG,
-                  fatG: ingCalc.totalFatG || actionProposal.estimatedMacros.fatG,
-                  ingredients: actionProposal.ingredients,
+                  mealType: actionProposal.mealType === 'snack' ? 'extra' : actionProposal.mealType,
+                  title: actionProposal.title,
+                  rationale: actionProposal.rationale,
+                  prepMinutes: actionProposal.prepMinutes,
+                  ingredients: actionProposal.ingredients.map((ing: any, i: number) => ({
+                    foodName: ing.foodName,
+                    grams: ing.grams,
+                    foodItemId: ingCalc.itemized[i]?.foodItemId ?? null,
+                  })),
                 },
-                impactSummary: `${actionProposal.title}: ${ingCalc.totalCalories} kcal, ${ingCalc.totalProteinG}g protein. (Gerekçe: ${actionProposal.rationale})`,
+                impactSummary: `${actionProposal.title} bugünün planına eklenecek: ${ingCalc.totalCalories} kcal, ${ingCalc.totalProteinG}g protein.${missingNote} (Gerekçe: ${actionProposal.rationale})`,
               });
 
               draftId = draftResult.draftId;
@@ -334,11 +338,16 @@ Kullanıcı onaylamadan hiçbir değişiklik veritabanına uygulanmaz.`;
                   date: todayStr,
                   name: actionProposal.title,
                   durationMinutes: actionProposal.targetDurationMinutes,
-                  sets: actionProposal.exercises.map((e: any) => ({
-                    exerciseName: e.exerciseName,
-                    reps: e.repMin,
-                    weightKg: 0,
-                  })),
+                  // Her egzersiz için önerilen set sayısı kadar set; ağırlık kullanıcı tarafından girilir.
+                  sets: actionProposal.exercises.flatMap((e: any) =>
+                    Array.from({ length: e.sets }, (_, i) => ({
+                      exerciseName: e.exerciseName,
+                      setNumber: i + 1,
+                      reps: e.repMin,
+                      weightKg: 0,
+                    }))
+                  ),
+                  completed: false,
                 },
                 impactSummary: `${actionProposal.title} (${actionProposal.targetDurationMinutes} dk) - Gerekçe: ${actionProposal.reason}`,
               });
