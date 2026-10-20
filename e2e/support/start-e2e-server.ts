@@ -31,11 +31,20 @@ async function main() {
   });
   await prisma.$disconnect();
 
-  const app = spawn(bin("next"), ["start", "-H", "127.0.0.1", "-p", String(APP_PORT)], {
-    cwd: root,
+  // Masaüstü paketiyle aynı sunucu: .next/standalone (statik dosyalar elle kopyalanır).
+  const standalone = path.join(root, ".next", "standalone");
+  if (!fs.existsSync(path.join(standalone, "server.js"))) {
+    throw new Error("Önce `pnpm build` çalıştırın (.next/standalone bulunamadı).");
+  }
+  fs.cpSync(path.join(root, ".next", "static"), path.join(standalone, ".next", "static"), { recursive: true });
+
+  const app = spawn(process.execPath, ["server.js"], {
+    cwd: standalone,
     stdio: "inherit",
     env: {
       ...process.env,
+      PORT: String(APP_PORT),
+      HOSTNAME: "127.0.0.1",
       NODE_ENV: "production",
       RUTINFIT_DATA_DIR: dataDir,
       OPENFOODFACTS_BASE_URL: mocks.offBaseUrl,

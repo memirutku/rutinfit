@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { includesTr } from '@/lib/text';
 import { Modal } from '@/components/ui/Modal';
 import { formatAmount, pantryStep } from '@/lib/format';
@@ -40,6 +41,8 @@ const CATEGORIES = [
 ];
 
 export default function PantryPage() {
+  // window.confirm masaüstü görünümünde (WKWebView) çalışmaz; uygulama içi onay kullanılır.
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [items, setItems] = useState<PantryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -138,7 +141,14 @@ export default function PantryPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Bu malzemeyi kilerden silmek istediğinize emin misiniz?')) return;
+    const item = items.find((i) => i.id === id);
+    const ok = await confirm({
+      title: 'Malzemeyi sil',
+      message: `${item?.name ?? 'Bu malzeme'} kilerden silinsin mi?`,
+      confirmLabel: 'Sil',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/pantry?id=${id}`, { method: 'DELETE' });
       if (res.ok) {
@@ -458,6 +468,7 @@ export default function PantryPage() {
               </div>
             </form>
       </Modal>
+      {confirmDialog}
     </div>
   );
 }

@@ -59,3 +59,20 @@ test.describe("Beslenme planı, kiler ve alışveriş listesi", () => {
     expect(after).toMatchObject({ amount: 1.1, expiryDate: "2030-01-01", notes: "laktozsuz" });
   });
 });
+
+test("kilerden silme uygulama içi onayla yapılır; Vazgeç silmez", async ({ page, api }) => {
+  const name = uniq("E2E Silinecek");
+  await api.post("/api/pantry", { data: { name, amount: 1, unit: "adet" } });
+  await page.goto("/pantry");
+
+  await page.getByRole("button", { name: `${name} öğesini sil` }).click();
+  const dialog = page.getByRole("dialog", { name: "Malzemeyi sil" });
+  await dialog.getByRole("button", { name: "Vazgeç" }).click();
+  await expect(page.getByText(name)).toBeVisible();
+
+  await page.getByRole("button", { name: `${name} öğesini sil` }).click();
+  await page.getByRole("dialog", { name: "Malzemeyi sil" }).getByRole("button", { name: "Sil" }).click();
+  await expect(page.getByText(name)).toHaveCount(0);
+  const items = (await (await api.get("/api/pantry")).json()).items;
+  expect(items.some((i: any) => i.name === name)).toBe(false);
+});

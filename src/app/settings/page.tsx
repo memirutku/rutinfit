@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import {
   User,
   Bot,
@@ -31,9 +32,12 @@ export default function SettingsPage() {
   const [openGymResult, setOpenGymResult] = useState<any>(null);
 
   // Yedek İçe Aktarma & Tanılama
+  // window.confirm masaüstü görünümünde (WKWebView) çalışmaz; uygulama içi onay kullanılır.
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [importCounts, setImportCounts] = useState<any>(null);
   const [importOk, setImportOk] = useState(false);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [diagnostics, setDiagnostics] = useState<any>(null);
   const [isLoadingDiagnostics, setIsLoadingDiagnostics] = useState(false);
@@ -134,8 +138,37 @@ export default function SettingsPage() {
     }
   }
 
+  // Sayfayı JSON adresine götürmek masaüstü görünümünde (WKWebView) dosyayı indirmek yerine
+  // ham JSON'u pencerede açıyordu ve geri dönüş yolu yoktu. Yedek blob olarak indirilir.
   async function handleExportBackup() {
-    window.location.href = "/api/backup/export";
+    setExportMessage(null);
+    try {
+      const res = await fetch("/api/backup/export");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Yedek dışa aktarılamadı");
+      }
+      const blob = await res.blob();
+      const name =
+        /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ?? "rutinfit-backup.json";
+      const savedPath = res.headers.get("X-RutinFit-Backup-Path");
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+
+      setExportMessage(
+        `Yedek indirildi: ${name}.` +
+          (savedPath ? ` Bir kopyası uygulama klasörüne de kaydedildi: ${decodeURIComponent(savedPath)}` : "")
+      );
+    } catch (err: any) {
+      setExportMessage(`Hata: ${err?.message || "Yedek dışa aktarılamadı"}`);
+    }
   }
 
   async function handleImportBackup(e: React.ChangeEvent<HTMLInputElement>) {
@@ -147,11 +180,17 @@ export default function SettingsPage() {
     };
     if (!file) return;
 
-    if (
-      !window.confirm(
-        `"${file.name}" yedeği geri yüklensin mi?\n\nYedekteki kayıtlar eklenir veya güncellenir; yedekte olmayan mevcut kayıtlarınız silinmez.`
-      )
-    ) {
+    const ok = await confirm({
+      title: "Yedeği geri yükle",
+      message: (
+        <>
+          <strong>{file.name}</strong> geri yüklensin mi? Yedekteki kayıtlar eklenir veya güncellenir; yedekte
+          olmayan mevcut kayıtlarınız silinmez.
+        </>
+      ),
+      confirmLabel: "Geri Yükle",
+    });
+    if (!ok) {
       reset();
       return;
     }
@@ -597,6 +636,15 @@ export default function SettingsPage() {
           Mevcut kayıtlarınız silinmez; yedekteki aynı kimliğe sahip kayıtlar güncellenir, yeni kayıtlar eklenir.
         </p>
 
+        {exportMessage && (
+          <p
+            role={exportMessage.startsWith("Hata") ? "alert" : "status"}
+            className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 break-all"
+          >
+            {exportMessage}
+          </p>
+        )}
+
         {importMessage && (
           <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
             <div
@@ -751,6 +799,7 @@ export default function SettingsPage() {
           <p className="text-xs text-slate-400">Tanılama bilgileri yükleniyor...</p>
         )}
       </div>
+      {confirmDialog}
     </div>
   );
 }

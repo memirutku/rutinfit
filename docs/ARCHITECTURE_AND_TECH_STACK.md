@@ -22,7 +22,7 @@ flowchart TD
 
     subgraph Security ["Güvenlik & Süreç Yönetimi"]
         RustCore["Tauri 2 Rust Çekirdeği"]
-        LoopbackIPC["Loopback IPC / Dinamik Port (127.0.0.1)\n- Rastgele Port Seçimi\n- Yaşam Döngüsü (Kill-on-Exit)"]
+        LoopbackIPC["127.0.0.1 · tercihen 3005, doluysa boş port\n- Nonce ile sağlık doğrulaması\n- Kapanışta ve çökmede sunucu sonlanır"]
         RustCore --- LoopbackIPC
     end
 

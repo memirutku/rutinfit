@@ -44,3 +44,7 @@ Thumbs.db
 coverage/
 test-results/
 playwright-report/
+
+# Masaüstü paketi (scripts/prepare-desktop.mjs üretir)
+src-tauri/resources/
+src-tauri/binaries/

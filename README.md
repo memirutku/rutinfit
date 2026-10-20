@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/memirutku/rutinfit/actions/workflows/ci.yml"><img src="https://github.com/memirutku/rutinfit/actions/workflows/ci.yml/badge.svg" alt="CI Durumu" /></a>
-  <a href="tests/"><img src="https://img.shields.io/badge/Vitest-72%20passing-10b981.svg?style=for-the-badge&logo=vitest&logoColor=white" alt="Vitest 72 Passing" /></a>
+  <a href="tests/"><img src="https://img.shields.io/badge/Vitest%20%2B%20Playwright-unit%20%C2%B7%20API%20%C2%B7%20E2E-10b981.svg?style=for-the-badge&logo=vitest&logoColor=white" alt="Vitest + Playwright" /></a>
   <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-15.2.0-000000.svg?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js 15" /></a>
   <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Tauri-2.12-24c8db.svg?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri 2" /></a>
   <a href="https://www.prisma.io/"><img src="https://img.shields.io/badge/Prisma-6.4.0%20SQLite-2d3748.svg?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma SQLite" /></a>
@@ -51,9 +51,9 @@ RutinFit'in tüm yetenekleri gerçek kod tabanı ve testlerle doğrulanmış 3 n
 | **Yerel AI & Ritim** | Günün Sıradaki Adımı / Ritim Çizelgesi | 🟢 **Hazır** | Sabah hidrasyonu, öğle beslenmesi, 19:40 iş çıkışı ve uyku adımları. |
 | **Yerel AI & Ritim** | 2-Aşamalı Onaylı Yerel AI Koçu (Ollama / LM Studio) | 🟢 **Hazır** | `ActionDraft` ve `AuditLog` ile kullanıcı onayı olmadan DB'ye yazmama. |
 | **Yerel AI & Ritim** | Güvenli Çoklu Dosya Ayrıştırıcıları (PDF, XLSX, DOCX, TXT) | 🟢 **Hazır** | `<untrusted_content>` izolasyonu ve Zod doğrulaması. |
-| **Sistem & Veri** | 14 Tablolu Transactional SQLite Yedekleme & Geri Yükleme | 🟢 **Hazır** | `prisma.$transaction` ile kiler dahil tam tablolu sıfır veri kaybı. |
+| **Sistem & Veri** | Tam Kapsamlı Yedekleme & Geri Yükleme (v2) | 🟢 **Hazır** | Önbellek dışındaki tüm tablolar; satır satır doğrulama, tek transaction, binlerce kayıtta toplu yazma. 1.x yedekleri de okunur. |
 | **Sistem & Veri** | Canlı Sistem Tanılama & Performans Ekranı | 🟢 **Hazır** | SQLite dosya boyutu, RSS bellek ve çalışma süresi izleme. |
-| **Masaüstü Dağıtımı** | Tauri 2 Masaüstü Geliştirici Modu (`pnpm desktop:dev`) | 🟡 **Beta** | Kaynak koddan derleme, yerel WebKit/WebView2 penceresi. |
+| **Masaüstü Dağıtımı** | Tauri 2 Masaüstü Uygulaması (`pnpm desktop:build`) | 🟡 **Beta** | Gömülü Node 22 + Next.js standalone sunucu; proje klasörü veya pnpm gerektirmeyen `.app` / `.dmg` (macOS, imzasız yerel derleme). |
 | **Masaüstü Dağıtımı** | İmzalı Tek Tıkla Kurulum Paketleri (`.dmg`, `.msi`, `.deb`) | 🔵 **Planlanıyor** | GitHub Releases üzerinden imzalı bağımsız kurulum dosyaları. |
 | **Mobil / Donanım** | Apple Health / Health Connect Dışa Aktarımı | 🔵 **Planlanıyor** | Akıllı saat ve sağlık verisi senkronizasyon köprüsü. |
 
@@ -71,7 +71,7 @@ flowchart TD
 
     subgraph Security ["🔒 Güvenlik & Süreç Yönetimi"]
         RustCore["Tauri 2 Rust Çekirdeği"]
-        Loopback["Loopback IPC (127.0.0.1)\nDinamik Port · Sıfır Port Çakışması · Otomatik Kapanma"]
+        Loopback["Yalnız 127.0.0.1 · 3005 doluysa boş port\nAçılış anahtarı (HttpOnly çerez) · Tek örnek · Çökmede otomatik kapanma"]
         RustCore --- Loopback
     end
 
@@ -220,8 +220,8 @@ Ayrıntılı teknik analizler ve raporlar için:
 
 #### Sistem Gereksinimleri
 * **İşletim Sistemi:** macOS (Apple Silicon veya Intel), Windows 10/11 (WebView2 ile) veya Linux (Ubuntu 22.04+)
-* **Node.js:** v20.0+ (Node v22.18+ önerilir)
-* **Paket Yöneticisi:** `pnpm` v9+ (`npm install -g pnpm`)
+* **Node.js:** v22 LTS
+* **Paket Yöneticisi:** `pnpm` v11 (`corepack enable`; sürüm `package.json` içinde sabitlenmiştir)
 * **Rust & Cargo:** v1.80+ (Tauri 2 masaüstü derleyicisi için zorunludur)
 * *(İsteğe bağlı)* **Yerel AI:** [Ollama](https://ollama.com) veya [LM Studio](https://lmstudio.ai)
 * **ÖNEMLİ:** Docker veya harici port yapılandırması kurmanız **gerekmez**.
@@ -237,39 +237,58 @@ pnpm install
 
 #### 2. Yerel Veritabanını Başlatma
 ```bash
-# SQLite şemasını senkronize edin ve başlangıç şablon verilerini yükleyin
-pnpm run db:push
-pnpm run db:seed
+# Şema migration'larını uygulama veritabanına uygular ve başlangıç verilerini yükler
+pnpm db:seed
 ```
+Uygulama veritabanı işletim sisteminin veri klasöründedir (macOS: `~/Library/Application Support/RutinFit/rutinfit.db`).
+Sunucu her açılışta bekleyen migration'ları kendisi uygular; uygulamadan önce otomatik yedek alır (`backups/rutinfit_pre-migration_*.db`).
 
-#### 3. Testleri ve Tür Denetimini Çalıştırma
+**Şema değişikliği yaparken:**
 ```bash
-# 14 test dosyasında 72 testi çalıştırır
-pnpm test
-
-# TypeScript tür denetimi
-pnpm exec tsc --noEmit
-
-# ESLint statik kod analizi
-pnpm lint
+# 1. prisma/schema.prisma dosyasını düzenleyin
+# 2. Farktan yeni migration üretin ve gözden geçirin
+pnpm db:new-migration kisa_aciklama
+# 3. Kendi veritabanınıza uygulayın (sunucu açılışında da otomatik uygulanır)
+pnpm db:migrate
 ```
+Migration eklemeden şemayı değiştirirseniz `pnpm test` içindeki drift testi başarısız olur.
+
+#### 3. Testler
+```bash
+pnpm test              # birim + API entegrasyon + arayüz bileşen testleri (her dosya kendi geçici veritabanında)
+pnpm test:coverage     # aynısı + kapsam raporu (coverage/index.html) ve eşik denetimi
+pnpm test:e2e          # üretim derlemesi + Playwright uçtan uca testleri (Chromium ve WebKit)
+pnpm exec tsc --noEmit # TypeScript tür denetimi
+pnpm lint              # ESLint
+```
+Testler gerçek veritabanınıza **hiçbir zaman** yazmaz; yerel AI ve Open Food Facts çağrıları sahte sunucularla taklit edilir.
 
 #### 4. Uygulamayı Başlatma
-* **Masaüstü Penceresi (Tauri 2 Yerel Mod):**
-  ```bash
-  pnpm run desktop:dev
-  ```
-* **Web Tarayıcısı Geliştirici Modu:**
+* **Web tarayıcısı geliştirici modu:**
   ```bash
   pnpm dev -p 3005
   ```
-  Tarayıcınızda açın: `http://localhost:3005`
+  Tarayıcınızda açın: `http://127.0.0.1:3005` (sunucu yalnız bu bilgisayardan erişilebilir).
+* **Masaüstü penceresi (geliştirici modu):**
+  ```bash
+  pnpm desktop:dev
+  ```
+* **Masaüstü uygulaması (.app / .dmg):**
+  ```bash
+  pnpm desktop:build
+  ```
+  `next build` sonrası `scripts/prepare-desktop.mjs` sunucuyu `src-tauri/resources/server` klasörüne kopyalar,
+  pakette kullanıcı verisi veya gizli dosya olmadığını doğrular ve Node 22 çalışma zamanını
+  (sabit sürüm, SHA-256 doğrulamalı) `src-tauri/binaries/` altına indirir.
+  Çıktı: `src-tauri/target/release/bundle/` (`macos/RutinFit.app`, `dmg/RutinFit_*.dmg`). Paketler şu an imzasızdır.
+
+---
 
 ---
 
 ## 🤖 Yerel Yapay Zeka Bağlantısı (Ollama & LM Studio)
 
-RutinFit, kişisel sağlık ve besin verilerinizi asla harici bir bulut sunucusuna göndermez:
+RutinFit, kişisel sağlık ve besin verilerinizi asla harici bir bulut sunucusuna göndermez. Gizlilik için yapay zekâ adresi yalnız bu bilgisayardaki bir sunucu (`127.0.0.1` / `localhost`) veya resmi `https://api.openai.com` olabilir; ayar yalnız bağlantı testi başarılıysa kaydedilir:
 
 1. **Ollama ile:**
    ```bash
@@ -284,6 +303,8 @@ RutinFit, kişisel sağlık ve besin verilerinizi asla harici bir bulut sunucusu
 
 ## 🛡️ Güvenlik Politikası ve Desteklenen Platformlar
 
+* **Ağ erişimi:** Sunucu yalnız `127.0.0.1` adresini dinler. API istekleri Host başlığına (DNS rebinding), `Sec-Fetch-Site`/`Origin` başlıklarına (başka sitelerden gelen istekler) göre süzülür; masaüstü uygulamasında ayrıca her açılışta üretilen bir anahtarla kurulan HttpOnly oturum çerezi gerekir.
+* **AI onayları:** Taslaklar transaction içinde atomik olarak uygulanır (çift tıklama iki kez yazamaz); ham onay anahtarı saklanmaz.
 * **Güvenlik Politikası:** Güvenlik açıklarını bildirmek için lütfen [SECURITY.md](SECURITY.md) dosyasını inceleyiniz.
 * **Katkıda Bulunma:** Projeye katkıda bulunmak için [CONTRIBUTING.md](CONTRIBUTING.md) ve [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) rehberlerini takip ediniz.
 * **Üçüncü Taraf Lisans Bildirimleri:** Tüm kütüphane ve model atıfları [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) dosyasında belgelenmiştir.
