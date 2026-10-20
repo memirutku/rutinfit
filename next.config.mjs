@@ -32,14 +32,12 @@ const nextConfig = {
       "./src-tauri/**/*",
     ],
   },
+  // Turbopack (Next 16'da dev ve build için varsayılan) aynı kökü kullanır.
+  turbopack: { root: projectRoot },
   allowedDevOrigins: ["127.0.0.1", "127.0.0.1:3005", "localhost", "localhost:3005"],
-  webpack: (config, { dev }) => {
-    if (dev) {
-      config.output = config.output || {};
-      config.output.chunkLoadTimeout = 60000;
-    }
-    return config;
-  },
+  // `next dev`, bir yapay zekâ ajanı algılayınca depoya AGENTS.md yazar; depoda üretilen dosya
+  // istenmiyor. Sürüme uygun belgeler: node_modules/next/dist/docs/
+  agentRules: false,
 };
 
 export default nextConfig;

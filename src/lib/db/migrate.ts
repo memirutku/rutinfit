@@ -38,14 +38,17 @@ export function splitSqlStatements(sql: string): string[] {
 }
 
 export function listMigrations(migrationsDir: string): Array<{ name: string; sql: string; checksum: string }> {
-  if (!fs.existsSync(migrationsDir)) return [];
+  // turbopackIgnore: klasör çalışma anında verilir; dosyalar pakete next.config.mjs
+  // (outputFileTracingIncludes) ile girer. Yorum olmadan izleyici projedeki her migration.sql'i
+  // (src-tauri altındaki eski kopyalar dahil) pakete katar.
+  if (!fs.existsSync(/*turbopackIgnore: true*/ migrationsDir)) return [];
   return fs
-    .readdirSync(migrationsDir, { withFileTypes: true })
-    .filter((d) => d.isDirectory() && fs.existsSync(path.join(migrationsDir, d.name, "migration.sql")))
+    .readdirSync(/*turbopackIgnore: true*/ migrationsDir, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && fs.existsSync(path.join(/*turbopackIgnore: true*/ migrationsDir, d.name, "migration.sql")))
     .map((d) => d.name)
     .sort()
     .map((name) => {
-      const sql = fs.readFileSync(path.join(migrationsDir, name, "migration.sql"), "utf8");
+      const sql = fs.readFileSync(path.join(/*turbopackIgnore: true*/ migrationsDir, name, "migration.sql"), "utf8");
       return { name, sql, checksum: crypto.createHash("sha256").update(sql).digest("hex") };
     });
 }
@@ -74,8 +77,8 @@ export async function runMigrations(client: PrismaClient, opts: Options): Promis
     `SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name <> '${TRACKING_TABLE}'`
   );
   if (opts.backupsDir && Number(userTables[0]?.n ?? 0) > 0) {
-    fs.mkdirSync(opts.backupsDir, { recursive: true });
-    backupPath = path.join(opts.backupsDir, `rutinfit_pre-migration_${new Date().toISOString().replace(/[:.]/g, "-")}.db`);
+    fs.mkdirSync(/*turbopackIgnore: true*/ opts.backupsDir, { recursive: true });
+    backupPath = path.join(/*turbopackIgnore: true*/ opts.backupsDir, `rutinfit_pre-migration_${new Date().toISOString().replace(/[:.]/g, "-")}.db`);
     await client.$executeRawUnsafe(`VACUUM INTO '${backupPath.replace(/'/g, "''")}'`);
     log(`[migrate] Migration öncesi yedek: ${backupPath}`);
   }
@@ -98,7 +101,7 @@ export async function runMigrations(client: PrismaClient, opts: Options): Promis
 
 /** Paketli uygulamada migration klasörü sunucu dizinindedir; ortam değişkeniyle değiştirilebilir. */
 export function defaultMigrationsDir(): string {
-  return process.env.RUTINFIT_MIGRATIONS_DIR || path.join(process.cwd(), "prisma", "migrations");
+  return process.env.RUTINFIT_MIGRATIONS_DIR || path.join(/*turbopackIgnore: true*/ process.cwd(), "prisma", "migrations");
 }
 
 /** Sunucu açılışında uygulama veritabanına bekleyen migration'ları uygular. */

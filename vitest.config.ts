@@ -7,7 +7,7 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  // tsconfig "jsx: preserve" Next.js içindir; testlerde JSX'i React 19 otomatik runtime ile derle.
+  // Testlerde JSX React 19 otomatik runtime ile derlenir (Next 16 tsconfig'i de "react-jsx" yapar).
   esbuild: { jsx: "automatic" },
   test: {
     coverage: {

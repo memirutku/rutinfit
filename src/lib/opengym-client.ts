@@ -47,19 +47,21 @@ export interface OpenGymState {
  * OpenGym veri dizinini çevre değişkenine veya OS uygulama depolama dizinine göre çözümler.
  */
 export function getOpenGymDataDir(): string {
+  // turbopackIgnore: kullanıcı verisi klasörü; derleyicinin dosya izleyicisi bu yolları takip edip
+  // pakete katmasın (aksi halde dinamik yol yüzünden tüm proje standalone çıktıya girer).
   if (process.env.OPENGYM_DATA_DIR) {
-    return path.resolve(process.env.OPENGYM_DATA_DIR);
+    return path.resolve(/*turbopackIgnore: true*/ process.env.OPENGYM_DATA_DIR);
   }
   try {
     const appStorageDir = getStoragePaths().dataDir;
-    const appDataOpenGym = path.join(appStorageDir, "opengym", "data");
-    if (fs.existsSync(appDataOpenGym)) {
+    const appDataOpenGym = path.join(/*turbopackIgnore: true*/ appStorageDir, "opengym", "data");
+    if (fs.existsSync(/*turbopackIgnore: true*/ appDataOpenGym)) {
       return appDataOpenGym;
     }
   } catch {
     // getStoragePaths hatası durumunda varsayılan yola geçilir
   }
-  return path.join(process.cwd(), "opengym", "data");
+  return path.join(/*turbopackIgnore: true*/ process.cwd(), "opengym", "data");
 }
 
 /**

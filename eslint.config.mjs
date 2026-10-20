@@ -1,23 +1,21 @@
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import { FlatCompat } from "@eslint/eslintrc";
+import { defineConfig, globalIgnores } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
 
-const compat = new FlatCompat({ baseDirectory: dirname(fileURLToPath(import.meta.url)) });
-
-const config = [
-  {
-    ignores: [
-      ".next/**",
-      "node_modules/**",
-      "src-tauri/**",
-      "coverage/**",
-      "playwright-report/**",
-      "test-results/**",
-      "opengym/**",
-      "next-env.d.ts",
-    ],
-  },
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+// eslint-config-next 16 doğrudan flat config verir (FlatCompat / @eslint/eslintrc gerekmez).
+const config = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  globalIgnores([
+    ".next/**",
+    "node_modules/**",
+    "src-tauri/**",
+    "coverage/**",
+    "playwright-report/**",
+    "test-results/**",
+    "opengym/**",
+    "next-env.d.ts",
+  ]),
   {
     rules: {
       "react/no-unescaped-entities": "off",
@@ -27,6 +25,14 @@ const config = [
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrors: "none" },
       ],
+      // eslint-plugin-react-hooks 7 (eslint-config-next 16) React Compiler kurallarını getirdi.
+      // Uygulama React Compiler kullanmıyor; işaretlenen kalıplar (son-değer ref'i, effect içinde
+      // localStorage'dan ilk değer, sayaçta Date.now) çalışıyor. Davranış değiştirmemek için
+      // yükseltmede uyarıya çekildi; ayrı bir işte düzeltilip yeniden "error" yapılacak.
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/immutability": "warn",
+      "react-hooks/refs": "warn",
+      "react-hooks/purity": "warn",
     },
   },
   {
@@ -34,6 +40,6 @@ const config = [
     files: ["e2e/**/*.ts"],
     rules: { "react-hooks/rules-of-hooks": "off" },
   },
-];
+]);
 
 export default config;

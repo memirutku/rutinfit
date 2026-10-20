@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { evaluateRequest, hostnameFromHostHeader, SESSION_COOKIE } from "@/lib/security/request-guard";
-import { middleware } from "@/middleware";
+import { proxy } from "@/proxy";
 
 const req = (path: string, init: { method?: string; headers?: Record<string, string> } = {}) => ({
   method: init.method ?? "GET",
@@ -88,9 +88,9 @@ describe("evaluateRequest — masaüstü açılış anahtarı", () => {
   });
 });
 
-describe("middleware", () => {
+describe("proxy", () => {
   it("reddedilen istekte JSON hata döner", async () => {
-    const res = middleware(
+    const res = proxy(
       new NextRequest("http://127.0.0.1:3005/api/backup/export", { headers: { host: "192.168.1.57:3005" } })
     );
     expect(res.status).toBe(403);
@@ -98,16 +98,16 @@ describe("middleware", () => {
   });
 
   it("izin verilen istekte zinciri devam ettirir", () => {
-    const res = middleware(new NextRequest("http://127.0.0.1:3005/api/profile", { headers: { host: "127.0.0.1:3005" } }));
+    const res = proxy(new NextRequest("http://127.0.0.1:3005/api/profile", { headers: { host: "127.0.0.1:3005" } }));
     expect(res.headers.get("x-middleware-next")).toBe("1");
   });
 
   it("açılış anahtarıyla HttpOnly + SameSite=Strict oturum çerezi kurar", async () => {
     vi.stubEnv("RUTINFIT_LAUNCH_TOKEN", "t0ken");
-    const res = middleware(
+    const res = proxy(
       new NextRequest("http://127.0.0.1:3005/workouts?launch=t0ken&x=1", { headers: { host: "127.0.0.1:3005" } })
     );
-    // HTTP yönlendirmesi yok (Next Location'daki 127.0.0.1'i localhost'a çevirir → köken değişir).
+    // HTTP yönlendirmesi yok (Next, req.url'de 127.0.0.1 yerine localhost taşır → köken değişir).
     expect(res.status).toBe(200);
     expect(res.headers.get("location")).toBeNull();
     const html = await res.text();

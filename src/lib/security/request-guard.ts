@@ -1,5 +1,5 @@
 /**
- * Yerel sunucuya gelen istekleri süzen saf karar fonksiyonu (src/middleware.ts kullanır).
+ * Yerel sunucuya gelen istekleri süzen saf karar fonksiyonu (src/proxy.ts kullanır).
  *
  * Korumalar:
  * 1. Host başlığı yalnız loopback olabilir → DNS rebinding ile başka bir sitenin

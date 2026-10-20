@@ -16,15 +16,16 @@ const KEEP_EXPORT_COPIES = 20;
  */
 function saveLocalCopy(json: string, stamp: string): string | null {
   try {
+    // turbopackIgnore: kullanıcı veri klasörü; derleyici bu yolu izleyip yedekleri pakete katmasın.
     const dir = getStoragePaths().backupsDir;
-    const file = path.join(dir, `rutinfit-backup-${stamp}.json`);
+    const file = path.join(/*turbopackIgnore: true*/ dir, `rutinfit-backup-${stamp}.json`);
     fs.writeFileSync(file, json, "utf8");
     const copies = fs
-      .readdirSync(dir)
+      .readdirSync(/*turbopackIgnore: true*/ dir)
       .filter((f) => /^rutinfit-backup-.*\.json$/.test(f))
       .sort();
     for (const old of copies.slice(0, Math.max(0, copies.length - KEEP_EXPORT_COPIES))) {
-      fs.rmSync(path.join(dir, old), { force: true });
+      fs.rmSync(path.join(/*turbopackIgnore: true*/ dir, old), { force: true });
     }
     return file;
   } catch (error) {

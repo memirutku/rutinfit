@@ -25,6 +25,22 @@ const NODE_SHA256 = {
   "x86_64-apple-darwin": { file: `node-v${NODE_VERSION}-darwin-x64.tar.gz`, sha256: "8a677b0219178efd6eb0e475457c4afb452b521a92f6e67845a73bd85727f2a8" },
 };
 
+/**
+ * Standalone çıktının pakete alınabilecek üst düzey girdileri. Derleyicinin dosya izleyicisi
+ * dinamik yollar yüzünden proje dosyalarını (notlar, yedekler, yüklemeler) standalone'a
+ * katabilir; bu listede olmayan her şey atlanır ve doğrulamada hata sayılır.
+ */
+const ALLOWED_TOP_LEVEL = new Set(["server.js", "package.json", ".next", "node_modules", "prisma"]);
+const ALLOWED_IN_PRISMA = new Set(["migrations"]);
+/** prepare-desktop'ın kendisinin eklediği girdiler. */
+const ADDED_TOP_LEVEL = new Set(["desktop-entry.cjs", "public"]);
+
+function outsideAllowlist(rel) {
+  const [top, second] = rel.split("/");
+  if (!ALLOWED_TOP_LEVEL.has(top)) return true;
+  return top === "prisma" && second !== undefined && !ALLOWED_IN_PRISMA.has(second);
+}
+
 /** Pakete asla girmemesi gereken yollar (kullanıcı verisi, gizli anahtarlar, ortam dosyaları). */
 const FORBIDDEN = [
   { test: (rel) => /(^|\/)\.env(\.|$)/.test(rel), why: "ortam değişkeni dosyası" },
@@ -61,6 +77,10 @@ function copyServer() {
     dereference: true,
     filter: (src) => {
       const rel = path.relative(standalone, src).split(path.sep).join("/");
+      if (rel && outsideAllowlist(rel)) {
+        skipped.push(`${rel} (izin listesi dışında)`);
+        return false;
+      }
       const hit = rel && FORBIDDEN.find((f) => f.test(rel));
       if (hit) skipped.push(`${rel} (${hit.why})`);
       return !hit;
@@ -87,6 +107,13 @@ function verifyServer() {
     }
   };
   walk(serverOut);
+  for (const entry of fs.readdirSync(serverOut)) {
+    if (!ALLOWED_TOP_LEVEL.has(entry) && !ADDED_TOP_LEVEL.has(entry)) violations.push(`${entry} (izin listesi dışında)`);
+  }
+  const prismaDir = path.join(serverOut, "prisma");
+  for (const entry of fs.existsSync(prismaDir) ? fs.readdirSync(prismaDir) : []) {
+    if (!ALLOWED_IN_PRISMA.has(entry)) violations.push(`prisma/${entry} (izin listesi dışında)`);
+  }
   for (const required of ["server.js", "desktop-entry.cjs", ".next/static", "prisma/migrations/0001_init/migration.sql"]) {
     if (!fs.existsSync(path.join(serverOut, required))) violations.push(`${required} eksik`);
   }

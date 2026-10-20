@@ -5,14 +5,15 @@ import { getStoragePaths } from "@/lib/storage-paths";
 
 export async function GET() {
   try {
+    // turbopackIgnore: kullanıcı veri klasörü; derleyici bu yolları izleyip pakete katmasın.
     const paths = getStoragePaths();
 
     // Veritabanı dosya boyutu
     let dbSizeBytes = 0;
     let dbExists = false;
     try {
-      if (fs.existsSync(paths.dbPath)) {
-        const stat = fs.statSync(paths.dbPath);
+      if (fs.existsSync(/*turbopackIgnore: true*/ paths.dbPath)) {
+        const stat = fs.statSync(/*turbopackIgnore: true*/ paths.dbPath);
         dbSizeBytes = stat.size;
         dbExists = true;
       }
@@ -23,8 +24,8 @@ export async function GET() {
     // Yedek klasörü ve yedek sayısı
     let backupCount = 0;
     try {
-      if (fs.existsSync(paths.backupsDir)) {
-        const files = fs.readdirSync(paths.backupsDir);
+      if (fs.existsSync(/*turbopackIgnore: true*/ paths.backupsDir)) {
+        const files = fs.readdirSync(/*turbopackIgnore: true*/ paths.backupsDir);
         backupCount = files.filter((f) => f.endsWith(".db.bak") || f.endsWith(".json")).length;
       }
     } catch {

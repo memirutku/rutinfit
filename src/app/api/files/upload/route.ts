@@ -72,11 +72,13 @@ export async function POST(req: Request) {
     });
 
     // Uygulama veri klasörü (paketli uygulamada çalışma dizini salt-okunur olabilir).
+    // turbopackIgnore: yorum olmadan derleyici `<klasör>/*_*` kalıbını izler ve projede adında
+    // "_" geçen her dosyayı (yedekler, notlar) standalone pakete katar.
     const uploadsDir = getStoragePaths().uploadsDir;
-    await fs.mkdir(uploadsDir, { recursive: true });
+    await fs.mkdir(/*turbopackIgnore: true*/ uploadsDir, { recursive: true });
 
     const safeName = path.basename(file.name).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120) || 'dosya';
-    const storagePath = path.join(uploadsDir, `${hash.slice(0, 12)}_${safeName}`);
+    const storagePath = path.join(/*turbopackIgnore: true*/ uploadsDir, `${hash.slice(0, 12)}_${safeName}`);
     await fs.writeFile(storagePath, buffer);
 
     // Upsert or retrieve UploadedFile in database

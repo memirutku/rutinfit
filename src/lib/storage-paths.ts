@@ -12,6 +12,10 @@ export interface StoragePaths {
 
 /**
  * İşletim sistemine uygun güvenli uygulama veri dizinlerini belirler.
+ *
+ * Buradaki yollar kullanıcı verisidir: `turbopackIgnore` yorumları derleyicinin dosya izleyicisinin
+ * bu klasörleri (dev.db, yedekler, yüklemeler) takip edip standalone pakete katmasını engeller.
+ * Yorum olmadan dinamik yollar "tüm projeyi izle" kalıbına dönüşür.
  * macOS: ~/Library/Application Support/RutinFit
  * Windows: %APPDATA%\RutinFit
  * Linux: ~/.local/share/rutinfit
@@ -19,16 +23,16 @@ export interface StoragePaths {
 export function getStoragePaths(): StoragePaths {
   // Eğer RUTINFIT_DATA_DIR çevre değişkeni verilmişse (test veya özel kurulum)
   if (process.env.RUTINFIT_DATA_DIR) {
-    const customDir = path.resolve(process.env.RUTINFIT_DATA_DIR);
+    const customDir = path.resolve(/*turbopackIgnore: true*/ process.env.RUTINFIT_DATA_DIR);
     ensureDir(customDir);
-    const backupsDir = path.join(customDir, "backups");
-    const uploadsDir = path.join(customDir, "uploads");
+    const backupsDir = path.join(/*turbopackIgnore: true*/ customDir, "backups");
+    const uploadsDir = path.join(/*turbopackIgnore: true*/ customDir, "uploads");
     ensureDir(backupsDir);
     ensureDir(uploadsDir);
 
     return {
       dataDir: customDir,
-      dbPath: path.join(customDir, "rutinfit.db"),
+      dbPath: path.join(/*turbopackIgnore: true*/ customDir, "rutinfit.db"),
       backupsDir,
       uploadsDir,
       isCustomPath: true,
@@ -45,14 +49,14 @@ export function getStoragePaths(): StoragePaths {
 
   // Next.js dev ortamında isteğe bağlı proje içi dev.db
   if (process.env.RUTINFIT_LOCAL_DEV === "true") {
-    const devDbPath = path.resolve(process.cwd(), "prisma", "dev.db");
-    const devBackupsDir = path.resolve(process.cwd(), "backups");
-    const devUploadsDir = path.resolve(process.cwd(), "uploads");
+    const devDbPath = path.resolve(/*turbopackIgnore: true*/ process.cwd(), "prisma", "dev.db");
+    const devBackupsDir = path.resolve(/*turbopackIgnore: true*/ process.cwd(), "backups");
+    const devUploadsDir = path.resolve(/*turbopackIgnore: true*/ process.cwd(), "uploads");
     ensureDir(devBackupsDir);
     ensureDir(devUploadsDir);
 
     return {
-      dataDir: path.resolve(process.cwd(), "prisma"),
+      dataDir: path.resolve(/*turbopackIgnore: true*/ process.cwd(), "prisma"),
       dbPath: devDbPath,
       backupsDir: devBackupsDir,
       uploadsDir: devUploadsDir,
@@ -65,35 +69,35 @@ export function getStoragePaths(): StoragePaths {
   const platform = os.platform();
 
   if (platform === "darwin") {
-    baseDataDir = path.join(os.homedir(), "Library", "Application Support", "RutinFit");
+    baseDataDir = path.join(/*turbopackIgnore: true*/ os.homedir(), "Library", "Application Support", "RutinFit");
   } else if (platform === "win32") {
     baseDataDir = path.join(
-      process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"),
+      /*turbopackIgnore: true*/ process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"),
       "RutinFit"
     );
   } else {
     baseDataDir = path.join(
-      process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share"),
+      /*turbopackIgnore: true*/ process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share"),
       "rutinfit"
     );
   }
 
   ensureDir(baseDataDir);
-  const backupsDir = path.join(baseDataDir, "backups");
-  const uploadsDir = path.join(baseDataDir, "uploads");
+  const backupsDir = path.join(/*turbopackIgnore: true*/ baseDataDir, "backups");
+  const uploadsDir = path.join(/*turbopackIgnore: true*/ baseDataDir, "uploads");
   ensureDir(backupsDir);
   ensureDir(uploadsDir);
 
-  const targetDbPath = path.join(baseDataDir, "rutinfit.db");
+  const targetDbPath = path.join(/*turbopackIgnore: true*/ baseDataDir, "rutinfit.db");
 
   // Eğer hedef veritabanı yoksa ve proje kökündeki dev.db mevcutsa, güvenli taşıma ve yedekleme yap
-  const legacyDevDb = path.resolve(process.cwd(), "prisma", "dev.db");
-  if (!fs.existsSync(targetDbPath) && fs.existsSync(legacyDevDb)) {
+  const legacyDevDb = path.resolve(/*turbopackIgnore: true*/ process.cwd(), "prisma", "dev.db");
+  if (!fs.existsSync(/*turbopackIgnore: true*/ targetDbPath) && fs.existsSync(/*turbopackIgnore: true*/ legacyDevDb)) {
     try {
-      fs.copyFileSync(legacyDevDb, targetDbPath);
+      fs.copyFileSync(/*turbopackIgnore: true*/ legacyDevDb, targetDbPath);
       // İlk taşıma yedeğini al
-      const initialBackup = path.join(backupsDir, `rutinfit_migrated_${Date.now()}.db.bak`);
-      fs.copyFileSync(legacyDevDb, initialBackup);
+      const initialBackup = path.join(/*turbopackIgnore: true*/ backupsDir, `rutinfit_migrated_${Date.now()}.db.bak`);
+      fs.copyFileSync(/*turbopackIgnore: true*/ legacyDevDb, initialBackup);
       console.log(`[RutinFit Storage] dev.db başarıyla taşındı -> ${targetDbPath}`);
     } catch (err) {
       console.error("[RutinFit Storage] Otomatik veritabanı taşıma hatası:", err);
@@ -119,7 +123,7 @@ export function getPrismaDatabaseUrl(): string {
 }
 
 function ensureDir(dirPath: string) {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
+  if (!fs.existsSync(/*turbopackIgnore: true*/ dirPath)) {
+    fs.mkdirSync(/*turbopackIgnore: true*/ dirPath, { recursive: true });
   }
 }
