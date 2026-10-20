@@ -5,14 +5,18 @@
  * 1. .next/standalone sunucusunu src-tauri/resources/server klasörüne kopyalar
  *    (statik dosyalar dahil, sembolik linkler çözülmüş).
  * 2. Pakette kullanıcı verisi veya gizli dosya OLMADIĞINI doğrular; varsa derlemeyi durdurur.
- * 3. Gömülü Node çalışma zamanını (sabit sürüm + sabit SHA-256) indirip
- *    src-tauri/binaries/node-<hedef> olarak yerleştirir (Tauri sidecar adlandırması).
+ * 3. macOS'ta APPLE_SIGNING_IDENTITY verilmişse sunucudaki native modülleri (Prisma motoru, sharp/libvips)
+ *    o kimlikle imzalar. Tauri yalnız Contents/MacOS altını imzalar; Resources altındakiler imzasız kalırsa
+ *    notarization reddeder ve hardened runtime'ın kütüphane doğrulaması onları Node'a yükletmez.
+ * 4. Gömülü Node çalışma zamanını (sabit sürüm + sabit SHA-256) indirip
+ *    src-tauri/binaries/node-<hedef> olarak yerleştirir (Tauri sidecar adlandırması; imzayı Tauri atar).
  */
 import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { findMachO, isRealIdentity } from "./lib/macos.mjs";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const standalone = path.join(root, ".next", "standalone");
@@ -98,6 +102,31 @@ function verifyServer() {
   log(`Sunucu hazır: ${path.relative(root, serverOut)} (Prisma motoru: ${engine})`);
 }
 
+function signNativeModules() {
+  if (process.platform !== "darwin") return;
+  const identity = process.env.APPLE_SIGNING_IDENTITY;
+  const files = findMachO(serverOut);
+  if (!isRealIdentity(identity)) {
+    log(`İmza kimliği yok (APPLE_SIGNING_IDENTITY): ${files.length} native modül olduğu gibi bırakıldı (yalnız bu Mac için ad-hoc paket).`);
+    return;
+  }
+  for (const file of files) {
+    const rel = path.relative(serverOut, file);
+    try {
+      // --timestamp: notarization güvenli zaman damgası ister. --options runtime: hardened runtime işareti.
+      execFileSync("codesign", ["--force", "--sign", identity, "--options", "runtime", "--timestamp", file], { stdio: ["ignore", "ignore", "pipe"] });
+      execFileSync("codesign", ["--verify", "--strict", file], { stdio: ["ignore", "ignore", "pipe"] });
+    } catch (err) {
+      const detail = String(err.stderr || err.message).trim();
+      throw new Error(
+        `${rel} imzalanamadı: ${detail}\n` +
+          "  Sertifika anahtar zincirinde olmalı: `security find-identity -v -p codesigning` (bkz. docs/RELEASING.md)."
+      );
+    }
+  }
+  log(`${files.length} native modül imzalandı: ${files.map((f) => path.relative(serverOut, f)).join(", ")}`);
+}
+
 async function ensureNode() {
   const target = hostTarget();
   const spec = NODE_SHA256[target];
@@ -139,6 +168,7 @@ async function ensureNode() {
 try {
   copyServer();
   verifyServer();
+  signNativeModules();
   await ensureNode();
 } catch (err) {
   console.error(`[prepare-desktop] HATA: ${err.message}`);

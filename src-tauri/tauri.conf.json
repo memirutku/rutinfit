@@ -37,7 +37,10 @@
     "category": "HealthcareAndFitness",
     "shortDescription": "Gizlilik odaklı kişisel fitness ve beslenme asistanı",
     "macOS": {
-      "minimumSystemVersion": "11.0"
+      "minimumSystemVersion": "11.0",
+      "signingIdentity": null,
+      "hardenedRuntime": true,
+      "entitlements": "./entitlements.plist"
     }
   }
 }
