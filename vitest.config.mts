@@ -1,14 +1,18 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
-import path from "path";
+
+// .mts: proje CommonJS olduğu için ESM yapılandırma ayrı uzantıda (Vite'ın yerel config yükleyicisi
+// .ts'i CommonJS sayar). __dirname yerine import.meta.url.
 
 export default defineConfig({
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
   // Testlerde JSX React 19 otomatik runtime ile derlenir (Next 16 tsconfig'i de "react-jsx" yapar).
-  esbuild: { jsx: "automatic" },
+  // Vite 8 dönüşümleri esbuild yerine Oxc ile yapar.
+  oxc: { jsx: { runtime: "automatic" } },
   test: {
     coverage: {
       provider: "v8",
