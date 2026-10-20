@@ -1,8 +1,9 @@
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { PrismaClient } from "@prisma/client";
 import type { TestProject } from "vitest/node";
+import { runMigrations } from "../../src/lib/db/migrate";
 
 declare module "vitest" {
   export interface ProvidedContext {
@@ -11,19 +12,16 @@ declare module "vitest" {
 }
 
 /**
- * Şemadan boş bir şablon SQLite veritabanı kurar.
- * Her test dosyası bunun bir kopyasını alır (tests/setup/per-file-db.ts),
- * böylece testler birbirini ve geliştirici veritabanını etkilemez.
+ * Boş şablon veritabanını GERÇEK migration dosyalarıyla kurar (uygulamanın açılışta yaptığı gibi).
+ * Böylece her test koşusu migration'ların şemayla uyumlu olduğunu da doğrular.
+ * Her test dosyası bunun bir kopyasını alır (tests/setup/per-file-db.ts).
  */
-export default function setup(project: TestProject) {
+export default async function setup(project: TestProject) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "rutinfit-template-"));
   const templateDb = path.join(dir, "template.db");
-  const prismaBin = path.resolve(__dirname, "../../node_modules/.bin/prisma");
-
-  execFileSync(prismaBin, ["db", "push", "--skip-generate"], {
-    env: { ...process.env, DATABASE_URL: `file:${templateDb}` },
-    stdio: "pipe",
-  });
+  const client = new PrismaClient({ datasourceUrl: `file:${templateDb}` });
+  await runMigrations(client, { migrationsDir: path.resolve(__dirname, "../../prisma/migrations") });
+  await client.$disconnect();
 
   project.provide("templateDb", templateDb);
 

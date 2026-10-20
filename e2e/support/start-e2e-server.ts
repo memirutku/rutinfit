@@ -19,7 +19,7 @@ async function main() {
   const dbUrl = `file:${path.join(dataDir, "rutinfit.db")}`;
   const env = { ...process.env, DATABASE_URL: dbUrl };
 
-  execFileSync(bin("prisma"), ["db", "push", "--skip-generate"], { cwd: root, env, stdio: "inherit" });
+  // seed önce migration'ları uygular (uygulamanın açılışta yaptığıyla aynı yol)
   execFileSync(bin("tsx"), ["prisma/seed.ts"], { cwd: root, env, stdio: "inherit" });
 
   const mocks = await startMockServices(MOCK_PORT);

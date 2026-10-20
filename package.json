@@ -21,14 +21,12 @@
     "desktop": "tauri dev",
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
-    "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "next build && playwright test"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "test:e2e": "next build && playwright test",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:new-migration": "node scripts/new-migration.mjs"
   },
   "packageManager": "pnpm@11.17.0",
   "dependencies": {
