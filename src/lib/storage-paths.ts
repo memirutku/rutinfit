@@ -35,8 +35,16 @@ export function getStoragePaths(): StoragePaths {
     };
   }
 
-  // Test ortamı veya Next.js dev ortamında proje içi dev.db önceliği
-  if (process.env.NODE_ENV === "test" || process.env.RUTINFIT_LOCAL_DEV === "true") {
+  // Testler yalnız kendilerine ayrılmış geçici klasörde çalışır (tests/setup/per-file-db.ts).
+  // Bu koruma, testlerin geliştirici veya kullanıcı veritabanına yazmasını engeller.
+  if (process.env.NODE_ENV === "test") {
+    throw new Error(
+      "[RutinFit Storage] Test ortamında RUTINFIT_DATA_DIR zorunludur; gerçek veritabanına yazılmaz."
+    );
+  }
+
+  // Next.js dev ortamında isteğe bağlı proje içi dev.db
+  if (process.env.RUTINFIT_LOCAL_DEV === "true") {
     const devDbPath = path.resolve(process.cwd(), "prisma", "dev.db");
     const devBackupsDir = path.resolve(process.cwd(), "backups");
     const devUploadsDir = path.resolve(process.cwd(), "uploads");
@@ -105,9 +113,7 @@ export function getStoragePaths(): StoragePaths {
  * Prisma için kullanılabilir SQLite bağlantı URL'sini döndürür.
  */
 export function getPrismaDatabaseUrl(): string {
-  if (process.env.DATABASE_URL && process.env.NODE_ENV === "test") {
-    return process.env.DATABASE_URL;
-  }
+  // Tek doğruluk kaynağı getStoragePaths(); DATABASE_URL yalnız Prisma CLI içindir.
   const paths = getStoragePaths();
   return `file:${paths.dbPath}`;
 }

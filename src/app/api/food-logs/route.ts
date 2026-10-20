@@ -1,27 +1,44 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { calculateDailySummary } from "@/lib/nutrition-calculator";
-import { getLocalDateString } from "@/lib/date-utils";
+import { apiError } from "@/lib/api-error";
+import { targetsFromProfile } from "@/lib/constants";
+import { MealTypeSchema } from "@/lib/schemas/enums";
+import {
+  calculateDailySummary,
+  calculatePortionMacros,
+  calculateRecipeMacros,
+  calculateRecipePortion,
+  scaleMacros,
+} from "@/lib/nutrition-calculator";
+import { getLocalDateString, isDateString } from "@/lib/date-utils";
 
 const FoodLogCreateSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   time: z.string().default("12:00"),
-  mealType: z.enum(["breakfast", "lunch", "workSnack", "dinner", "extra"]),
+  mealType: MealTypeSchema,
   foodItemId: z.string().optional().nullable(),
   recipeId: z.string().optional().nullable(),
   name: z.string().min(1),
-  grams: z.number().positive(),
+  /** Gram ya da (tarif için) porsiyon sayısı verilmelidir. */
+  grams: z.number().positive().optional(),
+  servings: z.number().positive().optional(),
   caloriesSnapshot: z.number().nonnegative().optional(),
   proteinSnapshot: z.number().nonnegative().optional(),
   carbsSnapshot: z.number().nonnegative().optional(),
   fatSnapshot: z.number().nonnegative().optional(),
+}).refine((v) => v.grams !== undefined || (v.servings !== undefined && !!v.recipeId), {
+  message: "grams veya (tarif için) servings zorunludur.",
+  path: ["grams"],
 });
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const date = searchParams.get("date") || getLocalDateString();
+    if (!isDateString(date)) {
+      return NextResponse.json({ error: "date YYYY-AA-GG olmalıdır." }, { status: 400 });
+    }
 
     const logs = await prisma.foodLog.findMany({
       where: { date },
@@ -36,21 +53,7 @@ export async function GET(req: Request) {
       where: { id: "default-user" },
     });
 
-    const targets = profile
-      ? {
-          calorieTarget: profile.calorieTarget,
-          calorieCeiling: profile.calorieCeiling,
-          proteinTargetG: profile.proteinTargetG,
-          fatTargetG: profile.fatTargetG,
-          carbTargetG: profile.carbTargetG,
-        }
-      : {
-          calorieTarget: 2080,
-          calorieCeiling: 2100,
-          proteinTargetG: 165,
-          fatTargetG: 60,
-          carbTargetG: 220,
-        };
+    const targets = targetsFromProfile(profile);
 
     const summary = calculateDailySummary(
       logs.map((l) => ({
@@ -69,11 +72,7 @@ export async function GET(req: Request) {
       targets,
     });
   } catch (error) {
-    console.error("FoodLog GET error:", error);
-    return NextResponse.json(
-      { error: "Kayıtlar getirilemedi" },
-      { status: 500 }
-    );
+    return apiError(error, "Kayıtlar getirilemedi", "FoodLog GET");
   }
 }
 
@@ -82,62 +81,51 @@ export async function POST(req: Request) {
     const body = await req.json();
     const validated = FoodLogCreateSchema.parse(body);
 
-    let caloriesSnapshot = validated.caloriesSnapshot ?? 0;
-    let proteinSnapshot = validated.proteinSnapshot ?? 0;
-    let carbsSnapshot = validated.carbsSnapshot ?? 0;
-    let fatSnapshot = validated.fatSnapshot ?? 0;
+    let grams = validated.grams ?? 0;
+    let macros = {
+      calories: validated.caloriesSnapshot ?? 0,
+      proteinG: validated.proteinSnapshot ?? 0,
+      carbsG: validated.carbsSnapshot ?? 0,
+      fatG: validated.fatSnapshot ?? 0,
+    };
 
-    // Server-side deterministic recalculation if linked to foodItem or recipe
+    // Katalog besini veya tarife bağlı kayıtlar sunucuda deterministik olarak yeniden hesaplanır;
+    // istemcinin gönderdiği makrolar yalnız serbest girişte kullanılır.
     if (validated.foodItemId) {
-      const foodItem = await prisma.foodItem.findUnique({
-        where: { id: validated.foodItemId },
-      });
-
+      const foodItem = await prisma.foodItem.findUnique({ where: { id: validated.foodItemId } });
       if (foodItem) {
-        const basis = foodItem.basisGrams > 0 ? foodItem.basisGrams : 100;
-        const multiplier = validated.grams / basis;
-        caloriesSnapshot = Math.round(foodItem.calories * multiplier * 10) / 10;
-        proteinSnapshot = Math.round(foodItem.proteinG * multiplier * 10) / 10;
-        carbsSnapshot = Math.round(foodItem.carbsG * multiplier * 10) / 10;
-        fatSnapshot = Math.round(foodItem.fatG * multiplier * 10) / 10;
+        macros = calculatePortionMacros(
+          { ...foodItem, basisGrams: foodItem.basisGrams > 0 ? foodItem.basisGrams : 100 },
+          grams
+        );
       }
     } else if (validated.recipeId) {
       const recipe = await prisma.recipe.findUnique({
         where: { id: validated.recipeId },
-        include: {
-          ingredients: {
-            include: { foodItem: true },
-          },
-        },
+        include: { ingredients: { include: { foodItem: true } } },
       });
 
       if (recipe && recipe.ingredients.length > 0) {
-        let totalCal = 0;
-        let totalP = 0;
-        let totalC = 0;
-        let totalF = 0;
-        let totalGrams = 0;
-
-        for (const ing of recipe.ingredients) {
-          const item = ing.foodItem;
-          const basis = item.basisGrams > 0 ? item.basisGrams : 100;
-          const mult = ing.grams / basis;
-          totalCal += item.calories * mult;
-          totalP += item.proteinG * mult;
-          totalC += item.carbsG * mult;
-          totalF += item.fatG * mult;
-          totalGrams += ing.grams;
+        const ingredients = recipe.ingredients.map((ing) => ({ grams: ing.grams, foodItem: ing.foodItem }));
+        if (validated.servings !== undefined) {
+          const portion = calculateRecipePortion(ingredients, recipe.servings, validated.servings);
+          grams = portion.grams;
+          macros = portion.macros;
+        } else {
+          const totalGrams = ingredients.reduce((acc, i) => acc + i.grams, 0);
+          macros = scaleMacros(calculateRecipeMacros(ingredients), totalGrams > 0 ? grams / totalGrams : 0);
         }
-
-        const servings = recipe.servings > 0 ? recipe.servings : 1;
-        // If logged grams equals total weight, or ratio
-        const ratio = totalGrams > 0 ? validated.grams / (totalGrams / servings) : 1;
-        caloriesSnapshot = Math.round((totalCal / servings) * ratio * 10) / 10;
-        proteinSnapshot = Math.round((totalP / servings) * ratio * 10) / 10;
-        carbsSnapshot = Math.round((totalC / servings) * ratio * 10) / 10;
-        fatSnapshot = Math.round((totalF / servings) * ratio * 10) / 10;
       }
     }
+
+    if (!(grams > 0)) {
+      return NextResponse.json({ error: "Gramaj hesaplanamadı." }, { status: 400 });
+    }
+
+    const caloriesSnapshot = macros.calories;
+    const proteinSnapshot = macros.proteinG;
+    const carbsSnapshot = macros.carbsG;
+    const fatSnapshot = macros.fatG;
 
     const created = await prisma.foodLog.create({
       data: {
@@ -147,7 +135,7 @@ export async function POST(req: Request) {
         foodItemId: validated.foodItemId,
         recipeId: validated.recipeId,
         name: validated.name,
-        grams: validated.grams,
+        grams,
         caloriesSnapshot,
         proteinSnapshot,
         carbsSnapshot,
@@ -156,12 +144,8 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(created, { status: 201 });
-  } catch (error: any) {
-    console.error("FoodLog POST error:", error);
-    return NextResponse.json(
-      { error: error.message || "Öğün kaydedilemedi" },
-      { status: 400 }
-    );
+  } catch (error) {
+    return apiError(error, "Öğün kaydedilemedi", "FoodLog POST");
   }
 }
 
@@ -179,10 +163,6 @@ export async function DELETE(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("FoodLog DELETE error:", error);
-    return NextResponse.json(
-      { error: "Kayıt silinemedi" },
-      { status: 500 }
-    );
+    return apiError(error, "Kayıt silinemedi", "FoodLog DELETE");
   }
 }

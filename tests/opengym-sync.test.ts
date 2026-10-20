@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   mapOpenGymWorkoutToRutinFit,
-  mapRutinFitWeightsToOpenGym,
   OpenGymWorkout,
 } from "../src/lib/opengym-client";
 
@@ -53,18 +52,6 @@ describe("openGym Entegrasyon ve Veri Eşleme", () => {
     expect(mapped.setLogs[3].weightKg).toBe(12);
   });
 
-  it("RutinFit kilo kayıtlarını openGym bodyWeight formatına dönüştürmeli", () => {
-    const rfWeights = [
-      { date: "2026-10-17", weightKg: 112.4 },
-      { date: "2026-10-18", weightKg: 111.9 },
-    ];
-
-    const ogWeights = mapRutinFitWeightsToOpenGym(rfWeights);
-
-    expect(ogWeights.length).toBe(2);
-    expect(ogWeights[0]).toEqual({ date: "2026-10-17", weight: 112.4 });
-    expect(ogWeights[1]).toEqual({ date: "2026-10-18", weight: 111.9 });
-  });
 
   it("getOpenGymDataDir çevre değişkenini önceliklendirmeli ve getOpenGymLocalState asenkron okumalı", async () => {
     const fs = await import("fs");

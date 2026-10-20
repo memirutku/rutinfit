@@ -1,19 +1,25 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { apiError } from "@/lib/api-error";
+import { DEFAULT_TARGETS } from "@/lib/constants";
+
+const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Saat SS:DD biçiminde olmalıdır.");
+// Hedef sütunları tam sayıdır: kesirli girişler yuvarlanır.
+const intTarget = (min = 0) => z.number().finite().min(min).transform((v) => Math.round(v));
 
 const UpdateProfileSchema = z.object({
-  heightCm: z.number().positive(),
-  age: z.number().int().positive(),
-  sex: z.string(),
-  currentWeightKg: z.number().positive(),
-  calorieTarget: z.number().positive(),
-  calorieCeiling: z.number().positive(),
-  proteinTargetG: z.number().positive(),
-  fatTargetG: z.number().positive(),
-  carbTargetG: z.number().positive(),
-  wakeTime: z.string(),
-  workdayHomeTime: z.string(),
+  heightCm: z.number().positive().max(260),
+  age: z.number().int().positive().max(120),
+  sex: z.enum(["male", "female"]),
+  currentWeightKg: z.number().positive().max(400),
+  calorieTarget: intTarget(1),
+  calorieCeiling: intTarget(1),
+  proteinTargetG: intTarget(),
+  fatTargetG: intTarget(),
+  carbTargetG: intTarget(),
+  wakeTime: time,
+  workdayHomeTime: time,
   isOnboarded: z.boolean().optional(),
 });
 
@@ -31,11 +37,7 @@ export async function GET() {
           age: 25,
           sex: "male",
           currentWeightKg: 112,
-          calorieTarget: 2080,
-          calorieCeiling: 2100,
-          proteinTargetG: 165,
-          fatTargetG: 60,
-          carbTargetG: 220,
+          ...DEFAULT_TARGETS,
           wakeTime: "06:00",
           workdayHomeTime: "19:30",
           isOnboarded: true,
@@ -45,8 +47,7 @@ export async function GET() {
 
     return NextResponse.json(profile);
   } catch (error) {
-    console.error("Profile GET error:", error);
-    return NextResponse.json({ error: "Profil getirilemedi" }, { status: 500 });
+    return apiError(error, "Profil getirilemedi", "Profile GET");
   }
 }
 
@@ -65,11 +66,7 @@ export async function PUT(req: Request) {
     });
 
     return NextResponse.json(updated);
-  } catch (error: any) {
-    console.error("Profile PUT error:", error);
-    return NextResponse.json(
-      { error: error.message || "Profil güncellenemedi" },
-      { status: 400 }
-    );
+  } catch (error) {
+    return apiError(error, "Profil güncellenemedi", "Profile PUT");
   }
 }

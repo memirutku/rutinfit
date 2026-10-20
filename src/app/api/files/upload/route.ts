@@ -2,35 +2,54 @@ import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 import { prisma } from '@/lib/prisma';
+import { getStoragePaths } from '@/lib/storage-paths';
 import {
   parseFile,
   MAX_FILE_SIZE_BYTES,
   computeFileHash,
 } from '@/lib/file-parsers';
 
+/** multipart sınırları ve alan başlıkları için pay. */
+const MULTIPART_OVERHEAD_BYTES = 64 * 1024;
+
+function tooLarge(sizeBytes: number) {
+  return NextResponse.json(
+    {
+      error: `Dosya boyutu (${(sizeBytes / (1024 * 1024)).toFixed(1)} MB) izin verilen ${MAX_FILE_SIZE_BYTES / (1024 * 1024)} MB sınırını aşıyor.`,
+    },
+    { status: 413 }
+  );
+}
+
 export async function POST(req: Request) {
+  // Gövde belleğe alınmadan önce bildirilen boyut kontrol edilir.
+  const declared = Number(req.headers.get('content-length') || 0);
+  if (declared > MAX_FILE_SIZE_BYTES + MULTIPART_OVERHEAD_BYTES) {
+    return tooLarge(declared);
+  }
+
+  let file: File | null;
   try {
     const formData = await req.formData();
-    const file = formData.get('file') as File | null;
+    const entry = formData.get('file');
+    file = entry instanceof File ? entry : null;
+  } catch {
+    return NextResponse.json({ error: 'Geçersiz form verisi.' }, { status: 400 });
+  }
 
-    if (!file) {
-      return NextResponse.json(
-        { error: 'Dosya seçilmedi. Lütfen geçerli bir dosya yükleyin.' },
-        { status: 400 }
-      );
-    }
+  if (!file) {
+    return NextResponse.json(
+      { error: 'Dosya seçilmedi. Lütfen geçerli bir dosya yükleyin.' },
+      { status: 400 }
+    );
+  }
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return tooLarge(file.size);
+  }
 
+  try {
     const buffer = Buffer.from(await file.arrayBuffer());
     const sizeBytes = buffer.length;
-
-    if (sizeBytes > MAX_FILE_SIZE_BYTES) {
-      return NextResponse.json(
-        {
-          error: `Dosya boyutu (${(sizeBytes / (1024 * 1024)).toFixed(1)} MB) izin verilen 20 MB sınırını aşıyor.`,
-        },
-        { status: 400 }
-      );
-    }
 
     const hash = computeFileHash(buffer);
 
@@ -52,11 +71,11 @@ export async function POST(req: Request) {
       hasVisionSupport,
     });
 
-    // Ensure uploads directory exists
-    const uploadsDir = path.join(process.cwd(), 'uploads');
+    // Uygulama veri klasörü (paketli uygulamada çalışma dizini salt-okunur olabilir).
+    const uploadsDir = getStoragePaths().uploadsDir;
     await fs.mkdir(uploadsDir, { recursive: true });
 
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const safeName = path.basename(file.name).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120) || 'dosya';
     const storagePath = path.join(uploadsDir, `${hash.slice(0, 12)}_${safeName}`);
     await fs.writeFile(storagePath, buffer);
 
@@ -141,8 +160,8 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error('File upload error:', error);
     return NextResponse.json(
-      { error: `Dosya yükleme ve işleme hatası: ${error?.message || 'Bilinmeyen hata'}` },
-      { status: 500 }
+      { error: 'Dosya işlenemedi. Dosyanın bozuk olmadığından ve desteklenen bir türde olduğundan emin olun.' },
+      { status: 422 }
     );
   }
 }

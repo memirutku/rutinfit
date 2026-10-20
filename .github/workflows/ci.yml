@@ -2,46 +2,92 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test-and-build:
     name: Test & Build
     runs-on: ubuntu-latest
-    env:
-      DATABASE_URL: "file:./dev.db"
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
         with:
           version: 11.17.0
-
-      - name: Set up Node.js 22
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'pnpm'
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Push Prisma schema to local test SQLite
-        run: pnpm run db:push
-
-      - name: Type Check (TypeScript)
+      - name: Type check
         run: pnpm exec tsc --noEmit
 
-      - name: Lint Check (ESLint)
+      - name: Lint
         run: pnpm lint
 
-      - name: Run Unit & Integration Tests (Vitest)
-        run: pnpm test
+      # Testler kendi geçici veritabanlarını gerçek migration'larla kurar;
+      # şema ↔ migration uyumsuzluğu (drift) ve kapsam eşiği burada yakalanır.
+      - name: Unit & integration tests (coverage threshold)
+        run: pnpm test:coverage
 
-      - name: Build Next.js Production Bundle
+      - name: Production build
         run: pnpm build
+
+      - name: Dependency audit (high and above)
+        run: pnpm audit --audit-level high --prod
+
+  e2e:
+    name: E2E (Chromium + WebKit)
+    runs-on: ubuntu-latest
+    needs: test-and-build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.17.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium webkit
+      - name: Build and run E2E
+        run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+  desktop:
+    name: Desktop shell (macOS)
+    runs-on: macos-latest
+    needs: test-and-build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.17.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Tauri derlemesi gömülü Node ve sunucu kaynaklarının hazır olmasını ister
+      - name: Build server and prepare desktop resources
+        run: pnpm build && node scripts/prepare-desktop.mjs
+      - name: Rust tests
+        working-directory: src-tauri
+        run: cargo test --locked

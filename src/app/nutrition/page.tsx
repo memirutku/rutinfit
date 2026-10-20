@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Utensils,
@@ -10,14 +10,11 @@ import {
   Circle,
   Clock,
   Flame,
-  Scale,
-  Sparkles,
-  Info,
-  ChevronRight,
   Package,
   RefreshCw,
 } from "lucide-react";
 import { getLocalDateString } from "@/lib/date-utils";
+import { formatAmount } from "@/lib/format";
 
 export default function NutritionPage() {
   const [activeTab, setActiveTab] = useState<"plan" | "shopping" | "prep">("plan");
@@ -28,35 +25,45 @@ export default function NutritionPage() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [portionMultipliers, setPortionMultipliers] = useState<Record<string, number>>({});
 
-  useEffect(() => {
-    loadData();
-  }, [selectedDate]);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [planRes, shopRes] = await Promise.all([
         fetch(`/api/meal-plans?date=${selectedDate}`),
         fetch(`/api/shopping?weekStart=${selectedDate}`),
       ]);
-      const planJson = await planRes.json();
-      const shopJson = await shopRes.json();
-      setMealPlans(planJson);
+      const planJson = planRes.ok ? await planRes.json() : [];
+      let shopJson = shopRes.ok ? await shopRes.json() : null;
+      // Bu hafta için henüz liste oluşturulmadıysa plandan bir kez kur (GET salt-okunurdur).
+      if (shopJson && !shopJson.generated) {
+        const genRes = await fetch("/api/shopping", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ weekStart: selectedDate, deductPantry: true }),
+        });
+        if (genRes.ok) shopJson = await genRes.json();
+      }
+      setMealPlans(Array.isArray(planJson) ? planJson : []);
       setShoppingData(shopJson);
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
-  }
+  }, [selectedDate]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   async function handleToggleShoppingItem(id: string, currentChecked: boolean) {
     try {
-      await fetch("/api/shopping", {
+      const res = await fetch("/api/shopping", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, checked: !currentChecked }),
       });
+      if (!res.ok) throw new Error("Alışveriş kalemi güncellenemedi");
       // Yerel state güncelle
       setShoppingData((prev: any) => {
         if (!prev) return prev;
@@ -76,16 +83,15 @@ export default function NutritionPage() {
   }
 
   async function handleLogPlannedMealAsEaten(meal: any, multiplier = 1) {
-    if (!meal.calculatedMacros) return;
+    if (!meal.recipeId || !meal.calculatedMacros) {
+      setActionMessage("Bu öğüne bağlı bir tarif yok. Ana Panel'deki Hızlı Öğün ile kaydedebilirsiniz.");
+      setTimeout(() => setActionMessage(null), 4000);
+      return;
+    }
     try {
+      // Gösterilen değerle kaydedilen değer aynı formülden gelir: planlanan porsiyon × çarpan.
       const scaledCalories = Math.round(meal.calculatedMacros.calories * multiplier);
-      const scaledProtein = Math.round(meal.calculatedMacros.proteinG * multiplier * 10) / 10;
-      const scaledCarbs = Math.round(meal.calculatedMacros.carbsG * multiplier * 10) / 10;
-      const scaledFat = Math.round(meal.calculatedMacros.fatG * multiplier * 10) / 10;
-      const baseGrams = 250;
-      const scaledGrams = Math.round(baseGrams * multiplier);
-
-      await fetch("/api/food-logs", {
+      const res = await fetch("/api/food-logs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -97,19 +103,20 @@ export default function NutritionPage() {
           mealType: meal.mealType,
           recipeId: meal.recipeId,
           name: meal.recipe?.name || meal.customName || "Planlanan Öğün",
-          grams: scaledGrams,
-          caloriesSnapshot: scaledCalories,
-          proteinSnapshot: scaledProtein,
-          carbsSnapshot: scaledCarbs,
-          fatSnapshot: scaledFat,
+          servings: (meal.servings || 1) * multiplier,
         }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Öğün kaydedilemedi");
+      }
       setActionMessage(
         `"${meal.recipe?.name || 'Öğün'}" (${multiplier}x porsiyon - ${scaledCalories} kcal) günlüğe kaydedildi! ✓`
       );
       setTimeout(() => setActionMessage(null), 3000);
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      setActionMessage(`Kaydedilemedi: ${e?.message || "bilinmeyen hata"}`);
+      setTimeout(() => setActionMessage(null), 4000);
     }
   }
 
@@ -339,7 +346,7 @@ export default function NutritionPage() {
                                   <li key={ing.id} className="flex justify-between">
                                     <span>• {ing.foodItem.name}</span>
                                     <span className="font-medium text-slate-900">
-                                      {Math.round(ing.grams * planned.servings * mult)} g
+                                      {Math.round((ing.grams / (planned.recipe.servings || 1)) * planned.servings * mult)} g
                                     </span>
                                   </li>
                                 ))}
@@ -393,7 +400,7 @@ export default function NutritionPage() {
               </p>
             </div>
             <span className="text-xs bg-brand-50 text-brand-700 font-semibold px-3 py-1.5 rounded-full border border-brand-200">
-              Hafta: {selectedDate}
+              Hafta: {shoppingData?.weekStart ?? selectedDate}
             </span>
           </div>
 
@@ -442,6 +449,15 @@ export default function NutritionPage() {
                       <li
                         key={item.id}
                         onClick={() => handleToggleShoppingItem(item.id, item.checked)}
+                        role="checkbox"
+                        aria-checked={item.checked}
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === " " || e.key === "Enter") {
+                            e.preventDefault();
+                            handleToggleShoppingItem(item.id, item.checked);
+                          }
+                        }}
                         className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
                           item.checked
                             ? "bg-slate-100/70 text-slate-400 line-through"
@@ -457,9 +473,7 @@ export default function NutritionPage() {
                           <span className="text-sm font-medium">{item.name}</span>
                         </div>
                         <span className="text-xs font-bold text-slate-600">
-                          {item.amount >= 1000
-                            ? `${Math.round((item.amount / 1000) * 10) / 10} kg`
-                            : `${Math.round(item.amount)} g`}
+                          {formatAmount(item.amount, item.unit)}
                         </span>
                       </li>
                     ))}

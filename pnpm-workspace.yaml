@@ -1,6 +1,16 @@
+# Düz (npm benzeri) node_modules: Next "standalone" çıktısı sembolik link içermez ve
+# masaüstü paketine (Tauri resources) olduğu gibi kopyalanabilir.
+nodeLinker: hoisted
+
 allowBuilds:
   '@prisma/client': true
   '@prisma/engines': true
   esbuild: true
   prisma: true
   unrs-resolver: false
+
+# Güvenlik yamaları: üst paketler eski alt sürümleri sabitliyor (pnpm audit, 2026-10-20).
+overrides:
+  "postcss@<8.5.23": "^8.5.23"
+  "postcss-selector-parser@<7.1.6": "^7.1.6"
+  "deepmerge-ts@<8.0.0": "^8.0.0"

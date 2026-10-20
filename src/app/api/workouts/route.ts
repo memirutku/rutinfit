@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { apiError } from "@/lib/api-error";
 import { z } from "zod";
 import { evaluateExerciseProgression } from "@/lib/progression";
 
@@ -123,11 +124,7 @@ export async function POST(req: Request) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
-    console.error("Workouts POST error:", error);
-    return NextResponse.json(
-      { error: error.message || "Antrenman kaydedilemedi" },
-      { status: 400 }
-    );
+  } catch (error) {
+    return apiError(error, "Antrenman kaydedilemedi", "Workouts POST");
   }
 }

@@ -1,21 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useCountdown } from "@/hooks/useCountdown";
+import { RestTimer } from "@/components/workouts/RestTimer";
 import {
   Dumbbell,
   CheckCircle2,
-  Clock,
-  Flame,
-  Plus,
-  Play,
-  RotateCcw,
   Sparkles,
-  ChevronRight,
-  Info,
   Layers,
   Calculator,
-  Timer,
-  Pause,
 } from "lucide-react";
 import { MuscleHeatmap } from "@/components/MuscleHeatmap";
 import { PlateCalculator } from "@/components/PlateCalculator";
@@ -28,12 +21,12 @@ export default function WorkoutsPage() {
   const [activeSession, setActiveSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [progressionFeedback, setProgressionFeedback] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isShortenedMode, setIsShortenedMode] = useState(false);
 
-  // Dinlenme Zamanlayıcısı (Rest Timer)
-  const [restTimerSeconds, setRestTimerSeconds] = useState<number>(0);
-  const [restTimerTotal, setRestTimerTotal] = useState<number>(90);
-  const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+  // Dinlenme Zamanlayıcısı: duvar saatine dayalı (arka plan penceresinde kaymaz)
+  const restTimer = useCountdown();
 
   // Kaldığın Yerden Devam Etme (Draft Persistence)
   const [savedDraft, setSavedDraft] = useState<{
@@ -145,33 +138,9 @@ export default function WorkoutsPage() {
     setSessionForm({ ...sessionForm, setLogs: updatedSets });
 
     if (nextCompleted) {
-      // Otomatik dinlenme sayacını başlat
-      startRestTimer(restTimerTotal || 90);
+      // Otomatik dinlenme sayacını başlat (son seçilen süreyle)
+      restTimer.start(restTimer.totalSeconds || 90);
     }
-  }
-
-  useEffect(() => {
-    let interval: any = null;
-    if (isTimerRunning && restTimerSeconds > 0) {
-      interval = setInterval(() => {
-        setRestTimerSeconds((prev) => {
-          if (prev <= 1) {
-            setIsTimerRunning(false);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isTimerRunning, restTimerSeconds]);
-
-  function startRestTimer(seconds: number) {
-    setRestTimerTotal(seconds);
-    setRestTimerSeconds(seconds);
-    setIsTimerRunning(true);
   }
 
   function startSession(template: any, shortened: boolean = false) {
@@ -216,6 +185,9 @@ export default function WorkoutsPage() {
 
   async function handleFinishSession(e: React.FormEvent) {
     e.preventDefault();
+    if (saving) return; // çift gönderim koruması
+    setSaving(true);
+    setSaveError(null);
     try {
       const payload = {
         date: todayStr,
@@ -241,7 +213,11 @@ export default function WorkoutsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        // Kayıt başarısızsa seans ve yerel taslak korunur; kullanıcı düzeltip tekrar dener.
+        throw new Error(data.error || `Sunucu hatası (${res.status})`);
+      }
       setProgressionFeedback(data.progressionFeedbacks);
       setActiveSession(null);
       try {
@@ -250,8 +226,11 @@ export default function WorkoutsPage() {
         // ignore
       }
       loadWorkouts();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Antrenman bitirme hatası:", e);
+      setSaveError(`Antrenman kaydedilemedi, verileriniz korunuyor: ${e?.message || "bilinmeyen hata"}`);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -317,7 +296,6 @@ export default function WorkoutsPage() {
         </div>
       </div>
 
-
       {/* İlerleme Tavsiyesi Bildirimi (Antrenman bittiğinde) */}
       {progressionFeedback && (
         <div className="p-5 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl shadow-sm">
@@ -353,7 +331,7 @@ export default function WorkoutsPage() {
       )}
 
       {/* 1. KAS HARİTASI SEKMESİ */}
-      {workoutSubTab === "heatmap" && <MuscleHeatmap />}
+      {workoutSubTab === "heatmap" && <MuscleHeatmap workoutSessions={sessions} />}
 
       {/* 2. PLAKA & 1RM HESAPLAYICI SEKMESİ */}
       {workoutSubTab === "plates" && <PlateCalculator />}
@@ -421,91 +399,7 @@ export default function WorkoutsPage() {
 
           <form onSubmit={handleFinishSession} className="space-y-6">
             {/* Canlı Dinlenme Zamanlayıcısı */}
-            <div className="p-4 bg-slate-900 rounded-2xl text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-slate-800">
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm ${
-                    isTimerRunning
-                      ? "bg-brand-600 animate-pulse text-white"
-                      : "bg-slate-800 text-slate-300"
-                  }`}
-                >
-                  <Timer className="w-5 h-5" />
-                </div>
-                <div>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Set Arası Dinlenme Sayacı
-                  </span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-mono font-extrabold text-emerald-400">
-                      {Math.floor(restTimerSeconds / 60)}:
-                      {(restTimerSeconds % 60).toString().padStart(2, "0")}
-                    </span>
-                    <span className="text-xs text-slate-400">
-                      {isTimerRunning
-                        ? "Süre akıyor..."
-                        : restTimerSeconds > 0
-                        ? "Duraklatıldı"
-                        : "Hazır"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="flex gap-1">
-                  {[60, 90, 120, 180].map((sec) => (
-                    <button
-                      key={sec}
-                      type="button"
-                      onClick={() => startRestTimer(sec)}
-                      className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                        restTimerTotal === sec &&
-                        (isTimerRunning || restTimerSeconds > 0)
-                          ? "bg-brand-600 text-white"
-                          : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                      }`}
-                    >
-                      {sec}s
-                    </button>
-                  ))}
-                </div>
-
-                {isTimerRunning ? (
-                  <button
-                    type="button"
-                    onClick={() => setIsTimerRunning(false)}
-                    className="p-2 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 text-xs font-bold"
-                    title="Duraklat"
-                  >
-                    <Pause className="w-4 h-4" />
-                  </button>
-                ) : restTimerSeconds > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setIsTimerRunning(true)}
-                    className="p-2 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30 text-xs font-bold"
-                    title="Devam Et"
-                  >
-                    <Play className="w-4 h-4" />
-                  </button>
-                ) : null}
-
-                {restTimerSeconds > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsTimerRunning(false);
-                      setRestTimerSeconds(0);
-                    }}
-                    className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:bg-slate-700 text-xs"
-                    title="Sıfırla"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            </div>
+            <RestTimer countdown={restTimer} />
 
             {/* Set Girişleri */}
             <div className="space-y-4">
@@ -540,10 +434,10 @@ export default function WorkoutsPage() {
 
                   <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
                     <div className="flex items-center gap-1.5">
-                      <label className="text-xs font-semibold text-slate-600">
+                      <label htmlFor="workout-field-1" className="text-xs font-semibold text-slate-600">
                         Ağırlık:
                       </label>
-                      <input
+                      <input id="workout-field-1"
                         type="number"
                         step="0.5"
                         value={set.weightKg}
@@ -558,10 +452,10 @@ export default function WorkoutsPage() {
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      <label className="text-xs font-semibold text-slate-600">
+                      <label htmlFor="workout-field-2" className="text-xs font-semibold text-slate-600">
                         Tekrar:
                       </label>
-                      <input
+                      <input id="workout-field-2"
                         type="number"
                         value={set.reps}
                         onChange={(e) => {
@@ -617,10 +511,10 @@ export default function WorkoutsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label htmlFor="workout-field-3" className="block text-xs font-semibold text-slate-700 mb-1">
                   Gerçekleşen Süre (Dakika)
                 </label>
-                <input
+                <input id="workout-field-3"
                   type="number"
                   value={sessionForm.durationMinutes}
                   onChange={(e) =>
@@ -634,6 +528,11 @@ export default function WorkoutsPage() {
               </div>
             </div>
 
+            {saveError && (
+              <p role="alert" className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+                {saveError}
+              </p>
+            )}
             <div className="flex justify-end gap-3 pt-2">
               <button
                 type="button"
@@ -644,9 +543,10 @@ export default function WorkoutsPage() {
               </button>
               <button
                 type="submit"
-                className="px-6 py-2.5 rounded-xl text-sm font-bold bg-brand-600 text-white hover:bg-brand-700 shadow-md"
+                disabled={saving}
+                className="px-6 py-2.5 rounded-xl text-sm font-bold bg-brand-600 text-white hover:bg-brand-700 shadow-md disabled:opacity-60"
               >
-                Antrenmanı Bitir & Kaydet
+                {saving ? "Kaydediliyor..." : "Antrenmanı Bitir & Kaydet"}
               </button>
             </div>
           </form>
@@ -658,13 +558,17 @@ export default function WorkoutsPage() {
         <h3 className="font-bold text-slate-900 text-base">
           Haftalık Antrenman Planı (3+2+2)
         </h3>
+        {loading && (
+          <p role="status" className="text-sm text-slate-500">
+            Antrenman planı yükleniyor...
+          </p>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {daysOfWeekLabels.map((d) => {
             const template = templates.find((t) => t.dayOfWeek === d.day);
             const isStrength = template?.type === "strength";
             const isRun = template?.type === "easy_run";
-            const isRest = template?.type === "rest";
 
             return (
               <div

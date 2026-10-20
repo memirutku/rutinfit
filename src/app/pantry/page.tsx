@@ -1,6 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
+import { includesTr } from '@/lib/text';
+import { Modal } from '@/components/ui/Modal';
+import { formatAmount, pantryStep } from '@/lib/format';
 import Link from 'next/link';
 import {
   Package,
@@ -12,8 +16,6 @@ import {
   Calendar,
   AlertTriangle,
   Check,
-  X,
-  Filter,
 } from 'lucide-react';
 
 interface PantryItem {
@@ -39,6 +41,8 @@ const CATEGORIES = [
 ];
 
 export default function PantryPage() {
+  // window.confirm masaüstü görünümünde (WKWebView) çalışmaz; uygulama içi onay kullanılır.
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [items, setItems] = useState<PantryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -137,7 +141,14 @@ export default function PantryPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Bu malzemeyi kilerden silmek istediğinize emin misiniz?')) return;
+    const item = items.find((i) => i.id === id);
+    const ok = await confirm({
+      title: 'Malzemeyi sil',
+      message: `${item?.name ?? 'Bu malzeme'} kilerden silinsin mi?`,
+      confirmLabel: 'Sil',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/pantry?id=${id}`, { method: 'DELETE' });
       if (res.ok) {
@@ -150,30 +161,24 @@ export default function PantryPage() {
     }
   }
 
-  async function adjustAmount(item: PantryItem, delta: number) {
-    const newAmount = Math.max(0, item.amount + delta);
-    if (newAmount === 0) {
+  async function adjustAmount(item: PantryItem, direction: 1 | -1) {
+    const delta = direction * pantryStep(item.unit);
+    if (item.amount + delta <= 0) {
       handleDelete(item.id);
       return;
     }
 
     try {
+      // Sunucuda atomik artırım: hızlı art arda tıklamalar birbirini ezmez, SKT/not korunur.
       const res = await fetch('/api/pantry', {
-        method: 'POST',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: item.id,
-          name: item.name,
-          amount: newAmount,
-          unit: item.unit,
-          category: item.category,
-        }),
+        body: JSON.stringify({ id: item.id, delta }),
       });
 
       if (res.ok) {
-        setItems((prev) =>
-          prev.map((i) => (i.id === item.id ? { ...i, amount: newAmount } : i))
-        );
+        const data = await res.json();
+        setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, amount: data.item.amount } : i)));
       }
     } catch (err) {
       console.error('Miktar ayarlama hatası:', err);
@@ -182,8 +187,7 @@ export default function PantryPage() {
 
   const filteredItems = items.filter((item) => {
     const matchesSearch =
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.category.toLowerCase().includes(search.toLowerCase());
+      includesTr(item.name, search) || includesTr(item.category, search);
     const matchesCategory =
       selectedCategory === 'Tümü' || item.category === selectedCategory;
     return matchesSearch && matchesCategory;
@@ -311,12 +315,14 @@ export default function PantryPage() {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => openEditModal(item)}
+                    aria-label={`${item.name} öğesini düzenle`}
                     className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => handleDelete(item.id)}
+                    aria-label={`${item.name} öğesini sil`}
                     className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -329,16 +335,18 @@ export default function PantryPage() {
                 <span className="text-xs text-slate-500 font-medium">Stok Miktarı:</span>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => adjustAmount(item, -50)}
+                    onClick={() => adjustAmount(item, -1)}
+                    aria-label={`${item.name} miktarını azalt`}
                     className="w-6 h-6 flex items-center justify-center bg-white border border-slate-200 rounded text-slate-600 text-xs font-bold hover:bg-slate-100"
                   >
                     -
                   </button>
                   <span className="font-bold text-sm text-slate-900">
-                    {item.amount} {item.unit}
+                    {formatAmount(item.amount, item.unit)}
                   </span>
                   <button
-                    onClick={() => adjustAmount(item, 50)}
+                    onClick={() => adjustAmount(item, 1)}
+                    aria-label={`${item.name} miktarını artır`}
                     className="w-6 h-6 flex items-center justify-center bg-white border border-slate-200 rounded text-slate-600 text-xs font-bold hover:bg-slate-100"
                   >
                     +
@@ -364,25 +372,11 @@ export default function PantryPage() {
       )}
 
       {/* Malzeme Ekle/Düzenle Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-900 text-base">
-                {editingItem ? 'Malzemeyi Düzenle' : 'Kilere Malzeme Ekle'}
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
+      <Modal open={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingItem ? 'Malzemeyi Düzenle' : 'Kilere Malzeme Ekle'}>
             <form onSubmit={handleSaveItem} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Malzeme Adı *</label>
-                <input
+                <label htmlFor="pantry-field-1" className="block text-xs font-bold text-slate-700 mb-1">Malzeme Adı *</label>
+                <input id="pantry-field-1"
                   type="text"
                   required
                   placeholder="örn: Yulaf Ezmesi, Tavuk Göğsü, Yumurta"
@@ -394,8 +388,8 @@ export default function PantryPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Miktar *</label>
-                  <input
+                  <label htmlFor="pantry-field-2" className="block text-xs font-bold text-slate-700 mb-1">Miktar *</label>
+                  <input id="pantry-field-2"
                     type="number"
                     step="any"
                     required
@@ -405,8 +399,8 @@ export default function PantryPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Birim</label>
-                  <select
+                  <label htmlFor="pantry-field-3" className="block text-xs font-bold text-slate-700 mb-1">Birim</label>
+                  <select id="pantry-field-3"
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
@@ -422,8 +416,8 @@ export default function PantryPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Kategori</label>
-                  <select
+                  <label htmlFor="pantry-field-4" className="block text-xs font-bold text-slate-700 mb-1">Kategori</label>
+                  <select id="pantry-field-4"
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
@@ -436,8 +430,8 @@ export default function PantryPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">SKT (İsteğe bağlı)</label>
-                  <input
+                  <label htmlFor="pantry-field-5" className="block text-xs font-bold text-slate-700 mb-1">SKT (İsteğe bağlı)</label>
+                  <input id="pantry-field-5"
                     type="date"
                     value={formData.expiryDate}
                     onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
@@ -447,8 +441,8 @@ export default function PantryPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Not / Marka (İsteğe bağlı)</label>
-                <input
+                <label htmlFor="pantry-field-6" className="block text-xs font-bold text-slate-700 mb-1">Not / Marka (İsteğe bağlı)</label>
+                <input id="pantry-field-6"
                   type="text"
                   placeholder="örn: Buzlukta 2 paket var"
                   value={formData.notes}
@@ -473,9 +467,8 @@ export default function PantryPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
+      {confirmDialog}
     </div>
   );
 }

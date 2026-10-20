@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   MealProposalSchema,
-  WorkoutAdjustmentSchema,
   AIActionResponseSchema,
 } from "../src/lib/ai-schema";
 

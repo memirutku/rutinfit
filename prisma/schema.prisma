@@ -68,6 +68,9 @@ model RecipeIngredient {
 
   recipe   Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   foodItem FoodItem @relation(fields: [foodItemId], references: [id])
+
+  @@index([recipeId])
+  @@index([foodItemId])
 }
 
 model MealPlan {
@@ -81,17 +84,20 @@ model MealPlan {
 }
 
 model PlannedMeal {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   mealPlanId  String
   mealType    String // breakfast, lunch, workSnack, dinner
   recipeId    String?
   customName  String?
   plannedTime String?
-  servings    Float    @default(1)
-  isCompleted Boolean  @default(false)
+  servings    Float   @default(1)
+  isCompleted Boolean @default(false)
 
   mealPlan MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
   recipe   Recipe?  @relation(fields: [recipeId], references: [id])
+
+  @@index([mealPlanId])
+  @@index([recipeId])
 }
 
 model FoodLog {
@@ -113,14 +119,16 @@ model FoodLog {
   recipe   Recipe?   @relation(fields: [recipeId], references: [id])
 
   @@index([date, createdAt])
+  @@index([foodItemId])
+  @@index([recipeId])
 }
 
 model WorkoutTemplate {
-  id                    String @id @default(cuid())
+  id                    String  @id @default(cuid())
   name                  String // Ağırlık A, Kolay Koşu, vb.
   type                  String // strength, easy_run, rest
   dayOfWeek             Int // 1: Pzt, 2: Sal, ... 7: Paz
-  targetDurationMinutes Int    @default(40)
+  targetDurationMinutes Int     @default(40)
   notes                 String?
 
   exercises WorkoutExercise[]
@@ -138,6 +146,8 @@ model WorkoutExercise {
   orderIndex   Int    @default(0)
 
   template WorkoutTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
 }
 
 model WorkoutSession {
@@ -155,6 +165,7 @@ model WorkoutSession {
   setLogs  SetLog[]
 
   @@index([date])
+  @@index([templateId])
 }
 
 model SetLog {
@@ -218,6 +229,9 @@ model ShoppingListItem {
   unit      String   @default("g")
   checked   Boolean  @default(false)
   createdAt DateTime @default(now())
+
+  // Aynı hafta için aynı kalem iki kez oluşamaz (eşzamanlı yenilemeye karşı).
+  @@unique([weekStart, name])
 }
 
 model AISettings {
@@ -241,17 +255,18 @@ model AIConversation {
 model AIMessage {
   id             String   @id @default(cuid())
   conversationId String
-  role           String   // user, assistant, system
+  role           String // user, assistant, system
   content        String
-  fileIds        String?  // JSON string array of UploadedFile ids: ["cuid1", "cuid2"]
-  draftId        String?  // Associated ActionDraft id if any
-  actionProposal String?  // JSON string containing action proposal preview metadata
+  fileIds        String? // JSON string array of UploadedFile ids: ["cuid1", "cuid2"]
+  draftId        String? // Associated ActionDraft id if any
+  actionProposal String? // JSON string containing action proposal preview metadata
   createdAt      DateTime @default(now())
 
   conversation AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   draft        ActionDraft?   @relation(fields: [draftId], references: [id])
 
   @@index([conversationId, createdAt])
+  @@index([draftId])
 }
 
 model UploadedFile {
@@ -262,7 +277,7 @@ model UploadedFile {
   hash           String    @unique // SHA-256 for deduplication
   storagePath    String
   status         String    @default("uploaded") // uploaded, parsing, needs_review, ready_to_apply, applied, failed
-  parseErrors    String?   // JSON error logs or messages
+  parseErrors    String? // JSON error logs or messages
   retentionUntil DateTime?
   createdAt      DateTime  @default(now())
 
@@ -272,21 +287,23 @@ model UploadedFile {
 model ExtractedArtifact {
   id             String   @id @default(cuid())
   fileId         String
-  normalizedType String   // meal_plan, workout_plan, weight_logs, recipe, unstructured
-  structuredData String   // JSON string of normalized payload
+  normalizedType String // meal_plan, workout_plan, weight_logs, recipe, unstructured
+  structuredData String // JSON string of normalized payload
   confidence     String   @default("medium") // high, medium, low
-  uncertainties  String?  // JSON string of ambiguous fields/warnings
+  uncertainties  String? // JSON string of ambiguous fields/warnings
   sourceSummary  String?
   createdAt      DateTime @default(now())
 
   file UploadedFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([fileId])
 }
 
 model ActionDraft {
   id                String   @id @default(cuid())
-  draftType         String   // meal_plan, food_log, recipe, nutrition_targets, workout_session, weight_wellbeing, bulk_import
-  proposedChanges   String   // JSON string of proposed payload and diff
-  impactSummary     String   // Plain-text impact summary (macros, calories, shopping diff)
+  draftType         String // meal_plan, food_log, recipe, nutrition_targets, workout_session, weight_wellbeing, bulk_import
+  proposedChanges   String // JSON string of proposed payload and diff
+  impactSummary     String // Plain-text impact summary (macros, calories, shopping diff)
   status            String   @default("pending") // pending, approved, applied, rejected
   approvalTokenHash String   @unique // SHA-256 hash of approval token
   expiresAt         DateTime
@@ -294,25 +311,29 @@ model ActionDraft {
   updatedAt         DateTime @updatedAt
 
   messages AIMessage[]
+
+  @@index([status, expiresAt])
 }
 
 model AuditEvent {
   id         String   @id @default(cuid())
-  actionType String   // APPLY_DRAFT, REJECT_DRAFT, FILE_UPLOAD, FILE_PARSE, MANUAL_OVERRIDE
-  entityType String   // MealPlan, FoodLog, Recipe, UploadedFile, ActionDraft, etc.
+  actionType String // APPLY_DRAFT, REJECT_DRAFT, FILE_UPLOAD, FILE_PARSE, MANUAL_OVERRIDE
+  entityType String // MealPlan, FoodLog, Recipe, UploadedFile, ActionDraft, etc.
   entityId   String?
-  status     String   // SUCCESS, FAILED, REVERTED
-  details    String?  // JSON string containing payload/diff or error
+  status     String // SUCCESS, FAILED, REVERTED
+  details    String? // JSON string containing payload/diff or error
   createdAt  DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model PantryItem {
   id         String   @id @default(cuid())
   name       String
-  amount     Float    // e.g. 500
+  amount     Float // e.g. 500
   unit       String   @default("g") // g, ml, adet
   category   String   @default("Genel") // Kuru Gıda, Süt Ürünleri, Kasap/Balık, Manav, vb.
-  expiryDate String?  // YYYY-MM-DD
+  expiryDate String? // YYYY-MM-DD
   notes      String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -323,9 +344,7 @@ model PantryItem {
 model OpenFoodFactsCache {
   id        String   @id @default(cuid())
   queryKey  String   @unique // e.g. barcode:3017620422003 or search:yulaf
-  payload   String   // JSON string of normalized search/barcode result
+  payload   String // JSON string of normalized search/barcode result
   expiresAt DateTime
   createdAt DateTime @default(now())
 }
-
-

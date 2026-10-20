@@ -4,14 +4,11 @@ import { useEffect, useState, useRef } from 'react';
 import {
   Bot,
   Send,
-  Sparkles,
   Utensils,
   Dumbbell,
   Check,
   AlertCircle,
-  HelpCircle,
   Clock,
-  Flame,
   ArrowRight,
   Paperclip,
   X,
@@ -21,7 +18,6 @@ import {
   ShieldCheck,
   Calculator,
   Edit3,
-  History,
   Plus,
 } from 'lucide-react';
 
@@ -68,6 +64,7 @@ export default function CoachPage() {
   const [appliedActions, setAppliedActions] = useState<Record<string, boolean>>({});
   const [rejectedActions, setRejectedActions] = useState<Record<string, boolean>>({});
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  const [busyActionKey, setBusyActionKey] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Record<string, any>>({});
   const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(null);
   const [actionErrorMessage, setActionErrorMessage] = useState<string | null>(null);
@@ -102,13 +99,24 @@ export default function CoachPage() {
       if (res.ok) {
         const data = await res.json();
         setConversationId(id);
-        const mapped: MessageItem[] = (data.conversation.messages || []).map((m: any) => ({
-          role: m.role as 'user' | 'assistant',
-          content: m.content,
-          draftId: m.draftId,
-          approvalToken: m.draft?.approvalTokenHash ? 'existing' : undefined,
-          actionProposal: m.actionProposal ? JSON.parse(m.actionProposal) : undefined,
-        }));
+        const applied: Record<string, boolean> = {};
+        const rejected: Record<string, boolean> = {};
+        const mapped: MessageItem[] = (data.conversation.messages || []).map((m: any, i: number) => {
+          const actionProposal = m.actionProposal ? JSON.parse(m.actionProposal) : undefined;
+          // Taslağın gerçek durumu veritabanından gelir; onay anahtarı gerekirse yeniden alınır.
+          const key = `${i}-${actionProposal?.type}`;
+          if (m.draft?.status === 'applied') applied[key] = true;
+          if (m.draft?.status === 'rejected') rejected[key] = true;
+          return {
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+            draftId: m.draftId,
+            actionProposal,
+          };
+        });
+        setAppliedActions(applied);
+        setRejectedActions(rejected);
+        setEditingDraftId(null);
         setMessages(mapped.length > 0 ? mapped : messages);
       }
     } catch (e) {
@@ -121,6 +129,9 @@ export default function CoachPage() {
   function startNewConversation() {
     setConversationId(null);
     setAttachedFiles([]);
+    setAppliedActions({});
+    setRejectedActions({});
+    setEditingDraftId(null);
     setMessages([
       {
         role: 'assistant',
@@ -246,14 +257,28 @@ export default function CoachPage() {
   async function handleApproveAction(proposal: any, idx: number, editedData?: any) {
     const actionKey = `${idx}-${proposal.type}`;
     const draftId = proposal.draftId;
-    const approvalToken = proposal.approvalToken;
+    if (busyActionKey) return; // çift tıklama koruması
 
-    if (!draftId || !approvalToken) {
-      setActionErrorMessage('Taslak kimliği veya onay anahtarı bulunamadı.');
+    if (!draftId) {
+      setActionErrorMessage('Taslak kimliği bulunamadı.');
       return;
     }
 
+    setBusyActionKey(actionKey);
     try {
+      let approvalToken: string | undefined = proposal.approvalToken;
+      if (!approvalToken) {
+        // Geçmiş sohbetten açılan öneri: ham anahtar saklanmadığı için yenisi istenir.
+        const reissue = await fetch('/api/ai/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ draftId, action: 'reissue' }),
+        });
+        const reissued = await reissue.json();
+        if (!reissue.ok) throw new Error(reissued.error || 'Onay anahtarı alınamadı.');
+        approvalToken = reissued.approvalToken;
+      }
+
       const res = await fetch('/api/ai/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -277,6 +302,8 @@ export default function CoachPage() {
     } catch (err: any) {
       setActionErrorMessage(err.message || 'Onaylama sırasında bir hata oluştu.');
       setTimeout(() => setActionErrorMessage(null), 5000);
+    } finally {
+      setBusyActionKey(null);
     }
   }
 
@@ -290,7 +317,7 @@ export default function CoachPage() {
     }
 
     try {
-      await fetch('/api/ai/actions', {
+      const res = await fetch('/api/ai/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -299,11 +326,16 @@ export default function CoachPage() {
           reason: 'Kullanıcı vazgeçti',
         }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Taslak iptal edilemedi.');
+      }
 
       setRejectedActions((prev) => ({ ...prev, [actionKey]: true }));
       setEditingDraftId(null);
-    } catch (err) {
-      console.error('Vazgeçme hatası:', err);
+    } catch (err: any) {
+      setActionErrorMessage(err.message || 'Vazgeçme sırasında bir hata oluştu.');
+      setTimeout(() => setActionErrorMessage(null), 5000);
     }
   }
 
@@ -328,6 +360,7 @@ export default function CoachPage() {
         <div className="flex items-center gap-2">
           {conversations.length > 0 && (
             <select
+              aria-label="Geçmiş sohbetler"
               value={conversationId || ''}
               onChange={(e) => {
                 if (e.target.value) selectConversation(e.target.value);
@@ -451,20 +484,36 @@ export default function CoachPage() {
                             &quot;{m.actionProposal.rationale}&quot;
                           </p>
 
-                          <div className="flex gap-2">
-                            <span className="px-2 py-0.5 bg-orange-50 text-orange-700 font-bold rounded">
-                              {m.actionProposal.estimatedMacros?.calories} kcal
-                            </span>
-                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded">
-                              P: {m.actionProposal.estimatedMacros?.proteinG}g
-                            </span>
-                            <span className="px-2 py-0.5 bg-amber-50 text-amber-700 font-medium rounded">
-                              K: {m.actionProposal.estimatedMacros?.carbsG}g
-                            </span>
-                            <span className="px-2 py-0.5 bg-purple-50 text-purple-700 font-medium rounded">
-                              Y: {m.actionProposal.estimatedMacros?.fatG}g
-                            </span>
-                          </div>
+                          {(() => {
+                            // Plana yazılacak değer katalogdan hesaplanandır; model tahmini yalnız yedek.
+                            const det = m.actionProposal.deterministicMacros;
+                            const macros = det
+                              ? { calories: det.totalCalories, proteinG: det.totalProteinG, carbsG: det.totalCarbsG, fatG: det.totalFatG }
+                              : m.actionProposal.estimatedMacros;
+                            return (
+                              <div className="flex flex-wrap gap-2 items-center">
+                                <span className="px-2 py-0.5 bg-orange-50 text-orange-700 font-bold rounded">
+                                  {macros?.calories} kcal
+                                </span>
+                                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded">
+                                  P: {macros?.proteinG}g
+                                </span>
+                                <span className="px-2 py-0.5 bg-amber-50 text-amber-700 font-medium rounded">
+                                  K: {macros?.carbsG}g
+                                </span>
+                                <span className="px-2 py-0.5 bg-purple-50 text-purple-700 font-medium rounded">
+                                  Y: {macros?.fatG}g
+                                </span>
+                                {!det && <span className="text-[10px] text-slate-400">(model tahmini)</span>}
+                              </div>
+                            );
+                          })()}
+                          {m.actionProposal.deterministicMacros?.missingIngredients?.length > 0 && (
+                            <p role="note" className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                              Katalogda bulunamadı, toplama dahil değil:{' '}
+                              {m.actionProposal.deterministicMacros.missingIngredients.join(', ')}
+                            </p>
+                          )}
 
                           {m.actionProposal.ingredients && (
                             <div className="bg-slate-50 p-2.5 rounded-lg text-slate-600 space-y-1">
@@ -516,9 +565,10 @@ export default function CoachPage() {
                             type="text"
                             placeholder="Başlık / İsim"
                             defaultValue={m.actionProposal.title}
-                            onChange={(e) =>
-                              setEditFormData((prev) => ({ ...prev, name: e.target.value }))
-                            }
+                            onChange={(e) => {
+                              const field = m.actionProposal.type === 'meal_proposal' ? 'title' : 'name';
+                              setEditFormData((prev) => ({ ...prev, [field]: e.target.value }));
+                            }}
                             className="w-full px-2.5 py-1.5 text-xs bg-white border border-amber-300 rounded"
                           />
                         </div>
@@ -545,7 +595,9 @@ export default function CoachPage() {
                                   setEditingDraftId(null);
                                 } else {
                                   setEditingDraftId(actionKey);
-                                  setEditFormData({ name: m.actionProposal.title });
+                                  // Öğün taslağında başlık alanı "title", antrenmanda "name".
+                                  const field = m.actionProposal.type === 'meal_proposal' ? 'title' : 'name';
+                                  setEditFormData({ [field]: m.actionProposal.title });
                                 }
                               }}
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold"
@@ -556,7 +608,7 @@ export default function CoachPage() {
                           )}
 
                           <button
-                            disabled={isApplied}
+                            disabled={isApplied || busyActionKey === actionKey}
                             onClick={() =>
                               handleApproveAction(
                                 m.actionProposal,
@@ -641,10 +693,11 @@ export default function CoachPage() {
                       : 'bg-rose-100 text-rose-800'
                   }`}
                 >
-                  {file.confidence}
+                  {{ high: 'Yüksek güven', medium: 'Orta güven', low: 'Düşük güven' }[file.confidence] ?? file.confidence}
                 </span>
                 <button
                   onClick={() => removeAttachedFile(file.id)}
+                  aria-label={`${file.originalName} dosyasını kaldır`}
                   className="text-slate-400 hover:text-rose-600 ml-1"
                 >
                   <X className="w-3 h-3" />
@@ -664,7 +717,7 @@ export default function CoachPage() {
         {uploadError && (
           <div className="px-4 py-1.5 bg-rose-50 text-rose-700 text-xs flex items-center justify-between border-t border-rose-100">
             <span>{uploadError}</span>
-            <button onClick={() => setUploadError(null)}>
+            <button onClick={() => setUploadError(null)} aria-label="Hata mesajını kapat">
               <X className="w-3 h-3" />
             </button>
           </div>

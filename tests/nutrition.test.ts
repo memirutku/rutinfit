@@ -101,3 +101,24 @@ describe("Deterministik Beslenme Hesaplayıcı", () => {
     expect(summary.ceilingAlert.message).toContain("tamamen doğaldır");
   });
 });
+
+describe("calculateDailySummary — sınır durumları", () => {
+  const base = { calorieTarget: 2080, calorieCeiling: 2100, proteinTargetG: 165, fatTargetG: 60, carbTargetG: 220 };
+
+  it("tam tavana eşitken 'aşıldı (+0)' demez", () => {
+    const s = calculateDailySummary([{ calories: 2100, proteinG: 0, carbsG: 0, fatG: 0 }], base);
+    expect(s.ceilingAlert.isExceeded).toBe(false);
+    expect(s.ceilingAlert.message ?? "").not.toContain("+0");
+  });
+
+  it("tavanı 1 kcal geçince aşıldı sayar", () => {
+    const s = calculateDailySummary([{ calories: 2101, proteinG: 0, carbsG: 0, fatG: 0 }], base);
+    expect(s.ceilingAlert.isExceeded).toBe(true);
+  });
+
+  it("hedef 0 iken yüzde NaN/Infinity olmaz", () => {
+    const s = calculateDailySummary([{ calories: 100, proteinG: 10, carbsG: 0, fatG: 0 }], { ...base, fatTargetG: 0, carbTargetG: 0 });
+    expect(Number.isFinite(s.progressPercent.fat)).toBe(true);
+    expect(Number.isFinite(s.progressPercent.carbs)).toBe(true);
+  });
+});

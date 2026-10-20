@@ -6,7 +6,7 @@ import {
 
 export async function GET() {
   try {
-    const health = await checkOpenGymHealth("http://localhost:8080");
+    const health = await checkOpenGymHealth();
     const localState = await getOpenGymLocalState();
 
     const workoutCount = localState?.workouts?.length || 0;

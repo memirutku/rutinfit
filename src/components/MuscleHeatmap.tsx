@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
-import { Info, Sparkles, Activity, ShieldCheck, RefreshCw } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { apiFetch } from "@/lib/client/api";
+import { computeMuscleLoad, type SessionForLoad } from "@/lib/muscle-load";
+import { useToday } from "@/hooks/useToday";
+import { Activity } from "lucide-react";
 
 export interface MuscleFatigue {
   muscleId: string;
@@ -15,12 +18,13 @@ export interface MuscleFatigue {
 }
 
 interface MuscleHeatmapProps {
-  workoutSessions?: any[];
+  /** Son seanslar (setLogs ile). Verilmezse tüm kaslar 0 set gösterilir. */
+  workoutSessions?: SessionForLoad[];
   onSelectMuscle?: (muscle: MuscleFatigue) => void;
 }
 
 // Varsayılan kas grubu tanımları ve egzersiz eşleştirmeleri
-const DEFAULT_MUSCLES: MuscleFatigue[] = [
+export const DEFAULT_MUSCLES: MuscleFatigue[] = [
   // ÖN VÜCUT
   {
     muscleId: "chest",
@@ -197,7 +201,28 @@ const DEFAULT_MUSCLES: MuscleFatigue[] = [
 ];
 
 export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmapProps) {
-  const [selectedMuscle, setSelectedMuscle] = useState<MuscleFatigue>(DEFAULT_MUSCLES[0]);
+  const today = useToday();
+  // Seanslar verilmediyse (ör. openGym sayfası) bir kez sunucudan alınır.
+  const [fetchedSessions, setFetchedSessions] = useState<SessionForLoad[] | null>(null);
+  useEffect(() => {
+    if (workoutSessions) return;
+    let cancelled = false;
+    apiFetch<{ sessions?: SessionForLoad[] }>("/api/workouts")
+      .then((d) => !cancelled && setFetchedSessions(d.sessions ?? []))
+      .catch(() => !cancelled && setFetchedSessions([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [workoutSessions]);
+  const sessions = workoutSessions ?? fetchedSessions;
+
+  // Gerçek set hacmi: son 7 günün tamamlanmış seanslarından hesaplanır.
+  const muscles = useMemo(
+    () => computeMuscleLoad(DEFAULT_MUSCLES, sessions ?? [], today),
+    [sessions, today]
+  );
+  const [selectedId, setSelectedId] = useState<string>(DEFAULT_MUSCLES[0].muscleId);
+  const selectedMuscle = muscles.find((m) => m.muscleId === selectedId) ?? muscles[0];
   const [viewMode, setViewMode] = useState<"front" | "back" | "both">("both");
   const [gender, setGender] = useState<"male" | "female">("male");
 
@@ -231,7 +256,7 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
   }
 
   function handleMuscleClick(m: MuscleFatigue) {
-    setSelectedMuscle(m);
+    setSelectedId(m.muscleId);
     if (onSelectMuscle) onSelectMuscle(m);
   }
 
@@ -363,8 +388,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "front_delts"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[1].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[1])}
+                  } ${getFatigueStatus(muscles[1].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[1])}
                 />
                 <path
                   d="M 132,75 Q 120,72 115,82 L 128,105 Q 140,95 132,75 Z"
@@ -372,8 +397,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "front_delts"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[1].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[1])}
+                  } ${getFatigueStatus(muscles[1].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[1])}
                 />
 
                 {/* Göğüs (Pectoralis) */}
@@ -383,8 +408,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "chest"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[0].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[0])}
+                  } ${getFatigueStatus(muscles[0].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[0])}
                 />
                 <path
                   d="M 115,82 Q 100,85 100,105 L 120,118 Q 128,105 115,82 Z"
@@ -392,8 +417,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "chest"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[0].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[0])}
+                  } ${getFatigueStatus(muscles[0].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[0])}
                 />
 
                 {/* Biceps */}
@@ -403,8 +428,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "biceps"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[3].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[3])}
+                  } ${getFatigueStatus(muscles[3].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[3])}
                 />
                 <path
                   d="M 140,110 Q 144,130 137,145 L 130,140 Q 132,125 130,110 Z"
@@ -412,8 +437,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "biceps"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[3].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[3])}
+                  } ${getFatigueStatus(muscles[3].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[3])}
                 />
 
                 {/* Ön Kol (Forearms) */}
@@ -423,8 +448,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "forearms"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[4].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[4])}
+                  } ${getFatigueStatus(muscles[4].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[4])}
                 />
                 <path
                   d="M 137,150 Q 145,180 148,205 L 142,208 Q 134,180 130,150 Z"
@@ -432,8 +457,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "forearms"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[4].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[4])}
+                  } ${getFatigueStatus(muscles[4].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[4])}
                 />
 
                 {/* Karın (Abs) */}
@@ -443,8 +468,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "abs"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[5].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[5])}
+                  } ${getFatigueStatus(muscles[5].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[5])}
                 />
 
                 {/* Ön Bacak (Quadriceps) */}
@@ -454,8 +479,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "quads"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[7].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[7])}
+                  } ${getFatigueStatus(muscles[7].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[7])}
                 />
                 <path
                   d="M 125,195 Q 132,230 127,280 L 104,280 Q 102,230 104,195 Z"
@@ -463,8 +488,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "quads"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[7].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[7])}
+                  } ${getFatigueStatus(muscles[7].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[7])}
                 />
 
                 {/* Ön Alt Bacak (Calves Front) */}
@@ -474,8 +499,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "calves_front"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[8].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[8])}
+                  } ${getFatigueStatus(muscles[8].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[8])}
                 />
                 <path
                   d="M 125,295 Q 130,335 123,370 L 108,370 Q 105,335 107,295 Z"
@@ -483,8 +508,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "calves_front"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[8].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[8])}
+                  } ${getFatigueStatus(muscles[8].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[8])}
                 />
               </svg>
             </div>
@@ -522,8 +547,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "traps"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[9].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[9])}
+                  } ${getFatigueStatus(muscles[9].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[9])}
                 />
 
                 {/* Arka Omuzlar (Rear Delts) */}
@@ -533,8 +558,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "rear_delts"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[10].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[10])}
+                  } ${getFatigueStatus(muscles[10].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[10])}
                 />
                 <path
                   d="M 132,75 Q 124,73 122,95 L 135,102 Q 140,88 132,75 Z"
@@ -542,8 +567,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "rear_delts"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[10].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[10])}
+                  } ${getFatigueStatus(muscles[10].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[10])}
                 />
 
                 {/* Triceps (Arka Kol) */}
@@ -553,8 +578,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "triceps"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[13].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[13])}
+                  } ${getFatigueStatus(muscles[13].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[13])}
                 />
                 <path
                   d="M 142,105 Q 145,130 138,145 L 132,142 Q 132,125 135,105 Z"
@@ -562,8 +587,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "triceps"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[13].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[13])}
+                  } ${getFatigueStatus(muscles[13].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[13])}
                 />
 
                 {/* Kanat & Sırt (Lats) */}
@@ -573,8 +598,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "lats"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[11].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[11])}
+                  } ${getFatigueStatus(muscles[11].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[11])}
                 />
                 <path
                   d="M 124,96 L 102,115 L 106,155 L 125,142 Z"
@@ -582,8 +607,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "lats"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[11].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[11])}
+                  } ${getFatigueStatus(muscles[11].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[11])}
                 />
 
                 {/* Bel & Erektör (Lower Back) */}
@@ -593,8 +618,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "lower_back"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[12].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[12])}
+                  } ${getFatigueStatus(muscles[12].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[12])}
                 />
 
                 {/* Kalça (Glutes) */}
@@ -604,8 +629,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "glutes"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[14].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[14])}
+                  } ${getFatigueStatus(muscles[14].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[14])}
                 />
                 <path
                   d="M 125,188 L 102,188 L 104,230 L 127,225 Z"
@@ -613,8 +638,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "glutes"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[14].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[14])}
+                  } ${getFatigueStatus(muscles[14].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[14])}
                 />
 
                 {/* Arka Bacak (Hamstrings) */}
@@ -624,8 +649,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "hamstrings"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[15].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[15])}
+                  } ${getFatigueStatus(muscles[15].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[15])}
                 />
                 <path
                   d="M 125,235 Q 130,265 126,285 L 105,285 Q 104,260 104,235 Z"
@@ -633,8 +658,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "hamstrings"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[15].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[15])}
+                  } ${getFatigueStatus(muscles[15].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[15])}
                 />
 
                 {/* Baldır (Calves Back) */}
@@ -644,8 +669,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "calves_back"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[16].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[16])}
+                  } ${getFatigueStatus(muscles[16].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[16])}
                 />
                 <path
                   d="M 127,295 Q 133,330 124,370 L 108,370 Q 104,335 106,295 Z"
@@ -653,8 +678,8 @@ export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmap
                     selectedMuscle.muscleId === "calves_back"
                       ? "stroke-white stroke-2"
                       : ""
-                  } ${getFatigueStatus(DEFAULT_MUSCLES[16].weeklySets).colorClass}`}
-                  onClick={() => handleMuscleClick(DEFAULT_MUSCLES[16])}
+                  } ${getFatigueStatus(muscles[16].weeklySets).colorClass}`}
+                  onClick={() => handleMuscleClick(muscles[16])}
                 />
               </svg>
             </div>

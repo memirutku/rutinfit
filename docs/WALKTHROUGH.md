@@ -24,22 +24,17 @@ RutinFit'in tek pencerede çalışan, kurulabilir bir masaüstü uygulamasına d
 
 ## 2. Doğrulama ve Test Sonuçları
 
-### 2.1. Otomatik Testler (`vitest`)
-Toplam **14 test dosyasında 72 testin tamamı başarılı** (%100 yeşil):
-* `tests/qol-features.test.ts` (5 test) — Son kullanılan besinler LIFO mantığı, geri alma (undo) veri yükü bütünlüğü ve set tamamlama draft hesaplamaları.
-* `tests/backup-restore.test.ts` (8 test) — Tam tablolu dışa aktarma, transactional geri yükleme, Zod şema/sürüm denetimi, kısmi yedek içe aktarma, smart merge bütünlüğü ve rollback senaryoları.
-* `tests/workout-importer.test.ts` (3 test) — Strong CSV ve Hevy CSV ayrıştırma ve normalizasyon testleri.
-* `tests/openfoodfacts.test.ts` (6 test) — Besin normalizasyonu, eksik kalori 4-4-9 hesabı, ODbL atfı ve SQLite önbelleği.
-* `tests/pantry.test.ts` (4 test) — Kiler envanter CRUD ve tariflerden net stok düşme mantığı.
-* `tests/ai-tools.test.ts` (8 test) — 2-aşamalı onaylı AI araçları (`approvalTokenHash`, `ActionDraft`).
-* `tests/file-parsers.test.ts` (6 test) — PDF, XLSX, DOCX, TXT ayrıştırıcıları ve prompt injection savunması.
-* `tests/nutrition.test.ts` (5 test) — 2.080 kcal hedefi ve 2.100 kcal tavan kontrolleri.
-* `tests/shopping.test.ts` (3 test) — Alışveriş listesi kategorilendirme ve birleştirme.
-* `tests/progression.test.ts` (3 test) — Çift ilerleme kuralı (+2.5 kg artış önerisi).
-* `tests/opengym-sync.test.ts` (3 test) — OpenGym veri dönüşüm testleri.
-* `tests/ai-schema.test.ts` (10 test) — Zod şema doğrulamaları.
-* `tests/food-logs-and-security.test.ts` (4 test) — Güvenlik kontrolleri ve parametre sanitizasyonu.
-* `tests/date-utils.test.ts` (4 test) — Yerel tarih ve gün hesaplama kontrolleri.
+### 2.1. Otomatik Testler
+Güncel sayılar için `pnpm test` ve `pnpm test:e2e` çıktısına bakın (CI her push'ta çalıştırır).
+
+| Katman | Araç | Kapsam |
+|---|---|---|
+| Birim | Vitest (`tests/*.test.ts`) | Besin/porsiyon hesabı, birimler, kategori eşleme, CSV içe aktarma, tarih/saat dilimi, güvenlik süzgeçleri, prompt kurucu |
+| API entegrasyon | Vitest + `tests/helpers/route.ts` | Tüm `src/app/api/**` route'ları gerçek SQLite üzerinde; her test dosyası migration'larla kurulan kendi geçici veritabanında |
+| Arayüz bileşenleri | Vitest + jsdom + Testing Library (`tests/ui`) | Geri alma bildirimi, hızlı ekleme modalı, dinlenme sayacı, hook'lar |
+| Uçtan uca | Playwright (`e2e/`) | Chromium ve WebKit'te üretim derlemesine karşı ana kullanıcı akışları; sahte LLM ve Open Food Facts sunucuları |
+| Masaüstü kabuğu | `cargo test` (`src-tauri`) | Port seçimi, sağlık doğrulaması, açılış adresi |
+| Şema uyumu | Drift testi (`tests/migrate.test.ts`) | `prisma/migrations` ↔ `schema.prisma` birebir aynı mı |
 
 ### 2.2. TypeScript ve Statik Kod Analizi
 * `pnpm exec tsc --noEmit` ➔ 0 hata ile tamamlandı.

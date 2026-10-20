@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { prisma } from '../src/lib/prisma';
+import { resetDatabase } from './helpers/db';
+
 import {
   upsertPantryItem,
   calculateNetShoppingList,
@@ -7,11 +8,7 @@ import {
 } from '../src/lib/pantry-service';
 
 describe('Pantry Service & Net Shopping List Deduction', () => {
-  beforeEach(async () => {
-    await prisma.pantryItem.deleteMany({
-      where: { name: { contains: 'TEST_KILER_' } },
-    });
-  });
+  beforeEach(resetDatabase);
 
   it('should add and update items in pantry', async () => {
     const item = await upsertPantryItem({

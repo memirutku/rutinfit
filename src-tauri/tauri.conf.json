@@ -4,30 +4,23 @@
   "version": "0.1.0",
   "identifier": "com.rutinfit.desktop",
   "build": {
-    "frontendDist": "http://127.0.0.1:3005",
+    "frontendDist": "splash",
     "devUrl": "http://127.0.0.1:3005",
     "beforeDevCommand": "pnpm dev -p 3005",
-    "beforeBuildCommand": "pnpm build"
+    "beforeBuildCommand": "pnpm build && node scripts/prepare-desktop.mjs"
   },
   "app": {
-    "windows": [
-      {
-        "title": "RutinFit — Kişisel Fitness & Beslenme Asistanı",
-        "width": 1280,
-        "height": 840,
-        "minWidth": 980,
-        "minHeight": 640,
-        "resizable": true,
-        "fullscreen": false
-      }
-    ],
+    "windows": [],
     "security": {
-      "csp": "default-src 'self' http://127.0.0.1:* http://localhost:*; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; connect-src 'self' http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:* https://world.openfoodfacts.org; font-src 'self' data:;"
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
     }
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": [
+      "app",
+      "dmg"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -35,8 +28,16 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "android": {
-      "debugApplicationIdSuffix": ".debug"
+    "externalBin": [
+      "binaries/node"
+    ],
+    "resources": {
+      "resources/server/": "server/"
+    },
+    "category": "HealthcareAndFitness",
+    "shortDescription": "Gizlilik odaklı kişisel fitness ve beslenme asistanı",
+    "macOS": {
+      "minimumSystemVersion": "11.0"
     }
   }
 }
