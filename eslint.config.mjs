@@ -30,6 +30,11 @@ const config = [
     },
   },
   {
+    // İstemci kodu tipleri src/lib/schemas'tan alır; burada `any` artık yasak.
+    files: ["src/app/**/page.tsx", "src/components/**/*.{ts,tsx}", "src/hooks/**/*.ts", "src/lib/client/**/*.ts", "src/lib/schemas/**/*.ts"],
+    rules: { "@typescript-eslint/no-explicit-any": "error" },
+  },
+  {
     // Playwright fikstürlerindeki `use()` bir React hook'u değildir.
     files: ["e2e/**/*.ts"],
     rules: { "react-hooks/rules-of-hooks": "off" },
