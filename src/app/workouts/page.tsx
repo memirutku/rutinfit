@@ -434,10 +434,10 @@ export default function WorkoutsPage() {
 
                   <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
                     <div className="flex items-center gap-1.5">
-                      <label className="text-xs font-semibold text-slate-600">
+                      <label htmlFor="workout-field-1" className="text-xs font-semibold text-slate-600">
                         Ağırlık:
                       </label>
-                      <input
+                      <input id="workout-field-1"
                         type="number"
                         step="0.5"
                         value={set.weightKg}
@@ -452,10 +452,10 @@ export default function WorkoutsPage() {
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      <label className="text-xs font-semibold text-slate-600">
+                      <label htmlFor="workout-field-2" className="text-xs font-semibold text-slate-600">
                         Tekrar:
                       </label>
-                      <input
+                      <input id="workout-field-2"
                         type="number"
                         value={set.reps}
                         onChange={(e) => {
@@ -511,10 +511,10 @@ export default function WorkoutsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label htmlFor="workout-field-3" className="block text-xs font-semibold text-slate-700 mb-1">
                   Gerçekleşen Süre (Dakika)
                 </label>
-                <input
+                <input id="workout-field-3"
                   type="number"
                   value={sessionForm.durationMinutes}
                   onChange={(e) =>

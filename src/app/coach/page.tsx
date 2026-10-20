@@ -360,6 +360,7 @@ export default function CoachPage() {
         <div className="flex items-center gap-2">
           {conversations.length > 0 && (
             <select
+              aria-label="Geçmiş sohbetler"
               value={conversationId || ''}
               onChange={(e) => {
                 if (e.target.value) selectConversation(e.target.value);
@@ -692,10 +693,11 @@ export default function CoachPage() {
                       : 'bg-rose-100 text-rose-800'
                   }`}
                 >
-                  {file.confidence}
+                  {{ high: 'Yüksek güven', medium: 'Orta güven', low: 'Düşük güven' }[file.confidence] ?? file.confidence}
                 </span>
                 <button
                   onClick={() => removeAttachedFile(file.id)}
+                  aria-label={`${file.originalName} dosyasını kaldır`}
                   className="text-slate-400 hover:text-rose-600 ml-1"
                 >
                   <X className="w-3 h-3" />
@@ -715,7 +717,7 @@ export default function CoachPage() {
         {uploadError && (
           <div className="px-4 py-1.5 bg-rose-50 text-rose-700 text-xs flex items-center justify-between border-t border-rose-100">
             <span>{uploadError}</span>
-            <button onClick={() => setUploadError(null)}>
+            <button onClick={() => setUploadError(null)} aria-label="Hata mesajını kapat">
               <X className="w-3 h-3" />
             </button>
           </div>

@@ -449,6 +449,15 @@ export default function NutritionPage() {
                       <li
                         key={item.id}
                         onClick={() => handleToggleShoppingItem(item.id, item.checked)}
+                        role="checkbox"
+                        aria-checked={item.checked}
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === " " || e.key === "Enter") {
+                            e.preventDefault();
+                            handleToggleShoppingItem(item.id, item.checked);
+                          }
+                        }}
                         className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
                           item.checked
                             ? "bg-slate-100/70 text-slate-400 line-through"

@@ -658,10 +658,10 @@ export default function DashboardPage() {
               <div className="grid grid-cols-2 gap-3">
                 {/* Sabah Kilosu */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  <label htmlFor="dash-field-1" className="block text-xs font-semibold text-slate-600 mb-1">
                     Sabah Kilosu (kg)
                   </label>
-                  <input
+                  <input id="dash-field-1"
                     type="number"
                     step="0.1"
                     placeholder="Örn: 112.0"
@@ -673,10 +673,10 @@ export default function DashboardPage() {
 
                 {/* Uyku Süresi */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  <label htmlFor="dash-field-2" className="block text-xs font-semibold text-slate-600 mb-1">
                     Uyku (saat)
                   </label>
-                  <input
+                  <input id="dash-field-2"
                     type="number"
                     step="0.5"
                     placeholder="Örn: 7.5"

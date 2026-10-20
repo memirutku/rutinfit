@@ -228,10 +228,10 @@ export default function SettingsPage() {
         <form onSubmit={handleSaveProfile} className="space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
+              <label htmlFor="settings-field-1" className="block text-xs font-semibold text-slate-600 mb-1">
                 Boy (cm)
               </label>
-              <input
+              <input id="settings-field-1"
                 type="number"
                 value={profile?.heightCm || 181}
                 onChange={(e) =>
@@ -241,10 +241,10 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
+              <label htmlFor="settings-field-2" className="block text-xs font-semibold text-slate-600 mb-1">
                 Yaş
               </label>
-              <input
+              <input id="settings-field-2"
                 type="number"
                 value={profile?.age || 25}
                 onChange={(e) =>
@@ -254,10 +254,10 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
+              <label htmlFor="settings-field-3" className="block text-xs font-semibold text-slate-600 mb-1">
                 Cinsiyet
               </label>
-              <select
+              <select id="settings-field-3"
                 value={profile?.sex || "male"}
                 onChange={(e) => setProfile({ ...profile, sex: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm"
@@ -267,10 +267,10 @@ export default function SettingsPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
+              <label htmlFor="settings-field-4" className="block text-xs font-semibold text-slate-600 mb-1">
                 Güncel Kilo (kg)
               </label>
-              <input
+              <input id="settings-field-4"
                 type="number"
                 step="0.1"
                 value={profile?.currentWeightKg || 112}
@@ -288,10 +288,10 @@ export default function SettingsPage() {
           {/* Kalori & Makro Hedefleri */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-3 border-t border-slate-100">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
+              <label htmlFor="settings-field-5" className="block text-xs font-semibold text-slate-600 mb-1">
                 Kalori Hedefi (kcal)
               </label>
-              <input
+              <input id="settings-field-5"
                 type="number"
                 value={profile?.calorieTarget || 2080}
                 onChange={(e) =>
@@ -304,10 +304,10 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
+              <label htmlFor="settings-field-6" className="block text-xs font-semibold text-slate-600 mb-1">
                 Üst Sınır Tavan (kcal)
               </label>
-              <input
+              <input id="settings-field-6"
                 type="number"
                 value={profile?.calorieCeiling || 2100}
                 onChange={(e) =>
@@ -320,10 +320,10 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
+              <label htmlFor="settings-field-7" className="block text-xs font-semibold text-slate-600 mb-1">
                 Protein Hedefi (g)
               </label>
-              <input
+              <input id="settings-field-7"
                 type="number"
                 value={profile?.proteinTargetG || 165}
                 onChange={(e) =>
@@ -336,10 +336,10 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
+              <label htmlFor="settings-field-8" className="block text-xs font-semibold text-slate-600 mb-1">
                 Karbonhidrat (g)
               </label>
-              <input
+              <input id="settings-field-8"
                 type="number"
                 value={profile?.carbTargetG || 220}
                 onChange={(e) =>
@@ -355,10 +355,10 @@ export default function SettingsPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-slate-100">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
+              <label htmlFor="settings-field-9" className="block text-xs font-semibold text-slate-600 mb-1">
                 Yağ Hedefi (g)
               </label>
-              <input
+              <input id="settings-field-9"
                 type="number"
                 value={profile?.fatTargetG || 60}
                 onChange={(e) =>
@@ -368,10 +368,10 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
+              <label htmlFor="settings-field-10" className="block text-xs font-semibold text-slate-600 mb-1">
                 Hedef Uyanış Saati
               </label>
-              <input
+              <input id="settings-field-10"
                 type="time"
                 value={profile?.wakeTime || "06:00"}
                 onChange={(e) =>
@@ -381,10 +381,10 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
+              <label htmlFor="settings-field-11" className="block text-xs font-semibold text-slate-600 mb-1">
                 İşten Eve Varış Saati
               </label>
-              <input
+              <input id="settings-field-11"
                 type="time"
                 value={profile?.workdayHomeTime || "19:30"}
                 onChange={(e) =>
@@ -424,10 +424,10 @@ export default function SettingsPage() {
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
+              <label htmlFor="settings-field-12" className="block text-xs font-semibold text-slate-600 mb-1">
                 Sağlayıcı
               </label>
-              <select
+              <select id="settings-field-12"
                 value={aiProvider}
                 onChange={(e) => {
                   setAiProvider(e.target.value);
@@ -446,10 +446,10 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
+              <label htmlFor="settings-field-13" className="block text-xs font-semibold text-slate-600 mb-1">
                 Base URL
               </label>
-              <input
+              <input id="settings-field-13"
                 type="text"
                 value={aiBaseUrl}
                 onChange={(e) => setAiBaseUrl(e.target.value)}
@@ -458,10 +458,10 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
+              <label htmlFor="settings-field-14" className="block text-xs font-semibold text-slate-600 mb-1">
                 Model Adı
               </label>
-              <input
+              <input id="settings-field-14"
                 type="text"
                 value={aiModel}
                 onChange={(e) => setAiModel(e.target.value)}
@@ -527,10 +527,10 @@ export default function SettingsPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">
+            <label htmlFor="settings-field-15" className="block text-xs font-semibold text-slate-600 mb-1">
               openGym Web Adresi
             </label>
-            <input
+            <input id="settings-field-15"
               type="text"
               value={openGymUrl}
               onChange={(e) => setOpenGymUrl(e.target.value)}

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { includesTr } from "@/lib/text";
+import { Modal } from "@/components/ui/Modal";
 import { apiFetch, errorMessage } from "@/lib/client/api";
 import {
   Search,
@@ -240,7 +242,7 @@ export default function FoodsPage() {
   ];
 
   const filteredFoods = foods.filter((f) => {
-    const matchesSearch = f.name.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = includesTr(f.name, search) || includesTr(f.brand, search);
     const matchesCategory =
       selectedCategory === "all" || f.category === selectedCategory;
     return matchesSearch && matchesCategory;
@@ -680,20 +682,13 @@ export default function FoodsPage() {
       )}
 
       {/* YENİ BESİN MODALI */}
-      {isNewFoodOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200">
-            <h3 className="text-lg font-bold text-slate-900 mb-1">Yeni Besin Ekle</h3>
-            <p className="text-xs text-slate-500 mb-4">
-              100g bazında doğru değerleri girin; tüm hesaplamalar bu değerlere dayanır.
-            </p>
-
+      <Modal open={isNewFoodOpen} onClose={() => setIsNewFoodOpen(false)} title="Yeni Besin Ekle" description="100g bazında doğru değerleri girin; tüm hesaplamalar bu değerlere dayanır.">
             <form onSubmit={handleCreateFood} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label htmlFor="food-field-1" className="block text-xs font-semibold text-slate-700 mb-1">
                   Besin Adı
                 </label>
-                <input
+                <input id="food-field-1"
                   type="text"
                   required
                   placeholder="örn: Hindi Göğsü, Tam Buğday Ekmeği"
@@ -704,10 +699,10 @@ export default function FoodsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label htmlFor="food-field-2" className="block text-xs font-semibold text-slate-700 mb-1">
                   Kategori
                 </label>
-                <select
+                <select id="food-field-2"
                   value={foodForm.category}
                   onChange={(e) =>
                     setFoodForm({ ...foodForm, category: e.target.value })
@@ -724,10 +719,10 @@ export default function FoodsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label htmlFor="food-field-3" className="block text-xs font-semibold text-slate-700 mb-1">
                     Kalori (kcal/100g)
                   </label>
-                  <input
+                  <input id="food-field-3"
                     type="number"
                     required
                     value={foodForm.calories}
@@ -741,10 +736,10 @@ export default function FoodsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label htmlFor="food-field-4" className="block text-xs font-semibold text-slate-700 mb-1">
                     Protein (g/100g)
                   </label>
-                  <input
+                  <input id="food-field-4"
                     type="number"
                     step="0.1"
                     required
@@ -762,10 +757,10 @@ export default function FoodsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label htmlFor="food-field-5" className="block text-xs font-semibold text-slate-700 mb-1">
                     Karbonhidrat (g/100g)
                   </label>
-                  <input
+                  <input id="food-field-5"
                     type="number"
                     step="0.1"
                     required
@@ -780,10 +775,10 @@ export default function FoodsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label htmlFor="food-field-6" className="block text-xs font-semibold text-slate-700 mb-1">
                     Yağ (g/100g)
                   </label>
-                  <input
+                  <input id="food-field-6"
                     type="number"
                     step="0.1"
                     required
@@ -815,25 +810,16 @@ export default function FoodsPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* YENİ TARİF MODALI */}
-      {isNewRecipeOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold text-slate-900 mb-1">Yeni Tarif Oluştur</h3>
-            <p className="text-xs text-slate-500 mb-4">
-              Malzemeleri seçin ve gramaj girin; toplam makrolar otomatik hesaplanacaktır.
-            </p>
-
+      <Modal open={isNewRecipeOpen} onClose={() => setIsNewRecipeOpen(false)} title="Yeni Tarif Oluştur" description="Malzemeleri seçin ve gramaj girin; toplam makrolar otomatik hesaplanacaktır." widthClass="max-w-lg">
             <form onSubmit={handleCreateRecipe} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label htmlFor="food-field-7" className="block text-xs font-semibold text-slate-700 mb-1">
                   Tarif Adı
                 </label>
-                <input
+                <input id="food-field-7"
                   type="text"
                   required
                   placeholder="örn: Fırında Somon & Patates"
@@ -847,10 +833,10 @@ export default function FoodsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label htmlFor="food-field-8" className="block text-xs font-semibold text-slate-700 mb-1">
                     Hazırlama Süresi (dk)
                   </label>
-                  <input
+                  <input id="food-field-8"
                     type="number"
                     value={recipeForm.prepMinutes}
                     onChange={(e) =>
@@ -863,10 +849,10 @@ export default function FoodsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label htmlFor="food-field-9" className="block text-xs font-semibold text-slate-700 mb-1">
                     Porsiyon Adedi
                   </label>
-                  <input
+                  <input id="food-field-9"
                     type="number"
                     value={recipeForm.servings}
                     onChange={(e) =>
@@ -881,10 +867,10 @@ export default function FoodsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label htmlFor="food-field-10" className="block text-xs font-semibold text-slate-700 mb-1">
                   Tarif Notları / Pişirme Talimatı
                 </label>
-                <textarea
+                <textarea id="food-field-10"
                   rows={2}
                   value={recipeForm.instructions}
                   onChange={(e) =>
@@ -974,9 +960,7 @@ export default function FoodsPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }

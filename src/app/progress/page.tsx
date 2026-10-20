@@ -145,8 +145,8 @@ export default function ProgressPage() {
               ? (
                   wellbeings.reduce((a: any, b: any) => a + b.energy1to5, 0) /
                   wellbeings.length
-                ).toFixed(1)
-              : "3.0"}{" "}
+                ).toLocaleString("tr-TR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+              : "3,0"}{" "}
             / 5
           </div>
           <p className="text-xs text-slate-400 mt-1">
