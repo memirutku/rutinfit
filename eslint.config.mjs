@@ -29,6 +29,11 @@ const config = [
       ],
     },
   },
+  {
+    // Playwright fikstürlerindeki `use()` bir React hook'u değildir.
+    files: ["e2e/**/*.ts"],
+    rules: { "react-hooks/rules-of-hooks": "off" },
+  },
 ];
 
 export default config;
