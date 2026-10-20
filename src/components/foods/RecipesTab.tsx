@@ -1,20 +1,14 @@
 import { Flame } from "lucide-react";
+import { calculateRecipeMacros } from "@/lib/nutrition-calculator";
 import type { Macros, Recipe } from "@/lib/schemas/food";
 
-/** Kartta gösterilen toplam: malzeme gramı / 100 × besinin 100 g değerleri (önceki hesapla aynı). */
+/**
+ * Kartta gösterilen tarif toplamı: sunucunun katalogdan hesapladığı `calculatedMacros`
+ * (besinin `basisGrams` değerini dikkate alır). Yanıtta yoksa (ör. POST yanıtı) aynı
+ * fonksiyonla istemcide hesaplanır; plan, "Yedim" ve öğün kaydıyla aynı sayılar çıkar.
+ */
 export function recipeTotals(recipe: Recipe): Macros {
-  return recipe.ingredients.reduce(
-    (acc, ing) => {
-      const factor = ing.grams / 100;
-      return {
-        calories: acc.calories + ing.foodItem.calories * factor,
-        proteinG: acc.proteinG + ing.foodItem.proteinG * factor,
-        carbsG: acc.carbsG + ing.foodItem.carbsG * factor,
-        fatG: acc.fatG + ing.foodItem.fatG * factor,
-      };
-    },
-    { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 }
-  );
+  return recipe.calculatedMacros ?? calculateRecipeMacros(recipe.ingredients);
 }
 
 export function RecipesTab({ recipes }: { recipes: Recipe[] }) {

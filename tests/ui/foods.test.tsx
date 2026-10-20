@@ -122,16 +122,36 @@ describe("Besin kataloğu sekmesi", () => {
 });
 
 describe("Tarifler sekmesi", () => {
-  it("toplamı malzeme gramı / 100 × besin değerleriyle hesaplar ve kartta gösterir", async () => {
-    expect(recipeTotals(RECIPE)).toEqual({
-      calories: 165 * 2 + 350 * 1.5,
-      proteinG: 31 * 2 + 12 * 1.5,
-      carbsG: 76 * 1.5,
-      fatG: 3.6 * 2 + 1.5 * 1.5,
-    });
-    setup();
+  // 50 g bazlı besin: 200 g = 4 × değerler. Eski formül (gram / 100) yarısını gösteriyordu.
+  const halfBasis = food({ id: "f9", name: "Fıstık Ezmesi", basisGrams: 50, calories: 300, proteinG: 12.5, carbsG: 10, fatG: 25 });
+  const PB_RECIPE: Recipe = {
+    ...RECIPE,
+    id: "r2",
+    name: "Fıstık Ezmeli Tost",
+    ingredients: [{ id: "i9", foodItemId: "f9", grams: 200, foodItem: halfBasis }],
+  };
+
+  it("sunucunun calculatedMacros değerini kullanır", () => {
+    const server = { calories: 1234, proteinG: 56, carbsG: 78, fatG: 9 };
+    expect(recipeTotals({ ...RECIPE, calculatedMacros: server })).toEqual(server);
+  });
+
+  it("calculatedMacros yoksa besinin basisGrams değeriyle hesaplar", () => {
+    expect(recipeTotals(PB_RECIPE)).toEqual({ calories: 1200, proteinG: 50, carbsG: 40, fatG: 100 });
+    expect(recipeTotals(RECIPE)).toEqual({ calories: 855, proteinG: 80, carbsG: 114, fatG: 9.5 });
+  });
+
+  it("kart sunucunun hesapladığı toplamı gösterir", async () => {
+    setup([
+      [
+        "/api/recipes",
+        () => jsonResponse([{ ...PB_RECIPE, calculatedMacros: { calories: 1200, proteinG: 50, carbsG: 40, fatG: 100 } }]),
+      ],
+    ]);
     fireEvent.click(await screen.findByRole("button", { name: "Tarifler (1)" }));
-    expect(screen.getByText("855 kcal")).toBeTruthy();
+    expect(screen.getByText("1200 kcal")).toBeTruthy();
+    expect(screen.queryByText("600 kcal")).toBeNull(); // gram / 100 hesabı
+    expect(screen.getByText("50g")).toBeTruthy();
     expect(screen.getByText("Hazırlama: 20 dk • 2 porsiyon")).toBeTruthy();
     expect(screen.getByText("Haşla ve karıştır")).toBeTruthy();
   });
