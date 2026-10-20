@@ -1,8 +1,14 @@
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   // Masaüstü paketi: node_modules ve proje klasörü olmadan çalışan bağımsız sunucu (.next/standalone)
   output: "standalone",
+  // Kök bu klasöre sabitlenir: üst klasörde başka bir lockfile varsa (ör. git worktree) Next kökü
+  // yanlış tahmin edip server.js'i .next/standalone/<alt yol>/ altına koyuyordu.
+  outputFileTracingRoot: dirname(fileURLToPath(import.meta.url)),
   // Açılışta uygulanan migration dosyaları sunucuyla birlikte paketlenir.
   outputFileTracingIncludes: {
     "/*": ["./prisma/migrations/**/*"],
