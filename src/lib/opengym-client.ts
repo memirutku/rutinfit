@@ -184,17 +184,21 @@ export async function syncWeightsToOpenGymState(
  * openGym formatındaki antrenmanları RutinFit formatına dönüştürür.
  */
 export function mapOpenGymWorkoutToRutinFit(ogWorkout: OpenGymWorkout) {
+  // Yalnız SetLog tablosundaki alanlar üretilir (fazla alan Prisma create'i düşürür).
   const setLogs = (ogWorkout.exercises || []).flatMap((ex) =>
-    (ex.sets || []).map((s, idx) => ({
-      exerciseName: ex.name || ex.exerciseId || "Egzersiz",
-      setNumber: idx + 1,
-      weightKg: s.weight || 0,
-      reps: s.reps || 0,
-      targetRepMin: 8,
-      targetRepMax: 12,
-      isTargetMet: (s.reps || 0) >= 10,
-    }))
+    (ex.sets || [])
+      .filter((s) => !s.isWarmup)
+      .map((s, idx) => ({
+        exerciseName: ex.name || ex.exerciseId || "Egzersiz",
+        setNumber: idx + 1,
+        weightKg: Math.max(0, Number(s.weight) || 0),
+        reps: Math.max(0, Math.round(Number(s.reps) || 0)),
+        isTargetMet: (s.reps || 0) >= 10,
+      }))
   );
+
+  const rawRpe = Number(ogWorkout.exercises?.[0]?.sets?.[0]?.rpe);
+  const rpe = Number.isFinite(rawRpe) && rawRpe > 0 ? Math.min(10, Math.max(1, Math.round(rawRpe))) : 7;
 
   return {
     date: ogWorkout.date,
@@ -202,7 +206,7 @@ export function mapOpenGymWorkoutToRutinFit(ogWorkout: OpenGymWorkout) {
     durationMinutes: ogWorkout.durationSeconds
       ? Math.round(ogWorkout.durationSeconds / 60)
       : 40,
-    rpe: ogWorkout.exercises?.[0]?.sets?.[0]?.rpe || 7,
+    rpe,
     notes: ogWorkout.notes || "openGym üzerinden kaydedildi",
     completed: true,
     setLogs,

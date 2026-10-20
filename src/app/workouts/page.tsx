@@ -28,6 +28,8 @@ export default function WorkoutsPage() {
   const [activeSession, setActiveSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [progressionFeedback, setProgressionFeedback] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isShortenedMode, setIsShortenedMode] = useState(false);
 
   // Dinlenme Zamanlayıcısı (Rest Timer)
@@ -216,6 +218,9 @@ export default function WorkoutsPage() {
 
   async function handleFinishSession(e: React.FormEvent) {
     e.preventDefault();
+    if (saving) return; // çift gönderim koruması
+    setSaving(true);
+    setSaveError(null);
     try {
       const payload = {
         date: todayStr,
@@ -241,7 +246,11 @@ export default function WorkoutsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        // Kayıt başarısızsa seans ve yerel taslak korunur; kullanıcı düzeltip tekrar dener.
+        throw new Error(data.error || `Sunucu hatası (${res.status})`);
+      }
       setProgressionFeedback(data.progressionFeedbacks);
       setActiveSession(null);
       try {
@@ -250,8 +259,11 @@ export default function WorkoutsPage() {
         // ignore
       }
       loadWorkouts();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Antrenman bitirme hatası:", e);
+      setSaveError(`Antrenman kaydedilemedi, verileriniz korunuyor: ${e?.message || "bilinmeyen hata"}`);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -634,6 +646,11 @@ export default function WorkoutsPage() {
               </div>
             </div>
 
+            {saveError && (
+              <p role="alert" className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+                {saveError}
+              </p>
+            )}
             <div className="flex justify-end gap-3 pt-2">
               <button
                 type="button"
@@ -644,9 +661,10 @@ export default function WorkoutsPage() {
               </button>
               <button
                 type="submit"
-                className="px-6 py-2.5 rounded-xl text-sm font-bold bg-brand-600 text-white hover:bg-brand-700 shadow-md"
+                disabled={saving}
+                className="px-6 py-2.5 rounded-xl text-sm font-bold bg-brand-600 text-white hover:bg-brand-700 shadow-md disabled:opacity-60"
               >
-                Antrenmanı Bitir & Kaydet
+                {saving ? "Kaydediliyor..." : "Antrenmanı Bitir & Kaydet"}
               </button>
             </div>
           </form>

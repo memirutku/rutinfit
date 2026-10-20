@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { getLocalDateString } from "@/lib/date-utils";
+import { addDaysToDateString, getLocalDateString } from "@/lib/date-utils";
+import { computeWeeklyDelta, computeWeightTrend, lastNDates } from "@/lib/services/progress";
 
 const ProgressLogSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -16,82 +17,40 @@ const ProgressLogSchema = z.object({
   creatineDoseGrams: z.number().positive().default(5.0),
 });
 
+const CHART_DAYS = 60;
+const CREATINE = "Kreatin Monohidrat";
+
+/** Liste en yeni N kaydı (desc + take) alıp grafik için eskiden yeniye çevirir. */
+const newestFirst = { orderBy: { date: "desc" as const }, take: CHART_DAYS };
+
 export async function GET() {
   try {
-    const weights = await prisma.weightLog.findMany({
-      orderBy: { date: "asc" },
-      take: 60,
-    });
-
-    const wellbeings = await prisma.dailyWellbeing.findMany({
-      orderBy: { date: "asc" },
-      take: 60,
-    });
-
-    const supplements = await prisma.supplementLog.findMany({
-      where: { name: "Kreatin Monohidrat" },
-      orderBy: { date: "asc" },
-      take: 60,
-    });
-
-    const measurements = await prisma.bodyMeasurement.findMany({
-      orderBy: { date: "asc" },
-      take: 20,
-    });
-
-    // 7 günlük hareketli kilo ortalaması hesaplama
-    const weightTrend = weights.map((w, idx) => {
-      const windowStart = Math.max(0, idx - 6);
-      const windowItems = weights.slice(windowStart, idx + 1);
-      const sum = windowItems.reduce((acc, curr) => acc + curr.weightKg, 0);
-      const rollingAvg = Math.round((sum / windowItems.length) * 10) / 10;
-      return {
-        date: w.date,
-        weightKg: w.weightKg,
-        rollingAvg,
-      };
-    });
-
-    // Haftalık kilo farkı (en son 7 günlük ortalama ile bir önceki 7 günün farkı)
-    let weeklyWeightDelta = 0;
-    if (weights.length >= 7) {
-      const last7 = weights.slice(-7);
-      const prev7 = weights.slice(-14, -7);
-      const avgLast7 =
-        last7.reduce((a, b) => a + b.weightKg, 0) / last7.length;
-      if (prev7.length > 0) {
-        const avgPrev7 =
-          prev7.reduce((a, b) => a + b.weightKg, 0) / prev7.length;
-        weeklyWeightDelta = Math.round((avgLast7 - avgPrev7) * 10) / 10;
-      }
-    }
-
-    // Kreatin son 7 günlük uyum
-    const last7Dates = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (6 - i));
-      return getLocalDateString(d);
-    });
-
-    const creatineCompliance = last7Dates.map((date) => {
-      const log = supplements.find((s) => s.date === date);
-      return {
-        date,
-        taken: log ? log.taken : false,
-      };
-    });
-
     const todayStr = getLocalDateString();
-    const todayCreatine = supplements.find((s) => s.date === todayStr);
-    const todayWellbeing = wellbeings.find((w) => w.date === todayStr);
-    const todayWeight = weights.find((w) => w.date === todayStr);
+    const weekAgo14 = addDaysToDateString(todayStr, -13);
+
+    const [weightsDesc, wellbeingsDesc, measurementsDesc, recentCreatine, deltaWeights, todayCreatine, todayWellbeing, todayWeight] =
+      await Promise.all([
+        prisma.weightLog.findMany(newestFirst),
+        prisma.dailyWellbeing.findMany(newestFirst),
+        prisma.bodyMeasurement.findMany({ orderBy: { date: "desc" }, take: 20 }),
+        prisma.supplementLog.findMany({
+          where: { name: CREATINE, date: { gte: addDaysToDateString(todayStr, -6), lte: todayStr } },
+        }),
+        prisma.weightLog.findMany({ where: { date: { gte: weekAgo14, lte: todayStr } } }),
+        prisma.supplementLog.findUnique({ where: { date_name: { date: todayStr, name: CREATINE } } }),
+        prisma.dailyWellbeing.findUnique({ where: { date: todayStr } }),
+        prisma.weightLog.findUnique({ where: { date: todayStr } }),
+      ]);
+
+    const weights = weightsDesc.reverse();
+    const creatineByDate = new Map(recentCreatine.map((s) => [s.date, s.taken]));
 
     return NextResponse.json({
-      weights: weightTrend,
-      wellbeings,
-      measurements,
-      creatineCompliance,
-      weeklyWeightDelta,
+      weights: computeWeightTrend(weights),
+      wellbeings: wellbeingsDesc.reverse(),
+      measurements: measurementsDesc.reverse(),
+      creatineCompliance: lastNDates(todayStr, 7).map((date) => ({ date, taken: creatineByDate.get(date) ?? false })),
+      weeklyWeightDelta: computeWeeklyDelta(deltaWeights, todayStr),
       today: {
         date: todayStr,
         creatineTaken: todayCreatine?.taken ?? false,
