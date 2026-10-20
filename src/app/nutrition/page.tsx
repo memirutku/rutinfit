@@ -346,7 +346,7 @@ export default function NutritionPage() {
                                   <li key={ing.id} className="flex justify-between">
                                     <span>• {ing.foodItem.name}</span>
                                     <span className="font-medium text-slate-900">
-                                      {Math.round(ing.grams * planned.servings * mult)} g
+                                      {Math.round((ing.grams / (planned.recipe.servings || 1)) * planned.servings * mult)} g
                                     </span>
                                   </li>
                                 ))}

@@ -639,6 +639,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={handleToggleCreatine}
+                aria-pressed={!!progressData?.today?.creatineTaken}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
                   progressData?.today?.creatineTaken
                     ? "bg-emerald-50 text-emerald-700 border-emerald-300"

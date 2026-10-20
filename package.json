@@ -24,7 +24,8 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "next build && playwright test"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -46,6 +47,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.7",
+    "@playwright/test": "1.63.0",
     "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/cli": "^2.12.3",
     "@testing-library/dom": "10.4.2",
