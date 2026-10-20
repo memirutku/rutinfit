@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MealTypeSchema } from "./schemas/enums";
 
 export const MealProposalSchema = z.object({
   type: z.literal("meal_proposal"),
@@ -48,7 +49,7 @@ export type AIActionResponse = z.infer<typeof AIActionResponseSchema>;
 // --- Draft Types & Schemas (7 Distinct Types) ---
 
 export const PlannedMealItemSchema = z.object({
-  mealType: z.enum(["breakfast", "lunch", "dinner", "workSnack", "snack", "extra"]).default("snack"),
+  mealType: MealTypeSchema.default("extra"),
   recipeId: z.string().optional().nullable(),
   customName: z.string().optional().nullable(),
   name: z.string().optional().nullable(),
@@ -68,7 +69,7 @@ export const MealPlanDraftSchema = z.object({
 /** AI öğün önerisi: onaylanınca o günün planına tarifli öğün olarak eklenir. */
 export const PlannedMealDraftSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  mealType: z.enum(["breakfast", "lunch", "dinner", "workSnack", "snack", "extra"]).default("dinner"),
+  mealType: MealTypeSchema.default("dinner"),
   title: z.string().min(1, "Öğün adı boş olamaz"),
   rationale: z.string().optional().default(""),
   prepMinutes: z.number().int().positive().default(15),
@@ -86,7 +87,7 @@ export const PlannedMealDraftSchema = z.object({
 export const FoodLogDraftSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   time: z.string().optional(),
-  mealType: z.enum(["breakfast", "lunch", "dinner", "workSnack", "snack", "extra"]).default("extra"),
+  mealType: MealTypeSchema.default("extra"),
   name: z.string().min(1, "Besin adı boş olamaz"),
   grams: z.number().positive("Gram miktarı pozitif olmalıdır"),
   calories: z.number().nonnegative().optional(),

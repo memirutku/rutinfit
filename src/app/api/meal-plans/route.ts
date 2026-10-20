@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
 import { z } from "zod";
+import { MealTypeSchema } from "@/lib/schemas/enums";
 import { calculateRecipePortion } from "@/lib/nutrition-calculator";
 import { addDaysToDateString } from "@/lib/date-utils";
 
 const PlannedMealItemSchema = z.object({
-  mealType: z.string(),
+  mealType: MealTypeSchema,
   recipeId: z.string().optional().nullable(),
   customName: z.string().optional().nullable(),
   plannedTime: z.string().optional().nullable(),

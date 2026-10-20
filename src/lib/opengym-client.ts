@@ -66,11 +66,12 @@ export function getOpenGymDataDir(): string {
  * openGym HTTP API sağlık durumunu kontrol eder.
  */
 export async function checkOpenGymHealth(
-  baseUrl = process.env.OPENGYM_BASE_URL || "http://localhost:8080"
+  baseUrl = process.env.OPENGYM_BASE_URL || "http://localhost:8080",
+  timeoutMs = 3000
 ): Promise<OpenGymHealth> {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     const res = await fetch(`${baseUrl}/api/health`, {
       signal: controller.signal,
@@ -213,14 +214,28 @@ export function mapOpenGymWorkoutToRutinFit(ogWorkout: OpenGymWorkout) {
   };
 }
 
+
 /**
- * RutinFit kilo kayıtlarını openGym formatına dönüştürür.
+ * AI koçunun sistem promptu için openGym özeti. Her sohbet mesajında çağrıldığı için
+ * sağlık kontrolü kısa zaman aşımıyla yapılır (openGym kapalıyken yanıtı geciktirmez).
  */
-export function mapRutinFitWeightsToOpenGym(
-  rutinFitWeights: { date: string; weightKg: number }[]
-): OpenGymBodyWeight[] {
-  return rutinFitWeights.map((w) => ({
-    date: w.date,
-    weight: w.weightKg,
-  }));
+export async function getOpenGymSummary() {
+  const [health, state] = await Promise.all([
+    checkOpenGymHealth(undefined, 800),
+    getOpenGymLocalState(),
+  ]);
+
+  return {
+    isOnline: health.isOnline,
+    serviceUrl: health.url,
+    totalWorkouts: state?.workouts?.length ?? 0,
+    recentWorkouts: (state?.workouts ?? []).slice(-5).map((w) => ({
+      id: w.id,
+      date: w.date,
+      name: w.name,
+      exerciseCount: w.exercises.length,
+      totalSets: w.exercises.reduce((acc, ex) => acc + ex.sets.length, 0),
+    })),
+    recentWeights: (state?.bodyWeight ?? []).slice(-7).map((b) => ({ date: b.date, weightKg: b.weight })),
+  };
 }

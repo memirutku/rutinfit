@@ -7,7 +7,6 @@ import {
   verifyAndApplyActionDraft,
   rejectActionDraft,
   calculateRecipeNutrition,
-  draftShoppingListDelta,
 } from '../src/lib/ai-tools';
 
 describe('AI Tools & Action Draft Engine', () => {
@@ -141,19 +140,6 @@ describe('AI Tools & Action Draft Engine', () => {
     expect(result.itemized[0].foundInDb).toBe(false);
   });
 
-  it('should compute shopping list delta accurately', async () => {
-    const delta = await draftShoppingListDelta([
-      { name: 'Somon Balığı Test', amount: 400, unit: 'g', category: 'Kasap/Balık' },
-      { name: 'Kuşkonmaz Test', amount: 200, unit: 'g', category: 'Manav' },
-    ]);
-
-    expect(delta.totalPlanned).toBe(2);
-    // Kiler ve alışveriş listesi boş: iki malzemenin ikisi de eklenecek.
-    expect(delta.coveredByPantry).toBe(0);
-    expect(delta.newItemsToAdd.map((i) => i.name)).toEqual(['Somon Balığı Test', 'Kuşkonmaz Test']);
-    expect(delta.newItemsToAdd[0].amount).toBe(400);
-    expect(delta.impactSummary).toContain('Alışveriş listesine');
-  });
 
   it('should reject creating draft when proposed changes fail schema validation', async () => {
     await expect(

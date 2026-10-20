@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { apiError } from "@/lib/api-error";
+import { DEFAULT_TARGETS } from "@/lib/constants";
 
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Saat SS:DD biçiminde olmalıdır.");
 // Hedef sütunları tam sayıdır: kesirli girişler yuvarlanır.
@@ -36,11 +37,7 @@ export async function GET() {
           age: 25,
           sex: "male",
           currentWeightKg: 112,
-          calorieTarget: 2080,
-          calorieCeiling: 2100,
-          proteinTargetG: 165,
-          fatTargetG: 60,
-          carbTargetG: 220,
+          ...DEFAULT_TARGETS,
           wakeTime: "06:00",
           workdayHomeTime: "19:30",
           isOnboarded: true,
