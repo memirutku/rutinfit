@@ -1,4 +1,8 @@
 import { prisma } from './prisma';
+import { convertUnitAmount, normalizeUnit } from './units';
+import { normalizeName } from './text';
+
+export { convertUnitAmount } from './units';
 
 export interface PantryItemData {
   id?: string;
@@ -39,41 +43,59 @@ export interface NetShoppingResult {
   summary: string;
 }
 
+/** Kalemi bulunamayan işlemlerde fırlatılır (API 404'e çevirir). */
+export class PantryItemNotFoundError extends Error {
+  constructor() {
+    super('Kiler öğesi bulunamadı.');
+    this.name = 'PantryItemNotFoundError';
+  }
+}
+
+const round = (n: number) => Math.round(n * 1000) / 1000;
+
 export async function getPantryInventory() {
   return prisma.pantryItem.findMany({
     orderBy: [{ category: 'asc' }, { name: 'asc' }],
   });
 }
 
+/**
+ * Kalem ekler veya günceller.
+ * - id verilirse yalnız gönderilen alanlar değişir (SKT, not vb. korunur).
+ * - id yoksa aynı isimli (Türkçe büyük/küçük harf duyarsız) ve birimi uyumlu kalem varsa
+ *   miktar o kalemin birimine çevrilip eklenir; uyumsuz birimde ayrı kalem açılır.
+ */
 export async function upsertPantryItem(data: PantryItemData) {
-  const { id, name, amount, unit = 'g', category = 'Genel', expiryDate, notes } = data;
+  const { id, name, amount, unit, category, expiryDate, notes } = data;
 
   if (id) {
+    const exists = await prisma.pantryItem.findUnique({ where: { id } });
+    if (!exists) throw new PantryItemNotFoundError();
     return prisma.pantryItem.update({
       where: { id },
       data: {
-        name,
-        amount: Number(amount) || 0,
-        unit,
-        category,
-        expiryDate: expiryDate || null,
-        notes: notes || null,
+        name: name.trim(),
+        amount,
+        ...(unit !== undefined && { unit: normalizeUnit(unit) }),
+        ...(category !== undefined && { category }),
+        ...(expiryDate !== undefined && { expiryDate: expiryDate || null }),
+        ...(notes !== undefined && { notes: notes || null }),
       },
     });
   }
 
-  // Check if item with same name exists
-  const existing = await prisma.pantryItem.findFirst({
-    where: { name: { equals: name } },
-  });
+  const incomingUnit = normalizeUnit(unit ?? 'g');
+  const key = normalizeName(name);
+  const sameName = (await prisma.pantryItem.findMany()).filter((p) => normalizeName(p.name) === key);
 
-  if (existing) {
+  for (const existing of sameName) {
+    const conv = convertUnitAmount(amount, incomingUnit, existing.unit);
+    if (!conv.isCompatible) continue;
     return prisma.pantryItem.update({
       where: { id: existing.id },
       data: {
-        amount: existing.amount + (Number(amount) || 0),
-        unit,
-        category,
+        amount: round(existing.amount + conv.convertedAmount),
+        ...(category !== undefined && { category }),
         expiryDate: expiryDate || existing.expiryDate,
         notes: notes || existing.notes,
       },
@@ -82,150 +104,106 @@ export async function upsertPantryItem(data: PantryItemData) {
 
   return prisma.pantryItem.create({
     data: {
-      name,
-      amount: Number(amount) || 0,
-      unit,
-      category,
+      name: name.trim(),
+      amount,
+      unit: incomingUnit,
+      category: category ?? 'Genel',
       expiryDate: expiryDate || null,
       notes: notes || null,
     },
   });
 }
 
-export async function deletePantryItem(id: string) {
-  return prisma.pantryItem.delete({
-    where: { id },
+/**
+ * Stok miktarını atomik olarak artırır/azaltır (hızlı ± tıklamalarında kayıp olmaz).
+ * Sonuç sıfırın altına inmez.
+ */
+export async function adjustPantryAmount(id: string, delta: number) {
+  return prisma.$transaction(async (tx) => {
+    const exists = await tx.pantryItem.findUnique({ where: { id } });
+    if (!exists) throw new PantryItemNotFoundError();
+    const updated = await tx.pantryItem.update({
+      where: { id },
+      data: { amount: { increment: delta } },
+    });
+    if (updated.amount < 0) {
+      return tx.pantryItem.update({ where: { id }, data: { amount: 0 } });
+    }
+    return updated;
   });
 }
 
-/**
- * Standart birim dönüşüm fonksiyonu (kg <-> g, L <-> ml)
- */
-export function convertUnitAmount(
-  amount: number,
-  fromUnit: string = 'g',
-  toUnit: string = 'g'
-): { convertedAmount: number; isCompatible: boolean } {
-  const from = fromUnit.toLowerCase().trim();
-  const to = toUnit.toLowerCase().trim();
-
-  if (from === to) {
-    return { convertedAmount: amount, isCompatible: true };
-  }
-
-  // Ağırlık dönüşümleri: kg <-> g
-  if (from === 'kg' && (to === 'g' || to === 'gr')) {
-    return { convertedAmount: amount * 1000, isCompatible: true };
-  }
-  if ((from === 'g' || from === 'gr') && to === 'kg') {
-    return { convertedAmount: amount / 1000, isCompatible: true };
-  }
-
-  // Hacim dönüşümleri: l/lt/litre <-> ml
-  if ((from === 'l' || from === 'lt' || from === 'litre' || from === 'liter') && to === 'ml') {
-    return { convertedAmount: amount * 1000, isCompatible: true };
-  }
-  if (from === 'ml' && (to === 'l' || to === 'lt' || to === 'litre' || to === 'liter')) {
-    return { convertedAmount: amount / 1000, isCompatible: true };
-  }
-
-  return { convertedAmount: amount, isCompatible: false };
+export async function deletePantryItem(id: string) {
+  const res = await prisma.pantryItem.deleteMany({ where: { id } });
+  if (res.count === 0) throw new PantryItemNotFoundError();
 }
 
 /**
  * Haftalık menü veya tarif gereksinimlerinden kiler stoklarını düşerek
  * net satın alınması gereken kalemleri deterministik olarak hesaplar.
+ * Aynı isimli stoklar birim uyumluysa toplanır; uyumsuz birimdekiler (ör. "2 adet süt")
+ * sessizce eklenmez, nota yazılır.
  */
 export async function calculateNetShoppingList(
   neededIngredients: NeededIngredient[]
 ): Promise<NetShoppingResult> {
   const pantryItems = await getPantryInventory();
-  // Malzeme adı -> { amount: number, unit: string }
-  const pantryMap = new Map<string, { amount: number; unit: string }>();
-
+  const stockByName = new Map<string, Array<{ amount: number; unit: string }>>();
   for (const p of pantryItems) {
-    const key = p.name.toLowerCase().trim();
-    const existing = pantryMap.get(key);
-    if (!existing) {
-      pantryMap.set(key, { amount: p.amount, unit: p.unit || 'g' });
-    } else {
-      // Mevcut stok ile aynı birimdeyse topla
-      const conv = convertUnitAmount(p.amount, p.unit || 'g', existing.unit);
-      if (conv.isCompatible) {
-        existing.amount += conv.convertedAmount;
-      } else {
-        // Uyuşmuyorsa miktarı doğrudan topla
-        existing.amount += p.amount;
-      }
-    }
+    const key = normalizeName(p.name);
+    const list = stockByName.get(key) ?? [];
+    list.push({ amount: p.amount, unit: normalizeUnit(p.unit) });
+    stockByName.set(key, list);
   }
 
   const itemsToBuy: NetShoppingResult['itemsToBuy'] = [];
   const coveredByPantry: NetShoppingResult['coveredByPantry'] = [];
 
   for (const ing of neededIngredients) {
-    const key = ing.name.toLowerCase().trim();
-    const stockItem = pantryMap.get(key);
+    const neededUnit = normalizeUnit(ing.unit);
+    const stocks = stockByName.get(normalizeName(ing.name)) ?? [];
+    const category = ing.category || 'Diğer';
 
-    if (!stockItem || stockItem.amount <= 0) {
-      // Kilerde hiç yok
-      itemsToBuy.push({
-        name: ing.name,
-        amount: ing.amount,
-        unit: ing.unit,
-        category: ing.category || 'Diğer',
-        neededAmount: ing.amount,
-        pantryAmount: 0,
-      });
-      continue;
+    let available = 0;
+    const incompatible: string[] = [];
+    for (const s of stocks) {
+      const conv = convertUnitAmount(s.amount, s.unit, neededUnit);
+      if (conv.isCompatible) available += conv.convertedAmount;
+      else if (s.amount > 0) incompatible.push(`${s.amount} ${s.unit}`);
     }
 
-    // Birim dönüşümünü kontrol et
-    const { convertedAmount: stockInNeededUnit, isCompatible } = convertUnitAmount(
-      stockItem.amount,
-      stockItem.unit,
-      ing.unit
-    );
-
-    if (!isCompatible) {
-      // Birimler uyuşmuyor (örn. adet vs g)
-      itemsToBuy.push({
-        name: ing.name,
-        amount: ing.amount,
-        unit: ing.unit,
-        category: ing.category || 'Diğer',
-        neededAmount: ing.amount,
-        pantryAmount: stockItem.amount,
-        notes: `Birim uyuşmazlığı: Kilerde ${stockItem.amount} ${stockItem.unit}, Tarifte ${ing.amount} ${ing.unit}. Otomatik çıkarma yapılmadı.`,
-      });
-      continue;
+    const take = Math.min(available, ing.amount);
+    // Kullanılan stoğu sonraki kalemler için düş (aynı malzeme listede birden çok kez geçebilir)
+    let remainingToTake = take;
+    for (const s of stocks) {
+      if (remainingToTake <= 0) break;
+      const conv = convertUnitAmount(s.amount, s.unit, neededUnit);
+      if (!conv.isCompatible) continue;
+      const used = Math.min(conv.convertedAmount, remainingToTake);
+      s.amount = round(s.amount - convertUnitAmount(used, neededUnit, s.unit).convertedAmount);
+      remainingToTake -= used;
     }
 
-    if (stockInNeededUnit >= ing.amount) {
-      // Tamamen kiler stoklarından karşılanıyor
-      coveredByPantry.push({
-        name: ing.name,
-        amount: ing.amount,
-        unit: ing.unit,
-        category: ing.category || 'Diğer',
-      });
-      // Kalan stoğu düş
-      const remainingNeededUnit = stockInNeededUnit - ing.amount;
-      const backConv = convertUnitAmount(remainingNeededUnit, ing.unit, stockItem.unit);
-      stockItem.amount = backConv.convertedAmount;
+    const deficit = Math.round((ing.amount - take) * 10) / 10;
+    const unitNote = incompatible.length
+      ? ` Birim uyuşmazlığı: kilerde ${incompatible.join(', ')} var; otomatik düşülmedi.`
+      : '';
+
+    if (deficit <= 0) {
+      coveredByPantry.push({ name: ing.name, amount: ing.amount, unit: neededUnit, category });
     } else {
-      // Kısmi karşılama
-      const deficit = Math.round((ing.amount - stockInNeededUnit) * 10) / 10;
       itemsToBuy.push({
         name: ing.name,
         amount: deficit,
-        unit: ing.unit,
-        category: ing.category || 'Diğer',
+        unit: neededUnit,
+        category,
         neededAmount: ing.amount,
-        pantryAmount: Math.round(stockInNeededUnit * 10) / 10,
-        notes: `Gereken: ${ing.amount}${ing.unit}, Kilerde: ${Math.round(stockInNeededUnit * 10) / 10}${ing.unit}`,
+        pantryAmount: Math.round(take * 10) / 10,
+        notes:
+          take > 0 || unitNote
+            ? `Gereken: ${ing.amount}${neededUnit}, Kilerde: ${Math.round(take * 10) / 10}${neededUnit}.${unitNote}`.trim()
+            : undefined,
       });
-      stockItem.amount = 0;
     }
   }
 

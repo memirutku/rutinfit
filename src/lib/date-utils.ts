@@ -55,13 +55,28 @@ export function getLocalTimeString(
 /**
  * Belirtilen gün sayısı kadar ileri/geri gidip YYYY-MM-DD döner.
  */
-export function addDaysToDateString(
-  dateStr: string,
-  days: number,
-  timeZone: string = DEFAULT_TIMEZONE
-): string {
+export function addDaysToDateString(dateStr: string, days: number): string {
+  // Saf takvim aritmetiği: saat dilimine dönüştürmek UTC+12..+14'te bir gün kaydırırdı.
   const [year, month, day] = dateStr.split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  const date = new Date(Date.UTC(year, month - 1, day));
   date.setUTCDate(date.getUTCDate() + days);
-  return getLocalDateString(date, timeZone);
+  return date.toISOString().slice(0, 10);
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** 'YYYY-MM-DD' biçiminde ve takvimde var olan bir tarih mi? (2026-02-30 → false) */
+export function isDateString(value: unknown): value is string {
+  if (typeof value !== 'string' || !DATE_RE.test(value)) return false;
+  const [y, m, d] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+}
+
+/** Verilen günün içinde bulunduğu haftanın Pazartesi tarihi (ISO hafta). */
+export function startOfWeek(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0 = Pazar
+  const offset = weekday === 0 ? -6 : 1 - weekday;
+  return addDaysToDateString(dateStr, offset);
 }

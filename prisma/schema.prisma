@@ -218,6 +218,9 @@ model ShoppingListItem {
   unit      String   @default("g")
   checked   Boolean  @default(false)
   createdAt DateTime @default(now())
+
+  // Aynı hafta için aynı kalem iki kez oluşamaz (eşzamanlı yenilemeye karşı).
+  @@unique([weekStart, name])
 }
 
 model AISettings {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { calculateRecipeMacros } from "@/lib/nutrition-calculator";
+import { calculateRecipePortion } from "@/lib/nutrition-calculator";
 import { addDaysToDateString } from "@/lib/date-utils";
 
 const PlannedMealItemSchema = z.object({
@@ -60,25 +60,12 @@ export async function GET(req: Request) {
       const enrichedMeals = plan.meals.map((meal) => {
         let calculatedMacros = null;
         if (meal.recipe) {
-          const baseMacros = calculateRecipeMacros(
-            meal.recipe.ingredients.map((ing) => ({
-              grams: ing.grams,
-              foodItem: {
-                basisGrams: ing.foodItem.basisGrams,
-                calories: ing.foodItem.calories,
-                proteinG: ing.foodItem.proteinG,
-                carbsG: ing.foodItem.carbsG,
-                fatG: ing.foodItem.fatG,
-              },
-            }))
-          );
-          calculatedMacros = {
-            calories: Math.round(baseMacros.calories * meal.servings),
-            proteinG:
-              Math.round(baseMacros.proteinG * meal.servings * 10) / 10,
-            carbsG: Math.round(baseMacros.carbsG * meal.servings * 10) / 10,
-            fatG: Math.round(baseMacros.fatG * meal.servings * 10) / 10,
-          };
+          // Tarifin tamamı recipe.servings porsiyondur; planlanan pay meal.servings porsiyon.
+          calculatedMacros = calculateRecipePortion(
+            meal.recipe.ingredients.map((ing) => ({ grams: ing.grams, foodItem: ing.foodItem })),
+            meal.recipe.servings,
+            meal.servings
+          ).macros;
         }
         return {
           ...meal,

@@ -105,3 +105,19 @@ describe("Geri Al (Undo) gidiş-dönüşü", () => {
     }
   });
 });
+
+describe("POST /api/food-logs — tarif porsiyonu ile kayıt", () => {
+  it("servings verilince gram ve makro tarifin porsiyonundan hesaplanır", async () => {
+    const food = await createFood({ calories: 100, proteinG: 10, carbsG: 10, fatG: 2 });
+    const recipe = await createRecipe([{ foodItemId: food.id, grams: 400 }], { servings: 2 }); // porsiyon: 200 g, 200 kcal
+
+    const res = await callRoute(POST, {
+      body: { date: DATE, mealType: "dinner", recipeId: recipe.id, name: recipe.name, servings: 1.5 },
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.json.grams).toBe(300);
+    expect(res.json.caloriesSnapshot).toBe(300);
+    expect(res.json.proteinSnapshot).toBe(30);
+  });
+});

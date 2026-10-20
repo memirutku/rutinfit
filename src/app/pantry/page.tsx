@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { formatAmount, pantryStep } from '@/lib/format';
 import Link from 'next/link';
 import {
   Package,
@@ -150,30 +151,24 @@ export default function PantryPage() {
     }
   }
 
-  async function adjustAmount(item: PantryItem, delta: number) {
-    const newAmount = Math.max(0, item.amount + delta);
-    if (newAmount === 0) {
+  async function adjustAmount(item: PantryItem, direction: 1 | -1) {
+    const delta = direction * pantryStep(item.unit);
+    if (item.amount + delta <= 0) {
       handleDelete(item.id);
       return;
     }
 
     try {
+      // Sunucuda atomik artırım: hızlı art arda tıklamalar birbirini ezmez, SKT/not korunur.
       const res = await fetch('/api/pantry', {
-        method: 'POST',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: item.id,
-          name: item.name,
-          amount: newAmount,
-          unit: item.unit,
-          category: item.category,
-        }),
+        body: JSON.stringify({ id: item.id, delta }),
       });
 
       if (res.ok) {
-        setItems((prev) =>
-          prev.map((i) => (i.id === item.id ? { ...i, amount: newAmount } : i))
-        );
+        const data = await res.json();
+        setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, amount: data.item.amount } : i)));
       }
     } catch (err) {
       console.error('Miktar ayarlama hatası:', err);
@@ -329,16 +324,18 @@ export default function PantryPage() {
                 <span className="text-xs text-slate-500 font-medium">Stok Miktarı:</span>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => adjustAmount(item, -50)}
+                    onClick={() => adjustAmount(item, -1)}
+                    aria-label={`${item.name} miktarını azalt`}
                     className="w-6 h-6 flex items-center justify-center bg-white border border-slate-200 rounded text-slate-600 text-xs font-bold hover:bg-slate-100"
                   >
                     -
                   </button>
                   <span className="font-bold text-sm text-slate-900">
-                    {item.amount} {item.unit}
+                    {formatAmount(item.amount, item.unit)}
                   </span>
                   <button
-                    onClick={() => adjustAmount(item, 50)}
+                    onClick={() => adjustAmount(item, 1)}
+                    aria-label={`${item.name} miktarını artır`}
                     className="w-6 h-6 flex items-center justify-center bg-white border border-slate-200 rounded text-slate-600 text-xs font-bold hover:bg-slate-100"
                   >
                     +

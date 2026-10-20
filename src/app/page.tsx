@@ -489,7 +489,7 @@ export default function DashboardPage() {
             <p className="text-sm text-slate-500 mt-1">
               Kalan:{" "}
               <span className="font-semibold text-slate-800">
-                {summary?.remainingCalories || targets.calorieTarget} kcal
+                {summary?.remainingCalories ?? targets.calorieTarget} kcal
               </span>{" "}
               (Üst sınır: {targets.calorieCeiling} kcal)
             </p>
@@ -546,7 +546,7 @@ export default function DashboardPage() {
                 <span className="font-bold text-slate-900">
                   {summary?.consumedProtein || 0}g / {targets.proteinTargetG}g{" "}
                   <span className="text-xs text-slate-400 font-normal">
-                    (Kalan: {summary?.remainingProtein || targets.proteinTargetG}g)
+                    (Kalan: {summary?.remainingProtein ?? targets.proteinTargetG}g)
                   </span>
                 </span>
               </div>
@@ -569,7 +569,7 @@ export default function DashboardPage() {
                 <span className="font-bold text-slate-900">
                   {summary?.consumedCarbs || 0}g / {targets.carbTargetG}g{" "}
                   <span className="text-xs text-slate-400 font-normal">
-                    (Kalan: {summary?.remainingCarbs || targets.carbTargetG}g)
+                    (Kalan: {summary?.remainingCarbs ?? targets.carbTargetG}g)
                   </span>
                 </span>
               </div>
@@ -592,7 +592,7 @@ export default function DashboardPage() {
                 <span className="font-bold text-slate-900">
                   {summary?.consumedFat || 0}g / {targets.fatTargetG}g{" "}
                   <span className="text-xs text-slate-400 font-normal">
-                    (Kalan: {summary?.remainingFat || targets.fatTargetG}g)
+                    (Kalan: {summary?.remainingFat ?? targets.fatTargetG}g)
                   </span>
                 </span>
               </div>
