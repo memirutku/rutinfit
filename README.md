@@ -6,15 +6,15 @@
 
 <p align="center">
   <strong>Yoğun Çalışanlar İçin Tek Pencerede Çalışan, Gizlilik Odaklı Kişisel Fitness, Beslenme ve Ritim Asistanı</strong><br>
-  <em>Tauri 2 · Next.js 15 · React 19 · Prisma SQLite · Yerel AI (Ollama & LM Studio) · Sıfır Docker Zorunluluğu</em>
+  <em>Tauri 2 · Next.js 16 · React 19 · Prisma 7 SQLite · Yerel AI (Ollama & LM Studio) · Sıfır Docker Zorunluluğu</em>
 </p>
 
 <p align="center">
   <a href="https://github.com/memirutku/rutinfit/actions/workflows/ci.yml"><img src="https://github.com/memirutku/rutinfit/actions/workflows/ci.yml/badge.svg" alt="CI Durumu" /></a>
   <a href="tests/"><img src="https://img.shields.io/badge/Vitest%20%2B%20Playwright-unit%20%C2%B7%20API%20%C2%B7%20E2E-10b981.svg?style=for-the-badge&logo=vitest&logoColor=white" alt="Vitest + Playwright" /></a>
-  <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-15.2.0-000000.svg?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js 15" /></a>
+  <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-16.4-000000.svg?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js 16" /></a>
   <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Tauri-2.12-24c8db.svg?style=for-the-badge&logo=tauri&logoColor=white" alt="Tauri 2" /></a>
-  <a href="https://www.prisma.io/"><img src="https://img.shields.io/badge/Prisma-6.4.0%20SQLite-2d3748.svg?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma SQLite" /></a>
+  <a href="https://www.prisma.io/"><img src="https://img.shields.io/badge/Prisma-7.10%20SQLite-2d3748.svg?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma 7 SQLite" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License" /></a>
 </p>
 
@@ -75,7 +75,7 @@ flowchart TD
         RustCore --- Loopback
     end
 
-    subgraph Engine ["⚙️ Yönetilen Arka Plan Motoru (Node.js / Next.js 15)"]
+    subgraph Engine ["⚙️ Yönetilen Arka Plan Motoru (Node.js / Next.js 16)"]
         FileParsers["Çoklu Dosya Ayrıştırıcıları\n(PDF, XLSX, DOCX, TXT)"]
         NutriEngine["Deterministik Besin Motoru\n(2.080 kcal / 2.100 kcal Tavanı)"]
         AIEngine["2-Aşamalı Onaylı AI Koçu\n(ActionDraft & AuditLog)"]
@@ -83,7 +83,7 @@ flowchart TD
     end
 
     subgraph Storage ["💾 Korumalı Yerel Depolama (OS AppData)"]
-        SQLite[("SQLite Veritabanı (Prisma 6.4)\n~/Library/Application Support/RutinFit/rutinfit.db")]
+        SQLite[("SQLite Veritabanı (Prisma 7 · better-sqlite3)\n~/Library/Application Support/RutinFit/rutinfit.db")]
         Backups[("Otomatik Yedekler\n.../RutinFit/backups/")]
     end
 
@@ -220,7 +220,7 @@ Ayrıntılı teknik analizler ve raporlar için:
 
 #### Sistem Gereksinimleri
 * **İşletim Sistemi:** macOS (Apple Silicon veya Intel), Windows 10/11 (WebView2 ile) veya Linux (Ubuntu 22.04+)
-* **Node.js:** v22 LTS
+* **Node.js:** v22 LTS (≥ 22.12). `pnpm install` Node 22 ile çalıştırılmalıdır: SQLite yerel eklentisi (better-sqlite3) kurulumdaki Node sürümüne göre derlenir ve masaüstü paketindeki gömülü Node da 22'dir.
 * **Paket Yöneticisi:** `pnpm` v11 (`corepack enable`; sürüm `package.json` içinde sabitlenmiştir)
 * **Rust & Cargo:** v1.80+ (Tauri 2 masaüstü derleyicisi için zorunludur)
 * *(İsteğe bağlı)* **Yerel AI:** [Ollama](https://ollama.com) veya [LM Studio](https://lmstudio.ai)
@@ -231,9 +231,10 @@ Ayrıntılı teknik analizler ve raporlar için:
 git clone https://github.com/memirutku/rutinfit.git
 cd rutinfit
 
-# Bağımlılıkları yükleyin
+# Bağımlılıkları yükleyin (postinstall, Prisma istemcisini src/generated/ altına üretir)
 pnpm install
 ```
+`src/generated/` git'e girmez; şemayı değiştirdikten sonra `pnpm exec prisma generate` ile yeniden üretilir.
 
 #### 2. Yerel Veritabanını Başlatma
 ```bash
@@ -277,10 +278,41 @@ Testler gerçek veritabanınıza **hiçbir zaman** yazmaz; yerel AI ve Open Food
   ```bash
   pnpm desktop:build
   ```
-  `next build` sonrası `scripts/prepare-desktop.mjs` sunucuyu `src-tauri/resources/server` klasörüne kopyalar,
-  pakette kullanıcı verisi veya gizli dosya olmadığını doğrular ve Node 22 çalışma zamanını
-  (sabit sürüm, SHA-256 doğrulamalı) `src-tauri/binaries/` altına indirir.
+  `next build` sonrası `scripts/prepare-desktop.mjs` sunucuyu `src-tauri/resources/server` klasörüne kopyalar
+  (yalnız izin listesindeki girdiler: `server.js`, `package.json`, `.next`, `node_modules`, `prisma/migrations`),
+  pakette kullanıcı verisi veya gizli dosya olmadığını doğrular, Node 22 çalışma zamanını
+  (sabit sürüm, SHA-256 doğrulamalı) `src-tauri/binaries/` altına indirir ve SQLite yerel eklentisinin
+  bu Node ile yüklendiğini denetler.
   Çıktı: `src-tauri/target/release/bundle/` (`macos/RutinFit.app`, `dmg/RutinFit_*.dmg`). Paketler şu an imzasızdır.
+
+#### 5. Çatı Sürümleri ve Yükseltme Notları
+Next.js 16.4, Prisma 7.10 ve Vitest 5.0 kullanılır (Ekim 2026'da 15.5 / 6.19 / 4.1'den yükseltildi; her biri ayrı commit).
+
+**Next.js 16**
+* `src/middleware.ts` → `src/proxy.ts` (`export function proxy`). Proxy her zaman Node.js'te çalışır; `config.runtime` verilemez.
+* Turbopack hem `next dev` hem `next build` için varsayılan; eski webpack ayarı (`chunkLoadTimeout`) kaldırıldı.
+* ESLint: `eslint-config-next` doğrudan flat config. React Compiler kuralları (`react-hooks/set-state-in-effect`, `immutability`, `refs`, `purity`) şimdilik **uyarı**; 13 mevcut kalıp ayrı bir işte düzeltilecek.
+* `next dev` depoya `AGENTS.md` yazmasın diye `agentRules: false`. Sürüme uygun belgeler: `node_modules/next/dist/docs/`.
+* Açılış anahtarı akışı meta-refresh ile kalır: 16.4'te de `req.url` Host `127.0.0.1` iken `localhost` taşıyor; göreli `Location` 500 veriyor (ölçüldü).
+
+**Kullanıcı verisi pakete girmesin (Turbopack kuralı)**
+* Turbopack, kullanıcı verisine giden dinamik `fs` / `path` çağrılarını izleyip dosyaları standalone çıktıya katar (sahte dosyalarla ölçüldü: `backups/*.db`, `uploads/*`, adında `_` geçen notlar). `outputFileTracingExcludes` yalnız sayfa/route izlerine uygulanır, `instrumentation` izine uygulanmaz.
+* Bu yüzden kullanıcı veri klasörüne giden her çağrıya `/*turbopackIgnore: true*/` eklenir (bkz. `src/lib/storage-paths.ts`). Yeni kod da aynı kuralı izler: `pnpm build` çıktısında **"Dynamic filesystem access" uyarısı olmamalı**.
+* İkinci güvence `scripts/prepare-desktop.mjs`: izin listesi dışındaki her şey pakete alınmaz ve doğrulamada hata sayılır.
+
+**Prisma 7**
+* Rust sorgu motoru yok; SQLite'a `@prisma/adapter-better-sqlite3` ile bağlanılır. Masaüstü paketinde `libquery_engine` kalmadı (`.app` 203 MB → 175 MB).
+* İstemci yalnız `src/lib/db/client.ts` → `createPrismaClient()` ile oluşturulur. `timestampFormat: "unixepoch-ms"` zorunludur: Prisma 6 DateTime alanlarını INTEGER milisaniye olarak yazıyordu; mevcut veritabanları bu biçimde (`tests/db-adapter-compat.test.ts` korur).
+* İstemci `prisma-client` üreteciyle `src/generated/prisma`'ya üretilir; `Prisma.dmmf` artık yok, yedekleme servisi alan bilgisini `src/generated/datamodel.ts`'ten okur (`prisma/generators/datamodel.mjs`).
+* SQLite'ta sorgu başına en çok 999 parametre gönderilir ve `notIn` listeleri bölünmez (P2029). Büyük olabilecek listelerde `notIn` yerine önce okuyup `in` ile parça parça işleyin.
+* Bağlantı adresi şemada değil `prisma.config.ts`'te (yalnız CLI). `migrate diff`: `--to-schema` ve gölge veritabanı `SHADOW_DATABASE_URL` ile.
+
+**Vitest 5**
+* Vite 8 artık açık bağımlılık; yapılandırma `vitest.config.mts` (ESM), JSX dönüşümü `oxc` ile.
+* Yeni varsayılanlar (`clearMocks: true`, satır içi projelerde ortak Vite sunucusu) test değişikliği gerektirmedi.
+
+**Bilinen sorun (yükseltmeden önce de vardı):** paketli/standalone sunucuda PDF'den metin çıkarılamıyor
+(Next 15'te `pdf.worker.mjs` bulunamadı, Next 16'da `DOMMatrix` tanımsız: `@napi-rs/canvas` pakete izlenmiyor). Testler PDF ayrıştırmayı Node'da doğrudan sınadığı için bunu yakalamıyor.
 
 ---
 

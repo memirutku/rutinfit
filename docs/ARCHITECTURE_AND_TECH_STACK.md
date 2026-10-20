@@ -27,7 +27,7 @@ flowchart TD
     end
 
     subgraph ServerEngine ["Yönetilen Yerel Arka Plan Motoru"]
-        NextEngine["Next.js 15 (Node.js Çalışma Zamanı)"]
+        NextEngine["Next.js 16 (Node.js Çalışma Zamanı)"]
         Parsers["Çoklu Dosya Ayrıştırıcıları\n(PDF, XLSX, DOCX, TXT)"]
         NutriEngine["Deterministik Besin Motoru\n(2.080 / 2.100 kcal tavanı)"]
         AIEngine["2-Fazlı Onaylı AI Katmanı\n(ActionDraft & AuditLog)"]
@@ -37,7 +37,7 @@ flowchart TD
     end
 
     subgraph DataLayer ["Yerel Depolama (Korumalı OS Alanı)"]
-        SQLiteDB[("SQLite Veritabanı (Prisma 6.4)\n~/Library/Application Support/RutinFit/rutinfit.db")]
+        SQLiteDB[("SQLite Veritabanı (Prisma 7 · better-sqlite3)\n~/Library/Application Support/RutinFit/rutinfit.db")]
         Backups[("Otomatik Yedekler\n.../RutinFit/backups/")]
     end
 
@@ -87,8 +87,8 @@ flowchart TD
 
 ---
 
-### 2.3 Web & Arka Plan Motoru: Next.js 15 (App Router) + React 19
-* **Kullanılan Sürüm:** Next.js v15.2.0 (React 19.0.0, Node.js 22 LTS uyumlu).
+### 2.3 Web & Arka Plan Motoru: Next.js 16 (App Router) + React 19
+* **Kullanılan Sürüm:** Next.js v16.4 (Turbopack, React 19.3, Node.js 22 LTS uyumlu).
 * **Görev:** Kullanıcı arayüzü bileşenleri, sunucu taraflı dosya ayrıştırıcıları, REST API rotaları ve yerel veri işleme.
 
 #### Neden Saf React/Vite SPA Değil de Next.js App Router Seçildi?
@@ -161,8 +161,8 @@ flowchart TD
 │ Kategori               │ Seçilen Teknoloji        │ Tercih Edilmeyen Alternatif │
 ├────────────────────────┼──────────────────────────┼─────────────────────────────┤
 │ Masaüstü Shell         │ Tauri 2 (Rust)           │ Electron (Ağır RAM & Boyut) │
-│ Veritabanı             │ SQLite + Prisma 6        │ PostgreSQL / Bulut DB       │
-│ Full-Stack Framework   │ Next.js 15 (App Router)  │ Saf Vite SPA                │
+│ Veritabanı             │ SQLite + Prisma 7        │ PostgreSQL / Bulut DB       │
+│ Full-Stack Framework   │ Next.js 16 (App Router)  │ Saf Vite SPA                │
 │ İstemci Kütüphanesi    │ React 19                 │ Vue / Svelte                │
 │ Stil & UI              │ Tailwind CSS v3.4        │ CSS Modules / Styled Comp.  │
 │ Grafikler              │ Recharts (SVG)           │ Chart.js (Canvas)           │
