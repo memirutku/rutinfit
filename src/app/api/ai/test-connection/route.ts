@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { z } from "zod";
+import { TestConnectionSchema } from "@/lib/schemas/system";
 import { checkAIBaseUrl, shouldSendOpenAIKey } from "@/lib/security/ai-endpoint";
-
-const TestConnectionSchema = z.object({
-  providerType: z.enum(["ollama", "lmstudio", "openai"]),
-  baseUrl: z.string().url(),
-  modelName: z.string().optional(),
-});
 
 export async function POST(req: Request) {
   let body: unknown;

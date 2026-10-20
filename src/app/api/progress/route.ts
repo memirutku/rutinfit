@@ -1,22 +1,9 @@
 import { NextResponse } from "next/server";
+import { ProgressLogSchema } from "@/lib/schemas/progress";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
-import { z } from "zod";
 import { addDaysToDateString, getLocalDateString } from "@/lib/date-utils";
 import { computeWeeklyDelta, computeWeightTrend, lastNDates } from "@/lib/services/progress";
-
-const ProgressLogSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  weightKg: z.number().positive().optional(),
-  waistCm: z.number().positive().optional(),
-  energy1to5: z.number().int().min(1).max(5).optional(),
-  hunger1to5: z.number().int().min(1).max(5).optional(),
-  sleepMinutes: z.number().int().nonnegative().optional(),
-  stress1to5: z.number().int().min(1).max(5).optional(),
-  notes: z.string().optional(),
-  creatineTaken: z.boolean().optional(),
-  creatineDoseGrams: z.number().positive().default(5.0),
-});
 
 const CHART_DAYS = 60;
 const CREATINE = "Kreatin Monohidrat";

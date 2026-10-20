@@ -1,29 +1,8 @@
 import { NextResponse } from "next/server";
+import { WorkoutSessionInputSchema } from "@/lib/schemas/workout";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
-import { z } from "zod";
 import { evaluateExerciseProgression } from "@/lib/progression";
-
-const SetLogSchema = z.object({
-  exerciseName: z.string().min(1),
-  setNumber: z.number().int().positive(),
-  weightKg: z.number().nonnegative(),
-  reps: z.number().int().nonnegative(),
-  targetRepMin: z.number().int().positive().default(8),
-  targetRepMax: z.number().int().positive().default(12),
-  isTargetMet: z.boolean().default(false),
-});
-
-const WorkoutSessionSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  templateId: z.string().optional().nullable(),
-  name: z.string().min(1),
-  durationMinutes: z.number().int().nonnegative(),
-  rpe: z.number().int().min(1).max(10).optional().nullable(),
-  notes: z.string().optional().nullable(),
-  completed: z.boolean().default(true),
-  setLogs: z.array(SetLogSchema).optional().default([]),
-});
 
 export async function GET(req: Request) {
   try {
@@ -69,7 +48,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const validated = WorkoutSessionSchema.parse(body);
+    const validated = WorkoutSessionInputSchema.parse(body);
 
     const session = await prisma.workoutSession.create({
       data: {

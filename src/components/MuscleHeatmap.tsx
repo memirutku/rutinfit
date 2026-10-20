@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { apiFetch } from "@/lib/client/api";
+import React, { useMemo, useState } from "react";
+import { useWorkouts } from "@/lib/client/queries/workouts";
 import { computeMuscleLoad, type SessionForLoad } from "@/lib/muscle-load";
 import { useToday } from "@/hooks/useToday";
 import { Activity } from "lucide-react";
@@ -202,19 +202,9 @@ export const DEFAULT_MUSCLES: MuscleFatigue[] = [
 
 export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmapProps) {
   const today = useToday();
-  // Seanslar verilmediyse (ör. openGym sayfası) bir kez sunucudan alınır.
-  const [fetchedSessions, setFetchedSessions] = useState<SessionForLoad[] | null>(null);
-  useEffect(() => {
-    if (workoutSessions) return;
-    let cancelled = false;
-    apiFetch<{ sessions?: SessionForLoad[] }>("/api/workouts")
-      .then((d) => !cancelled && setFetchedSessions(d.sessions ?? []))
-      .catch(() => !cancelled && setFetchedSessions([]));
-    return () => {
-      cancelled = true;
-    };
-  }, [workoutSessions]);
-  const sessions = workoutSessions ?? fetchedSessions;
+  // Seanslar verilmediyse (ör. openGym sayfası) ortak antrenman sorgusundan alınır.
+  const fetched = useWorkouts(undefined, { enabled: !workoutSessions });
+  const sessions: SessionForLoad[] | undefined = workoutSessions ?? fetched.data?.sessions;
 
   // Gerçek set hacmi: son 7 günün tamamlanmış seanslarından hesaplanır.
   const muscles = useMemo(

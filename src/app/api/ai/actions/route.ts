@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { z, ZodError } from 'zod';
+import { ZodError } from 'zod';
+import { ActionRequestSchema } from '@/lib/schemas/chat';
 import { prisma } from '@/lib/prisma';
 import {
   DraftActionError,
@@ -7,14 +8,6 @@ import {
   rejectActionDraft,
   verifyAndApplyActionDraft,
 } from '@/lib/ai-tools/action-tools';
-
-const ActionRequestSchema = z.object({
-  draftId: z.string().min(1, 'draftId parametresi zorunludur.'),
-  action: z.enum(['approve', 'reject', 'reissue']).default('approve'),
-  approvalToken: z.string().optional(),
-  editedChanges: z.record(z.any()).optional(),
-  reason: z.string().max(500).optional(),
-});
 
 function errorResponse(error: unknown) {
   if (error instanceof DraftActionError) {

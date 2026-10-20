@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
+import { PantryAdjustSchema, PantryItemInputSchema } from '@/lib/schemas/pantry';
 import {
   adjustPantryAmount,
   deletePantryItem,
@@ -7,26 +7,6 @@ import {
   PantryItemNotFoundError,
   upsertPantryItem,
 } from '@/lib/pantry-service';
-import { isDateString } from '@/lib/date-utils';
-
-const PantryItemSchema = z.object({
-  id: z.string().min(1).optional(),
-  name: z.string().trim().min(1, 'Ürün adı zorunludur.').max(120),
-  amount: z.number().finite().nonnegative('Miktar negatif olamaz.'),
-  unit: z.string().trim().min(1).max(20).optional(),
-  category: z.string().trim().max(60).optional(),
-  expiryDate: z
-    .string()
-    .refine((v) => v === '' || isDateString(v), 'Son kullanma tarihi YYYY-AA-GG olmalıdır.')
-    .nullable()
-    .optional(),
-  notes: z.string().max(500).nullable().optional(),
-});
-
-const AdjustSchema = z.object({
-  id: z.string().min(1),
-  delta: z.number().finite(),
-});
 
 function fail(error: unknown, fallback: string) {
   if (error instanceof PantryItemNotFoundError) {
@@ -53,7 +33,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const parsed = PantryItemSchema.safeParse(await readJson(req));
+  const parsed = PantryItemInputSchema.safeParse(await readJson(req));
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Geçersiz kiler öğesi.' }, { status: 400 });
   }
@@ -67,7 +47,7 @@ export async function POST(req: Request) {
 
 /** Hızlı ± düğmeleri: miktarı atomik olarak artırır/azaltır. */
 export async function PATCH(req: Request) {
-  const parsed = AdjustSchema.safeParse(await readJson(req));
+  const parsed = PantryAdjustSchema.safeParse(await readJson(req));
   if (!parsed.success) {
     return NextResponse.json({ error: 'id ve sayısal delta zorunludur.' }, { status: 400 });
   }

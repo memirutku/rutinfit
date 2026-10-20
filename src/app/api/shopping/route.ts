@@ -1,15 +1,8 @@
 import { NextResponse } from 'next/server';
-import { z } from 'zod';
+import { ShoppingGenerateSchema, ShoppingToggleSchema } from '@/lib/schemas/shopping';
 import { prisma } from '@/lib/prisma';
 import { getLocalDateString, isDateString } from '@/lib/date-utils';
 import { generateShoppingList, getShoppingList } from '@/lib/services/shopping-list';
-
-const GenerateSchema = z.object({
-  weekStart: z.string().refine(isDateString, 'weekStart YYYY-AA-GG olmalıdır.').optional(),
-  deductPantry: z.boolean().default(true),
-});
-
-const ToggleSchema = z.object({ id: z.string().min(1), checked: z.boolean() });
 
 /** Kaydedilmiş haftalık listeyi döner. Salt-okunurdur; liste oluşturmak için POST kullanılır. */
 export async function GET(req: Request) {
@@ -26,7 +19,7 @@ export async function GET(req: Request) {
 }
 
 export async function PUT(req: Request) {
-  const parsed = ToggleSchema.safeParse(await req.json().catch(() => undefined));
+  const parsed = ShoppingToggleSchema.safeParse(await req.json().catch(() => undefined));
   if (!parsed.success) {
     return NextResponse.json({ error: 'id ve checked alanları zorunludur.' }, { status: 400 });
   }
@@ -47,7 +40,7 @@ export async function PUT(req: Request) {
 
 /** Haftalık listeyi plandan yeniden oluşturur (kiler stokları düşülerek). */
 export async function POST(req: Request) {
-  const parsed = GenerateSchema.safeParse((await req.json().catch(() => ({}))) ?? {});
+  const parsed = ShoppingGenerateSchema.safeParse((await req.json().catch(() => ({}))) ?? {});
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Geçersiz istek.' }, { status: 400 });
   }
