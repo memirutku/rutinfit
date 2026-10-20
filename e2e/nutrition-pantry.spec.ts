@@ -52,8 +52,11 @@ test.describe("Beslenme planı, kiler ve alışveriş listesi", () => {
     ).json();
 
     await page.goto("/pantry");
+    // ± iyimserdir (miktar anında değişir); API'yi okumadan önce PATCH yanıtı beklenir.
+    const patched = page.waitForResponse((r) => r.url().endsWith("/api/pantry") && r.request().method() === "PATCH");
     await page.getByRole("button", { name: `${name} miktarını artır` }).click();
     await expect(page.getByText("1,1 l").first()).toBeVisible();
+    expect((await patched).ok()).toBe(true);
 
     const after = (await (await api.get("/api/pantry")).json()).items.find((i: any) => i.id === item.id);
     expect(after).toMatchObject({ amount: 1.1, expiryDate: "2030-01-01", notes: "laktozsuz" });

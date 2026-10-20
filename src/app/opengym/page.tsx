@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   RefreshCw,
   CheckCircle2,
@@ -13,79 +13,60 @@ import {
 } from "lucide-react";
 import { MuscleHeatmap } from "@/components/MuscleHeatmap";
 import { PlateCalculator } from "@/components/PlateCalculator";
+import { ApiError, errorMessage } from "@/lib/client/api";
+import { useOpenGymStatus, useOpenGymSync } from "@/lib/client/queries/system";
+import { useImportWorkoutsCsv } from "@/lib/client/queries/workouts";
+
+interface ResultNotice {
+  success: boolean;
+  message: string;
+  /** CSV ayrıştırma hatalarının ayrıntısı (sunucu gönderirse). */
+  details?: unknown;
+}
 
 export default function OpenGymPortalPage() {
   const [activeTab, setActiveTab] = useState<
     "heatmap" | "plates" | "importer" | "status"
   >("heatmap");
-  const [status, setStatus] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<any>(null);
+  const statusQuery = useOpenGymStatus();
+  const status = statusQuery.data;
+  const loading = statusQuery.isFetching;
+  const sync = useOpenGymSync();
+  const syncing = sync.isPending;
+  const syncResult: ResultNotice | null = sync.isSuccess
+    ? sync.data
+    : sync.isError
+      ? { success: false, message: errorMessage(sync.error, "Senkronizasyon başarısız oldu.") }
+      : null;
 
   // CSV içe aktarma durumu
   const [csvText, setCsvText] = useState("");
-  const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<any>(null);
+  const csvImport = useImportWorkoutsCsv();
+  const importing = csvImport.isPending;
+  const [importResult, setImportResult] = useState<ResultNotice | null>(null);
 
-  useEffect(() => {
-    checkStatus();
-  }, []);
-
-  async function checkStatus() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/opengym/status");
-      const data = await res.json();
-      setStatus(data);
-    } catch (e: any) {
-      setStatus({ isOnline: false, error: e.message });
-    } finally {
-      setLoading(false);
-    }
+  // Senkronizasyon bitince (başarılı ya da değil) durum yeniden kontrol edilir (useOpenGymSync).
+  function handleSync() {
+    sync.mutate();
   }
 
-  async function handleSync() {
-    setSyncing(true);
-    setSyncResult(null);
-    try {
-      const res = await fetch("/api/opengym/sync", { method: "POST" });
-      const data = await res.json().catch(() => ({}));
-      setSyncResult(res.ok ? data : { success: false, message: data.error || "Senkronizasyon başarısız oldu." });
-      checkStatus();
-    } catch (e: any) {
-      setSyncResult({ success: false, message: e.message });
-    } finally {
-      setSyncing(false);
-    }
-  }
-
-  async function handleCsvImport() {
+  function handleCsvImport() {
     if (!csvText.trim()) return;
-    setImporting(true);
     setImportResult(null);
-    try {
-      const res = await fetch("/api/workouts/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ csvText }),
-      });
-      const data = await res.json();
-      if (res.ok) {
+    csvImport.mutate(csvText, {
+      onSuccess: (data) => {
         setImportResult({ success: true, message: data.message });
         setCsvText("");
-      } else {
+      },
+      onError: (err) => {
+        const body = err instanceof ApiError ? (err.body as { details?: unknown } | undefined) : undefined;
         setImportResult({
           success: false,
-          message: data.error || "Ayrıştırma hatası",
-          details: data.details,
+          message: errorMessage(err, "Ayrıştırma hatası"),
+          details: body?.details,
         });
-      }
-    } catch (err: any) {
-      setImportResult({ success: false, message: err.message });
-    } finally {
-      setImporting(false);
-    }
+      },
+    });
   }
 
   return (
