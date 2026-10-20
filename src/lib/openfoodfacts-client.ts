@@ -30,6 +30,11 @@ export interface ProductSearchResult {
 
 const USER_AGENT = 'RutinFit/1.0 (local-desktop; contact: support@rutinfit.app)';
 const DEFAULT_TIMEOUT_MS = 5000;
+
+/** Open Food Facts kök adresi. Testlerde sahte sunucuya yönlendirilebilir. */
+function offBaseUrl(): string {
+  return (process.env.OPENFOODFACTS_BASE_URL || 'https://world.openfoodfacts.org').replace(/\/+$/, '');
+}
 const CACHE_TTL_HOURS = 24;
 
 export const OFF_ATTRIBUTION =
@@ -156,7 +161,7 @@ export async function getProductByBarcode(barcode: string): Promise<ProductSearc
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 
-    const url = `https://world.openfoodfacts.org/api/v3/product/${cleanBarcode}.json`;
+    const url = `${offBaseUrl()}/api/v3/product/${cleanBarcode}.json`;
     let res: Response;
     try {
       res = await fetch(url, {
@@ -282,7 +287,7 @@ export async function searchProductsByName(query: string): Promise<ProductSearch
   }
 
   try {
-    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(cleanQuery)}&search_simple=1&action=process&json=1&page_size=20`;
+    const url = `${offBaseUrl()}/cgi/search.pl?search_terms=${encodeURIComponent(cleanQuery)}&search_simple=1&action=process&json=1&page_size=20`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
     let res: Response;

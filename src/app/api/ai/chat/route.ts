@@ -1,23 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { z } from 'zod';
 import { calculateDailySummary } from '@/lib/nutrition-calculator';
 import { AIActionResponseSchema } from '@/lib/ai-schema';
 import { getOpenGymSummary } from '@/lib/ai-tools/read-tools';
 import { createActionDraft } from '@/lib/ai-tools/action-tools';
 import { calculateRecipeNutrition } from '@/lib/ai-tools/draft-tools';
 import { getLocalDateString } from '@/lib/date-utils';
-
-const ChatMessageSchema = z.object({
-  role: z.enum(['user', 'assistant']), // Client is strictly forbidden from injecting 'system' role
-  content: z.string().max(4000, 'Mesaj en fazla 4000 karakter olabilir.'),
-});
-
-const ChatRequestSchema = z.object({
-  messages: z.array(ChatMessageSchema).max(30, 'En fazla 30 mesaj geçmişi gönderilebilir.'),
-  conversationId: z.string().optional(),
-  fileIds: z.array(z.string()).optional(),
-});
+import { ChatRequestSchema } from '@/lib/schemas/chat';
 
 // GET: Retrieve conversation list or conversation history
 export async function GET(req: Request) {

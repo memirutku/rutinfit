@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { resetDatabase } from "./helpers/db";
 import { prisma } from "../src/lib/prisma";
 import { GET as exportBackup } from "../src/app/api/backup/export/route";
 import { POST as importBackup } from "../src/app/api/backup/import/route";
@@ -7,11 +8,7 @@ describe("Yedekleme ve Geri Yükleme Tam Döngü (Round-Trip) Bütünlük Testi"
   const TEST_DATE = "2026-10-18";
   const TEST_PREFIX = "TEST_ROUNDTRIP_";
 
-  beforeEach(async () => {
-    // Test öncesi temizlik
-    await prisma.foodLog.deleteMany({ where: { name: { startsWith: TEST_PREFIX } } });
-    await prisma.pantryItem.deleteMany({ where: { name: { startsWith: TEST_PREFIX } } });
-  });
+  beforeEach(resetDatabase);
 
   it("dışa aktarılan verilerin tüm tabloları ve Kiler (Pantry) kayıtlarını içermesini doğrulamalı", async () => {
     // 1. Örnek kiler ve besin kaydı oluştur

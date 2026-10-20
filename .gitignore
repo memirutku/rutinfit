@@ -39,3 +39,8 @@ yarn-error.log*
 # OS Files
 .DS_Store
 Thumbs.db
+
+# Test outputs
+coverage/
+test-results/
+playwright-report/

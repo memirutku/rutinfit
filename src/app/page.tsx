@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { RECENT_FOODS_KEY, parseRecentFoods, pushRecentFood, type RecentFood } from "@/lib/recent-foods";
+import { buildRestorePayload } from "@/lib/food-log-restore";
 import {
   Flame,
   CheckCircle2,
@@ -46,7 +48,7 @@ export default function DashboardPage() {
   const [quickGrams, setQuickGrams] = useState("100");
 
   // Son kullanılan besinler ve Geri Alma (Undo) state'i
-  const [recentFoods, setRecentFoods] = useState<{ id: string; name: string; defaultGrams: number }[]>([]);
+  const [recentFoods, setRecentFoods] = useState<RecentFood[]>([]);
   const [undoToast, setUndoToast] = useState<{
     id: string;
     name: string;
@@ -123,10 +125,7 @@ export default function DashboardPage() {
   useEffect(() => {
     loadAllData();
     try {
-      const saved = localStorage.getItem("rutinfit_recent_foods");
-      if (saved) {
-        setRecentFoods(JSON.parse(saved));
-      }
+      setRecentFoods(parseRecentFoods(localStorage.getItem(RECENT_FOODS_KEY)));
     } catch {
       // ignore
     }
@@ -274,13 +273,14 @@ export default function DashboardPage() {
       if (res.ok) {
         const created = await res.json();
         // Son kullanılanlara ekle
-        const updatedRecent = [
-          { id: food.id, name: food.name, defaultGrams: gramsNum },
-          ...recentFoods.filter((rf) => rf.id !== food.id),
-        ].slice(0, 5);
+        const updatedRecent = pushRecentFood(recentFoods, {
+          id: food.id,
+          name: food.name,
+          defaultGrams: gramsNum,
+        });
         setRecentFoods(updatedRecent);
         try {
-          localStorage.setItem("rutinfit_recent_foods", JSON.stringify(updatedRecent));
+          localStorage.setItem(RECENT_FOODS_KEY, JSON.stringify(updatedRecent));
         } catch {
           // ignore
         }
@@ -331,19 +331,7 @@ export default function DashboardPage() {
         name: log.name,
         calories: log.caloriesSnapshot,
         action: "deleted",
-        payload: {
-          date: log.date,
-          time: log.time,
-          mealType: log.mealType,
-          foodItemId: log.foodItemId,
-          recipeId: log.recipeId,
-          name: log.name,
-          grams: log.grams,
-          caloriesSnapshot: log.caloriesSnapshot,
-          proteinSnapshot: log.proteinSnapshot,
-          carbsSnapshot: log.carbsSnapshot,
-          fatSnapshot: log.fatSnapshot,
-        },
+        payload: buildRestorePayload(log),
       });
       setTimeout(() => {
         setUndoToast((curr) => (curr?.id === log.id ? null : curr));

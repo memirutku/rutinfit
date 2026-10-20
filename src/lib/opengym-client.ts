@@ -66,7 +66,7 @@ export function getOpenGymDataDir(): string {
  * openGym HTTP API sağlık durumunu kontrol eder.
  */
 export async function checkOpenGymHealth(
-  baseUrl = "http://localhost:8080"
+  baseUrl = process.env.OPENGYM_BASE_URL || "http://localhost:8080"
 ): Promise<OpenGymHealth> {
   try {
     const controller = new AbortController();

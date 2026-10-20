@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { resetDatabase } from './helpers/db';
+import { createFood } from './helpers/factories';
 import { prisma } from '../src/lib/prisma';
 import {
   createActionDraft,
@@ -9,12 +11,7 @@ import {
 } from '../src/lib/ai-tools';
 
 describe('AI Tools & Action Draft Engine', () => {
-  beforeEach(async () => {
-    // Clean up test action drafts and food logs created during testing
-    await prisma.actionDraft.deleteMany({
-      where: { impactSummary: { contains: 'TEST_' } },
-    });
-  });
+  beforeEach(resetDatabase);
 
   it('should create an ActionDraft with approval token and hash', async () => {
     const draft = await createActionDraft({
@@ -101,10 +98,6 @@ describe('AI Tools & Action Draft Engine', () => {
     expect(audit).not.toBeNull();
     expect(audit?.actionType).toBe('APPLY_DRAFT');
 
-    // Cleanup created test log
-    if (createdLog) {
-      await prisma.foodLog.delete({ where: { id: createdLog.id } });
-    }
   });
 
   it('should handle draft rejection gracefully', async () => {
@@ -125,14 +118,27 @@ describe('AI Tools & Action Draft Engine', () => {
   });
 
   it('should deterministically calculate recipe ingredients with nutrition calculator', async () => {
+    await createFood({ name: 'Yumurta', basisGrams: 100, calories: 155, proteinG: 13, carbsG: 1.1, fatG: 11 });
+    await createFood({ name: 'Yulaf', basisGrams: 100, calories: 380, proteinG: 13, carbsG: 60, fatG: 7 });
+
     const result = await calculateRecipeNutrition([
       { name: 'Yumurta', grams: 100 },
       { name: 'Yulaf', grams: 50 },
     ]);
 
-    expect(result.totalCalories).toBeGreaterThanOrEqual(0);
-    expect(result.totalProteinG).toBeGreaterThanOrEqual(0);
-    expect(Array.isArray(result.itemized)).toBe(true);
+    expect(result.totalCalories).toBe(345); // 155 + 190
+    expect(result.totalProteinG).toBe(19.5); // 13 + 6.5
+    expect(result.totalCarbsG).toBe(31.1);
+    expect(result.totalFatG).toBe(14.5);
+    expect(result.itemized.every((i: any) => i.foundInDb)).toBe(true);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('should warn and contribute zero for an ingredient missing from the catalog', async () => {
+    const result = await calculateRecipeNutrition([{ name: 'Olmayan Besin', grams: 100 }]);
+    expect(result.totalCalories).toBe(0);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.itemized[0].foundInDb).toBe(false);
   });
 
   it('should compute shopping list delta accurately', async () => {
@@ -142,7 +148,10 @@ describe('AI Tools & Action Draft Engine', () => {
     ]);
 
     expect(delta.totalPlanned).toBe(2);
-    expect(delta.newItemsToAdd.length).toBeGreaterThanOrEqual(1);
+    // Kiler ve alışveriş listesi boş: iki malzemenin ikisi de eklenecek.
+    expect(delta.coveredByPantry).toBe(0);
+    expect(delta.newItemsToAdd.map((i) => i.name)).toEqual(['Somon Balığı Test', 'Kuşkonmaz Test']);
+    expect(delta.newItemsToAdd[0].amount).toBe(400);
     expect(delta.impactSummary).toContain('Alışveriş listesine');
   });
 
