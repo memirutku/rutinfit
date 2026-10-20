@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { apiError } from "@/lib/api-error";
 import { z } from "zod";
 import { calculateRecipePortion } from "@/lib/nutrition-calculator";
 import { addDaysToDateString } from "@/lib/date-utils";
@@ -134,11 +135,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(plan);
-  } catch (error: any) {
-    console.error("MealPlan POST error:", error);
-    return NextResponse.json(
-      { error: error.message || "Yemek planı kaydedilemedi" },
-      { status: 400 }
-    );
+  } catch (error) {
+    return apiError(error, "Yemek planı kaydedilemedi", "MealPlan POST");
   }
 }

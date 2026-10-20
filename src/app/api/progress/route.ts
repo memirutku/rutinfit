@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { apiError } from "@/lib/api-error";
 import { z } from "zod";
 import { addDaysToDateString, getLocalDateString } from "@/lib/date-utils";
 import { computeWeeklyDelta, computeWeightTrend, lastNDates } from "@/lib/services/progress";
@@ -143,11 +144,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true, date: data.date });
-  } catch (error: any) {
-    console.error("Progress POST error:", error);
-    return NextResponse.json(
-      { error: error.message || "İlerleme kaydedilemedi" },
-      { status: 400 }
-    );
+  } catch (error) {
+    return apiError(error, "İlerleme kaydedilemedi", "Progress POST");
   }
 }

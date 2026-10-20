@@ -5,7 +5,7 @@ import { AIActionResponseSchema } from '@/lib/ai-schema';
 import { getOpenGymSummary } from '@/lib/ai-tools/read-tools';
 import { createActionDraft } from '@/lib/ai-tools/action-tools';
 import { calculateRecipeNutrition } from '@/lib/ai-tools/draft-tools';
-import { getLocalDateString } from '@/lib/date-utils';
+import { getLocalDateString, getLocalWeekday } from '@/lib/date-utils';
 import { ChatRequestSchema } from '@/lib/schemas/chat';
 import { checkAIBaseUrl, shouldSendOpenAIKey, DEFAULT_AI_BASE_URL } from '@/lib/security/ai-endpoint';
 import { buildUntrustedFileBlock, artifactPromptText } from '@/lib/file-parsers/sanitizer';
@@ -97,7 +97,7 @@ export async function POST(req: Request) {
     );
 
     // Günün antrenman bilgisi
-    const dayOfWeek = new Date().getDay() || 7; // 1-7
+    const dayOfWeek = getLocalWeekday(); // 1 = Pzt ... 7 = Paz (uygulama saat dilimi)
     const todayTemplate = await prisma.workoutTemplate.findFirst({
       where: { dayOfWeek },
     });

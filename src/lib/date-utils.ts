@@ -8,12 +8,41 @@
 
 export const DEFAULT_TIMEZONE = 'Europe/Istanbul';
 
+function isValidTimeZone(tz: string | undefined): tz is string {
+  if (!tz) return false;
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Uygulamanın "bugün" hesabında kullandığı saat dilimi.
+ * Sunucu ve arayüz aynı bilgisayarda çalıştığı için sistem saat dilimi esas alınır; böylece
+ * sunucudaki tarih anahtarı ile arayüzdeki saat aynı bölgeye göre hesaplanır.
+ * Öncelik: RUTINFIT_TIMEZONE → sistem → Europe/Istanbul.
+ */
+export function appTimeZone(): string {
+  const fromEnv = typeof process !== 'undefined' ? process.env?.RUTINFIT_TIMEZONE : undefined;
+  if (isValidTimeZone(fromEnv)) return fromEnv;
+  const system = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return isValidTimeZone(system) ? system : DEFAULT_TIMEZONE;
+}
+
+/** Bugünün haftanın günü: 1 = Pazartesi ... 7 = Pazar (uygulama saat dilimine göre). */
+export function getLocalWeekday(input?: Date | string | number | null, timeZone: string = appTimeZone()): number {
+  const [y, m, d] = getLocalDateString(input, timeZone).split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay() || 7;
+}
+
 /**
  * Verilen tarihi veya anı 'YYYY-MM-DD' formatında yerel tarih dizesine dönüştürür.
  */
 export function getLocalDateString(
   input?: Date | string | number | null,
-  timeZone: string = DEFAULT_TIMEZONE
+  timeZone: string = appTimeZone()
 ): string {
   const date = input ? new Date(input) : new Date();
 
@@ -36,7 +65,7 @@ export function getLocalDateString(
  */
 export function getLocalTimeString(
   input?: Date | string | number | null,
-  timeZone: string = DEFAULT_TIMEZONE
+  timeZone: string = appTimeZone()
 ): string {
   const date = input ? new Date(input) : new Date();
 

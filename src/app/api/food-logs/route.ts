@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { apiError } from "@/lib/api-error";
 import {
   calculateDailySummary,
   calculatePortionMacros,
@@ -8,7 +9,7 @@ import {
   calculateRecipePortion,
   scaleMacros,
 } from "@/lib/nutrition-calculator";
-import { getLocalDateString } from "@/lib/date-utils";
+import { getLocalDateString, isDateString } from "@/lib/date-utils";
 
 const FoodLogCreateSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -33,6 +34,9 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const date = searchParams.get("date") || getLocalDateString();
+    if (!isDateString(date)) {
+      return NextResponse.json({ error: "date YYYY-AA-GG olmalıdır." }, { status: 400 });
+    }
 
     const logs = await prisma.foodLog.findMany({
       where: { date },
@@ -80,11 +84,7 @@ export async function GET(req: Request) {
       targets,
     });
   } catch (error) {
-    console.error("FoodLog GET error:", error);
-    return NextResponse.json(
-      { error: "Kayıtlar getirilemedi" },
-      { status: 500 }
-    );
+    return apiError(error, "Kayıtlar getirilemedi", "FoodLog GET");
   }
 }
 
@@ -156,12 +156,8 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(created, { status: 201 });
-  } catch (error: any) {
-    console.error("FoodLog POST error:", error);
-    return NextResponse.json(
-      { error: error.message || "Öğün kaydedilemedi" },
-      { status: 400 }
-    );
+  } catch (error) {
+    return apiError(error, "Öğün kaydedilemedi", "FoodLog POST");
   }
 }
 
@@ -179,10 +175,6 @@ export async function DELETE(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("FoodLog DELETE error:", error);
-    return NextResponse.json(
-      { error: "Kayıt silinemedi" },
-      { status: 500 }
-    );
+    return apiError(error, "Kayıt silinemedi", "FoodLog DELETE");
   }
 }

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { apiError } from "@/lib/api-error";
+import { includesTr } from "@/lib/text";
 
 const FoodItemSchema = z.object({
   name: z.string().min(1),
@@ -12,6 +14,14 @@ const FoodItemSchema = z.object({
   fatG: z.number().nonnegative(),
   source: z.string().default("Kullanıcı"),
   confidence: z.string().default("Yüksek"),
+  brand: z.string().trim().max(120).optional().nullable(),
+  barcode: z
+    .string()
+    .transform((v) => v.replace(/[^0-9]/g, ""))
+    .refine((v) => v.length === 0 || (v.length >= 6 && v.length <= 14), "Barkod 6–14 haneli olmalıdır.")
+    .transform((v) => v || null)
+    .optional()
+    .nullable(),
 });
 
 export async function GET(req: Request) {
@@ -22,27 +32,17 @@ export async function GET(req: Request) {
     const limitParam = searchParams.get("limit");
     const take = limitParam ? Math.min(Math.max(1, parseInt(limitParam, 10) || 50), 200) : 100;
 
-    const where: any = {};
-    if (search) {
-      where.name = { contains: search };
-    }
-    if (category) {
-      where.category = category;
-    }
-
-    const foods = await prisma.foodItem.findMany({
-      where,
+    // SQLite LIKE yalnız ASCII'de büyük/küçük harf duyarsızdır; Türkçe arama bellekte yapılır
+    // (katalog küçük: birkaç yüz kayıt).
+    const all = await prisma.foodItem.findMany({
+      where: category ? { category } : undefined,
       orderBy: { name: "asc" },
-      take,
     });
+    const foods = (search ? all.filter((f) => includesTr(f.name, search) || includesTr(f.brand, search)) : all).slice(0, take);
 
     return NextResponse.json(foods);
   } catch (error) {
-    console.error("Foods GET error:", error);
-    return NextResponse.json(
-      { error: "Besinler getirilemedi" },
-      { status: 500 }
-    );
+    return apiError(error, "Besinler getirilemedi", "Foods GET");
   }
 }
 
@@ -56,11 +56,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(created, { status: 201 });
-  } catch (error: any) {
-    console.error("Foods POST error:", error);
-    return NextResponse.json(
-      { error: error.message || "Besin kaydedilemedi" },
-      { status: 400 }
-    );
+  } catch (error) {
+    return apiError(error, "Besin kaydedilemedi", "Foods POST");
   }
 }
