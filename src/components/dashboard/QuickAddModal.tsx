@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { MEAL_TYPES, MEAL_TYPE_LABELS, type MealType } from "@/lib/schemas/enums";
 import type { RecentFood } from "@/lib/recent-foods";
@@ -48,15 +48,20 @@ export function QuickAddModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    setMealType(initialMealType);
-    setError(null);
-  }, [open, initialMealType]);
+  // Her açılışta (ve açıkken öğün türü değişince) öğün türü ve hata sıfırlanır. Effect yerine
+  // render sırasında ayarlanır: eski değerle bir kare çizilip hemen yeniden render edilmez.
+  const openedWith = open ? initialMealType : null;
+  const [lastOpenedWith, setLastOpenedWith] = useState(openedWith);
+  if (openedWith !== lastOpenedWith) {
+    setLastOpenedWith(openedWith);
+    if (openedWith !== null) {
+      setMealType(openedWith);
+      setError(null);
+    }
+  }
 
-  useEffect(() => {
-    if (open && !foodId && foods.length > 0) setFoodId(foods[0].id);
-  }, [open, foods, foodId]);
+  // Seçim yoksa listedeki ilk besin seçilir (seçim kapanıp açılınca korunur).
+  if (open && !foodId && foods.length > 0) setFoodId(foods[0].id);
 
   // Son kullanılan bir besin 50'lik listede olmasa da seçilebilir (ad yerelden gelir).
   const recentOutsideList = recentFoods.filter((r) => !foods.some((f) => f.id === r.id));

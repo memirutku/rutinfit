@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 interface ModalProps {
@@ -20,8 +20,8 @@ export function Modal({ open, onClose, title, description, children, widthClass 
   const titleId = useId();
   const descId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  // Effect yalnız `open` değişince yeniden kurulur; Esc her zaman güncel onClose'u çağırır.
+  const closeFromKey = useEffectEvent(() => onClose());
 
   useEffect(() => {
     if (!open) return;
@@ -38,7 +38,7 @@ export function Modal({ open, onClose, title, description, children, widthClass 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onCloseRef.current();
+        closeFromKey();
       } else if (e.key === "Tab") {
         const els = focusables();
         if (els.length === 0) return;

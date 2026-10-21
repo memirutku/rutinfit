@@ -22,6 +22,18 @@ describe("UndoToast", () => {
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
+  it("süre dolunca en son verilen onDismiss çağrılır; yeni callback zamanlayıcıyı yeniden başlatmaz", () => {
+    const toast = { key: "a", name: "Yulaf", action: "added" as const };
+    const first = vi.fn();
+    const second = vi.fn();
+    const { rerender } = render(<UndoToast toast={toast} onUndo={vi.fn()} onDismiss={first} />);
+    act(() => vi.advanceTimersByTime(5000));
+    rerender(<UndoToast toast={toast} onUndo={vi.fn()} onDismiss={second} />);
+    act(() => vi.advanceTimersByTime(2000));
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledTimes(1);
+  });
+
   it("Geri Al ve kapat düğmeleri çalışır; kapat düğmesinin erişilebilir adı vardır", async () => {
     const onUndo = vi.fn().mockResolvedValue(undefined);
     const onDismiss = vi.fn();
@@ -45,6 +57,56 @@ describe("QuickAddModal", () => {
     expect(screen.getByRole("dialog", { name: "Hızlı Öğün Kaydı" })).toBeTruthy();
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("Esc, modal açıkken değişen en son onClose'u çağırır", () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const props = { open: true, foods, isLoadingFoods: false, recentFoods: [], onSubmit: vi.fn() };
+    const { rerender } = render(<QuickAddModal {...props} onClose={first} />);
+    rerender(<QuickAddModal {...props} onClose={second} />);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledTimes(1);
+  });
+
+  it("her açılışta öğün türü ve hata sıfırlanır; besin seçimi korunur", async () => {
+    const props = {
+      onClose: vi.fn(),
+      foods,
+      isLoadingFoods: false,
+      recentFoods: [],
+      initialMealType: "dinner" as const,
+      onSubmit: vi.fn().mockRejectedValue(new Error("Sunucu hatası")),
+    };
+    const { rerender } = render(<QuickAddModal open {...props} />);
+    const meal = () => screen.getByLabelText<HTMLSelectElement>("Öğün Türü").value;
+    const food = () => screen.getByLabelText<HTMLSelectElement>("Besin Seçin").value;
+    expect(meal()).toBe("dinner");
+    expect(food()).toBe("f1"); // ilk besin kendiliğinden seçilir
+
+    fireEvent.change(screen.getByLabelText("Öğün Türü"), { target: { value: "breakfast" } });
+    fireEvent.change(screen.getByLabelText("Besin Seçin"), { target: { value: "f2" } });
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Ekle" })));
+    expect(screen.getByRole("alert")).toBeTruthy();
+
+    rerender(<QuickAddModal open={false} {...props} />);
+    rerender(<QuickAddModal open {...props} />);
+    expect(meal()).toBe("dinner");
+    expect(food()).toBe("f2");
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    // Açıkken başka bir öğün için açılırsa seçim ona uyar.
+    rerender(<QuickAddModal open {...props} initialMealType="workSnack" />);
+    expect(meal()).toBe("workSnack");
+  });
+
+  it("besinler sonradan yüklenince ilk besin seçilir", () => {
+    const props = { open: true, onClose: vi.fn(), recentFoods: [], onSubmit: vi.fn() };
+    const { rerender } = render(<QuickAddModal {...props} foods={[]} isLoadingFoods />);
+    expect(screen.getByLabelText<HTMLSelectElement>("Besin Seçin").value).toBe("");
+    rerender(<QuickAddModal {...props} foods={foods} isLoadingFoods={false} />);
+    expect(screen.getByLabelText<HTMLSelectElement>("Besin Seçin").value).toBe("f1");
   });
 
   it("etiketli alanlarla seçilen değerleri gönderir", async () => {

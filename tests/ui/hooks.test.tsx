@@ -1,4 +1,6 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, render, renderHook } from "@testing-library/react";
+import { hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCountdown } from "@/hooks/useCountdown";
 import { useToday } from "@/hooks/useToday";
@@ -46,6 +48,32 @@ describe("useCountdown", () => {
     expect(result.current.secondsLeft).toBe(70);
   });
 
+  it("pencere öne gelince (visibilitychange) kalan süre sonraki tiki beklemeden güncellenir", () => {
+    const { result } = renderHook(() => useCountdown());
+    act(() => result.current.start(120));
+    act(() => {
+      vi.setSystemTime(Date.now() + 50_000); // zamanlayıcılar hiç çalışmadı
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(result.current).toMatchObject({ secondsLeft: 70, isRunning: true });
+  });
+
+  it("süre bitince en son verilen onFinish çağrılır (sayaç yeniden başlamaz)", () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const { result, rerender } = renderHook(({ onFinish }) => useCountdown(onFinish), {
+      initialProps: { onFinish: first },
+    });
+    act(() => result.current.start(2));
+    act(() => vi.advanceTimersByTime(1000));
+    rerender({ onFinish: second });
+    expect(result.current.secondsLeft).toBe(1);
+    act(() => vi.advanceTimersByTime(1000));
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(result.current.isRunning).toBe(false);
+  });
+
   it("reset sayacı sıfırlar", () => {
     const { result } = renderHook(() => useCountdown());
     act(() => result.current.start(60));
@@ -81,5 +109,81 @@ describe("useLocalStorage", () => {
     act(() => result.current[1](5));
     expect(result.current[0]).toBe(5);
     spy.mockRestore();
+  });
+
+  it("art arda fonksiyonel güncellemeler birikir; aynı anahtarı okuyan bileşenler eşit kalır", () => {
+    const a = renderHook(() => useLocalStorage("sayi", 0));
+    const b = renderHook(() => useLocalStorage("sayi", 0));
+    act(() => {
+      a.result.current[1]((p) => p + 1);
+      a.result.current[1]((p) => p + 1);
+    });
+    expect(a.result.current[0]).toBe(2);
+    expect(b.result.current[0]).toBe(2);
+    expect(localStorage.getItem("sayi")).toBe("2");
+  });
+
+  it("değer ve setter render'lar arasında sabit kalır; yazılan nesnenin kimliği korunur", () => {
+    // `[]` her render'da yeni bir dizi: ilk değer yine de sabit kalmalı (effect bağımlılıkları için).
+    const { result, rerender } = renderHook(() => useLocalStorage<{ n: number }[]>("liste", []));
+    const [first, setter] = result.current;
+    rerender();
+    expect(result.current[0]).toBe(first);
+    expect(result.current[1]).toBe(setter);
+
+    const next = [{ n: 1 }];
+    act(() => setter(next));
+    rerender();
+    expect(result.current[0]).toBe(next);
+    expect(result.current[1]).toBe(setter);
+  });
+
+  it("verilen parse ile okur", () => {
+    localStorage.setItem("parse", JSON.stringify({ items: [1, 2] }));
+    const parse = (raw: string) => (JSON.parse(raw) as { items: number[] }).items;
+    const { result } = renderHook(() => useLocalStorage<number[]>("parse", [], parse));
+    expect(result.current[0]).toEqual([1, 2]);
+  });
+
+  it("istemcide (hydration olmadan) ilk render kayıtlı değeri gösterir", () => {
+    localStorage.setItem("ilk", JSON.stringify("kayıtlı"));
+    const seen: string[] = [];
+    function Probe() {
+      const [value] = useLocalStorage("ilk", "varsayılan");
+      seen.push(value);
+      return null;
+    }
+    render(<Probe />);
+    expect(seen[0]).toBe("kayıtlı");
+  });
+
+  it("sunucu HTML'i ve hydration `initial` kullanır; kayıtlı değer hydration'dan sonra gelir, uyuşmazlık olmaz", async () => {
+    localStorage.setItem("ssr", JSON.stringify("kayıtlı"));
+    function Stored() {
+      const [value] = useLocalStorage("ssr", "varsayılan");
+      return <span>{value}</span>;
+    }
+
+    const getItem = vi.spyOn(Storage.prototype, "getItem");
+    const html = renderToString(<Stored />);
+    expect(html).toContain("varsayılan");
+    expect(getItem).not.toHaveBeenCalled(); // sunucu render'ı localStorage'a dokunmaz
+    getItem.mockRestore();
+
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    document.body.appendChild(container);
+    const recoverable = vi.fn();
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    let root: Root | undefined;
+    await act(async () => {
+      root = hydrateRoot(container, <Stored />, { onRecoverableError: recoverable });
+    });
+    expect(container.textContent).toBe("kayıtlı");
+    expect(recoverable).not.toHaveBeenCalled();
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+    act(() => root?.unmount());
+    container.remove();
   });
 });

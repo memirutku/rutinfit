@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 
 export interface Countdown {
   secondsLeft: number;
@@ -15,33 +15,37 @@ export interface Countdown {
 /**
  * Duvar saatine dayalı geri sayım. Kalan süre her tikte bitiş anından hesaplanır;
  * tarayıcı arka plandaki pencerenin zamanlayıcılarını yavaşlatsa da süre kaymaz.
+ * Render saf kalır: saat (`Date.now()`) yalnız olaylarda ve tikte okunup `now` durumuna yazılır.
  */
 export function useCountdown(onFinish?: () => void): Countdown {
   const endAtRef = useRef<number | null>(null);
   const pausedMsRef = useRef(0);
-  const onFinishRef = useRef(onFinish);
-  onFinishRef.current = onFinish;
 
   const [endAt, setEndAt] = useState<number | null>(null);
   const [pausedMs, setPausedMs] = useState(0);
   const [totalSeconds, setTotalSeconds] = useState(0);
-  const [, setTick] = useState(0);
+  const [now, setNow] = useState(0);
 
-  const apply = useCallback((nextEndAt: number | null, nextPausedMs: number) => {
+  const apply = useCallback((nextEndAt: number | null, nextPausedMs: number, at: number) => {
     endAtRef.current = nextEndAt;
     pausedMsRef.current = nextPausedMs;
     setEndAt(nextEndAt);
     setPausedMs(nextPausedMs);
+    setNow(at);
   }, []);
+
+  // Effect her render'da yeniden kurulmaz; bitişte o anki onFinish çağrılır.
+  const finish = useEffectEvent(() => onFinish?.());
 
   useEffect(() => {
     if (endAt === null) return;
     const tick = () => {
-      if (Date.now() >= endAt) {
-        apply(null, 0);
-        onFinishRef.current?.();
+      const at = Date.now();
+      if (at >= endAt) {
+        apply(null, 0, at);
+        finish();
       } else {
-        setTick((t) => t + 1);
+        setNow(at);
       }
     };
     const id = setInterval(tick, 250);
@@ -54,25 +58,28 @@ export function useCountdown(onFinish?: () => void): Countdown {
 
   const start = useCallback(
     (seconds: number) => {
+      const at = Date.now();
       setTotalSeconds(seconds);
-      apply(Date.now() + seconds * 1000, 0);
+      apply(at + seconds * 1000, 0, at);
     },
     [apply]
   );
 
   const pause = useCallback(() => {
     if (endAtRef.current === null) return;
-    apply(null, Math.max(0, endAtRef.current - Date.now()));
+    const at = Date.now();
+    apply(null, Math.max(0, endAtRef.current - at), at);
   }, [apply]);
 
   const resume = useCallback(() => {
     if (endAtRef.current !== null || pausedMsRef.current <= 0) return;
-    apply(Date.now() + pausedMsRef.current, 0);
+    const at = Date.now();
+    apply(at + pausedMsRef.current, 0, at);
   }, [apply]);
 
-  const reset = useCallback(() => apply(null, 0), [apply]);
+  const reset = useCallback(() => apply(null, 0, Date.now()), [apply]);
 
-  const remainingMs = endAt !== null ? Math.max(0, endAt - Date.now()) : pausedMs;
+  const remainingMs = endAt !== null ? Math.max(0, endAt - now) : pausedMs;
   return {
     secondsLeft: Math.ceil(remainingMs / 1000),
     totalSeconds,

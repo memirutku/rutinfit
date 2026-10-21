@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { RotateCcw, X } from "lucide-react";
 
 export interface UndoToastData {
@@ -24,12 +24,12 @@ interface UndoToastProps {
  */
 export function UndoToast({ toast, onUndo, onDismiss, durationMs = 7000 }: UndoToastProps) {
   const [busy, setBusy] = useState(false);
-  const onDismissRef = useRef(onDismiss);
-  onDismissRef.current = onDismiss;
+  // Zamanlayıcı yalnız yeni bildirimde yeniden başlar; süre dolunca güncel onDismiss çağrılır.
+  const dismissOnTimeout = useEffectEvent(() => onDismiss());
 
   useEffect(() => {
     if (!toast) return;
-    const id = setTimeout(() => onDismissRef.current(), durationMs);
+    const id = setTimeout(() => dismissOnTimeout(), durationMs);
     return () => clearTimeout(id);
   }, [toast, durationMs]);
 
