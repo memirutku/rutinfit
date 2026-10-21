@@ -6,6 +6,7 @@ import {
   sanitizeExtractedText,
   classifyContent,
 } from '../src/lib/file-parsers';
+import { minimalPdf } from '../scripts/lib/minimal-pdf.cjs';
 
 describe('File Parsers & Security Pipeline', () => {
   it('should correctly sanitize text and detect prompt injection attempts', () => {
@@ -89,6 +90,21 @@ describe('File Parsers & Security Pipeline', () => {
     expect(result.structuredData.sheetNames).toContain('Bacak');
     expect(result.structuredData.totalRows).toBe(2);
     expect(result.isValidSignature).toBe(true);
+  });
+
+  // Ayrıştırıcının kendisini sınar; paketli sunucudaki karşılığı e2e/files-upload.spec.ts.
+  it('should extract text from a PDF', async () => {
+    const text = 'Kahvalti: yulaf 80 g, sut 200 ml. Protein 25 g.';
+    const result = await parseFile({
+      buffer: minimalPdf(text),
+      originalName: 'ogun.pdf',
+      mimeType: 'application/pdf',
+    });
+
+    expect(result.uncertainties.filter((u) => u.includes('PDF'))).toEqual([]);
+    expect(result.rawText).toContain(text);
+    expect(result.structuredData.pageCount).toBe(1);
+    expect(result.metadata?.format).toBe('pdf');
   });
 
   it('should disclose lack of vision when model has no vision capability', async () => {

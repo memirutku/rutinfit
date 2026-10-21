@@ -282,7 +282,7 @@ Testler gerçek veritabanınıza **hiçbir zaman** yazmaz; yerel AI ve Open Food
   (yalnız izin listesindeki girdiler: `server.js`, `package.json`, `.next`, `node_modules`, `prisma/migrations`),
   pakette kullanıcı verisi veya gizli dosya olmadığını doğrular, Node 22 çalışma zamanını
   (sabit sürüm, SHA-256 doğrulamalı) `src-tauri/binaries/` altına indirir ve SQLite yerel eklentisinin
-  bu Node ile yüklendiğini denetler.
+  bu Node ile yüklendiğini, PDF'den metin çıkarmanın da bu Node ile paketteki dosyalarla çalıştığını denetler.
   Çıktı: `src-tauri/target/release/bundle/` (`macos/RutinFit.app`, `dmg/RutinFit_*.dmg`). Paketler şu an imzasızdır.
 
 #### 5. Çatı Sürümleri ve Yükseltme Notları
@@ -311,8 +311,10 @@ Next.js 16.4, Prisma 7.10 ve Vitest 5.0 kullanılır (Ekim 2026'da 15.5 / 6.19 /
 * Vite 8 artık açık bağımlılık; yapılandırma `vitest.config.mts` (ESM), JSX dönüşümü `oxc` ile.
 * Yeni varsayılanlar (`clearMocks: true`, satır içi projelerde ortak Vite sunucusu) test değişikliği gerektirmedi.
 
-**Bilinen sorun (yükseltmeden önce de vardı):** paketli/standalone sunucuda PDF'den metin çıkarılamıyor
-(Next 15'te `pdf.worker.mjs` bulunamadı, Next 16'da `DOMMatrix` tanımsız: `@napi-rs/canvas` pakete izlenmiyor). Testler PDF ayrıştırmayı Node'da doğrudan sınadığı için bunu yakalamıyor.
+**PDF ayrıştırma paketli sunucuda (pdf-parse)**
+* `pdf-parse` (içinde pdfjs) `serverExternalPackages`'ta. Turbopack onu sunucu parçasına gömünce `@napi-rs/canvas`'ı (`createRequire(__filename)`) ve `./pdf.worker.mjs`'i (kendi klasörüne göreli) bulamıyordu: standalone sunucuda ve masaüstü uygulamasında PDF'den metin çıkmıyordu (Next 15'te "Setting up fake worker failed", Next 16'da "DOMMatrix is not defined"). Düz Node'da çalıştığı için birim testleri bunu yakalamıyordu.
+* Dosya izleyicinin göremediği bu iki parça `outputFileTracingIncludes` ile `/api/files/upload` izine eklenir. `@napi-rs/canvas*` platforma özgü yerel eklentiyi de kapsar (macOS arm64: `skia.darwin-arm64.node`, 23 MB).
+* Korumalar: `e2e/files-upload.spec.ts` standalone sunucuya PDF yükleyip çıkan metni bekler; `scripts/prepare-desktop.mjs` paketteki pdf-parse'ı gömülü Node ile çalıştırır ve paket dışından modül yüklenirse derlemeyi durdurur.
 
 ---
 
