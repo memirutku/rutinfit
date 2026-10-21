@@ -96,6 +96,12 @@ flowchart TD
 2. **Sunucu Taraflı Ağır Kütüphaneler:** `pdf-parse`, `xlsx` ve `mammoth` gibi dosya okuyucu kütüphaneler tarayıcı ortamında hantal kalırken, Next.js sunucu tarafında yüksek hızda ve güvenli bellek alanında çalışır.
 3. **React 19 İstemci Optimizasyonu:** Modern Hook'lar, optimize edilmiş re-render döngüleri ve form durumları akıcı bir kullanıcı deneyimi sağlar.
 
+#### İstemci Veri Katmanı: TanStack Query
+* Sayfalar (`src/app/*/page.tsx`) yalnız düzen ve durum taşır; bölümler `src/components/<sayfa>/` altındadır.
+* Tüm istekler `src/lib/client/queries/*` kancalarından geçer (fetcher: `apiFetch`, `res.ok` kontrolü ve sunucu hata mesajı). Aynı anahtarlı eşzamanlı istekler tekilleşir; mutasyonlar ilgili sorguları geçersiz kılar.
+* Kreatin işareti, kiler ± ve alışveriş kalemi işareti iyimser güncellenir; sunucu hata verirse önceki duruma dönülür.
+* İstek ve yanıt tipleri `src/lib/schemas/*` altındaki Zod şemalarından türetilir; route'lar aynı şemalarla doğrular, `tests/api/response-schemas.test.ts` gerçek yanıtların şemalara uyduğunu sınar.
+
 ---
 
 ### 2.4 Arayüz ve Görselleştirme: Tailwind CSS v3.4 + Recharts + Lucide

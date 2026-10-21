@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { z } from "zod";
 import { apiError } from "@/lib/api-error";
 import { targetsFromProfile } from "@/lib/constants";
-import { MealTypeSchema } from "@/lib/schemas/enums";
 import {
   calculateDailySummary,
   calculatePortionMacros,
@@ -12,25 +10,7 @@ import {
   scaleMacros,
 } from "@/lib/nutrition-calculator";
 import { getLocalDateString, isDateString } from "@/lib/date-utils";
-
-const FoodLogCreateSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  time: z.string().default("12:00"),
-  mealType: MealTypeSchema,
-  foodItemId: z.string().optional().nullable(),
-  recipeId: z.string().optional().nullable(),
-  name: z.string().min(1),
-  /** Gram ya da (tarif için) porsiyon sayısı verilmelidir. */
-  grams: z.number().positive().optional(),
-  servings: z.number().positive().optional(),
-  caloriesSnapshot: z.number().nonnegative().optional(),
-  proteinSnapshot: z.number().nonnegative().optional(),
-  carbsSnapshot: z.number().nonnegative().optional(),
-  fatSnapshot: z.number().nonnegative().optional(),
-}).refine((v) => v.grams !== undefined || (v.servings !== undefined && !!v.recipeId), {
-  message: "grams veya (tarif için) servings zorunludur.",
-  path: ["grams"],
-});
+import { FoodLogCreateSchema } from "@/lib/schemas/food";
 
 export async function GET(req: Request) {
   try {

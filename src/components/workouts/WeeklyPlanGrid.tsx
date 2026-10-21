@@ -1,0 +1,133 @@
+"use client";
+
+import type { WorkoutTemplate } from "@/lib/schemas/workout";
+import type { SessionTemplate } from "./session-form";
+
+export const DAYS_OF_WEEK = [
+  { day: 1, name: "Pazartesi" },
+  { day: 2, name: "Salı" },
+  { day: 3, name: "Çarşamba" },
+  { day: 4, name: "Perşembe" },
+  { day: 5, name: "Cuma" },
+  { day: 6, name: "Cumartesi" },
+  { day: 7, name: "Pazar" },
+] as const;
+
+/** Kolay koşu günü tek "egzersiz" olarak kaydedilir (tekrar = dakika). */
+export function runSessionTemplate(template: WorkoutTemplate): SessionTemplate {
+  return {
+    ...template,
+    exercises: [{ exerciseName: "Kolay Koşu (Konuşma Temposu)", repMin: 25, repMax: 35 }],
+  };
+}
+
+type StartSession = (template: SessionTemplate, shortened: boolean) => void;
+
+interface WeeklyPlanGridProps {
+  templates: WorkoutTemplate[];
+  loading: boolean;
+  onStart: StartSession;
+}
+
+/** Haftalık 3+2+2 planı: her gün için şablon kartı ve seans başlatma düğmeleri. */
+export function WeeklyPlanGrid({ templates, loading, onStart }: WeeklyPlanGridProps) {
+  return (
+    <div className="space-y-4">
+      <h3 className="font-bold text-slate-900 text-base">Haftalık Antrenman Planı (3+2+2)</h3>
+      {loading && (
+        <p role="status" className="text-sm text-slate-500">
+          Antrenman planı yükleniyor...
+        </p>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {DAYS_OF_WEEK.map((d) => (
+          <DayTemplateCard
+            key={d.day}
+            dayName={d.name}
+            template={templates.find((t) => t.dayOfWeek === d.day)}
+            onStart={onStart}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface DayTemplateCardProps {
+  dayName: string;
+  template?: WorkoutTemplate;
+  onStart: StartSession;
+}
+
+export function DayTemplateCard({ dayName, template, onStart }: DayTemplateCardProps) {
+  const isStrength = template?.type === "strength";
+  const isRun = template?.type === "easy_run";
+
+  return (
+    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{dayName}</span>
+          <span
+            className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+              isStrength
+                ? "bg-indigo-50 text-indigo-700"
+                : isRun
+                ? "bg-emerald-50 text-emerald-700"
+                : "bg-slate-100 text-slate-600"
+            }`}
+          >
+            {isStrength ? "Ağırlık Seansı" : isRun ? "Kolay Koşu" : "Dinlenme"}
+          </span>
+        </div>
+
+        <h4 className="font-bold text-slate-900 text-base mb-1">{template?.name || "Dinlenme"}</h4>
+        <p className="text-xs text-slate-500 mb-3 leading-relaxed">{template?.notes || "Toparlanma günü."}</p>
+
+        {/* Hareketler listesi */}
+        {template?.exercises && template.exercises.length > 0 && (
+          <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 mb-4 text-xs">
+            <p className="font-semibold text-slate-700 mb-1">Hareketler ({template.exercises.length}):</p>
+            <ul className="space-y-0.5 text-slate-600">
+              {template.exercises.map((ex) => (
+                <li key={ex.id} className="truncate">
+                  • {ex.exerciseName} ({ex.targetSets} set × {ex.repMin}-{ex.repMax} tk)
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      {template && isStrength && (
+        <div className="pt-3 border-t border-slate-100 flex gap-2">
+          <button
+            onClick={() => onStart(template, false)}
+            className="flex-1 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition-colors"
+          >
+            Başla ({template.targetDurationMinutes} dk)
+          </button>
+          <button
+            onClick={() => onStart(template, true)}
+            title="Yorgun hissediyorsanız 25 dk hafifletilmiş seans"
+            className="py-2 px-3 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition-colors"
+          >
+            25 dk Hafiflet
+          </button>
+        </div>
+      )}
+
+      {template && isRun && (
+        <div className="pt-3 border-t border-slate-100">
+          <button
+            onClick={() => onStart(runSessionTemplate(template), false)}
+            className="w-full py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors"
+          >
+            Koşu Seansı Kaydet (25-35 dk)
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

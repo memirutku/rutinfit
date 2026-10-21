@@ -60,9 +60,12 @@ test.describe("Ana panel", () => {
     await page.goto("/");
     const toggle = page.getByRole("button", { name: "5g Kreatin Alındı" });
     const initial = await toggle.getAttribute("aria-pressed");
+    // İşaret iyimserdir (anında değişir); yenilemeden önce kaydın sunucuya ulaşması beklenir.
+    const saved = page.waitForResponse((r) => r.url().endsWith("/api/progress") && r.request().method() === "POST");
     await toggle.click();
     const expected = initial === "true" ? "false" : "true";
     await expect(toggle).toHaveAttribute("aria-pressed", expected);
+    expect((await saved).ok()).toBe(true);
     await page.reload();
     await expect(page.getByRole("button", { name: "5g Kreatin Alındı" })).toHaveAttribute("aria-pressed", expected);
   });

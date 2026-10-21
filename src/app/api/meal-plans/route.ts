@@ -1,25 +1,9 @@
 import { NextResponse } from "next/server";
+import { SaveMealPlanSchema } from "@/lib/schemas/meal-plan";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
-import { z } from "zod";
-import { MealTypeSchema } from "@/lib/schemas/enums";
 import { calculateRecipePortion } from "@/lib/nutrition-calculator";
 import { addDaysToDateString } from "@/lib/date-utils";
-
-const PlannedMealItemSchema = z.object({
-  mealType: MealTypeSchema,
-  recipeId: z.string().optional().nullable(),
-  customName: z.string().optional().nullable(),
-  plannedTime: z.string().optional().nullable(),
-  servings: z.number().positive().default(1),
-  isCompleted: z.boolean().default(false),
-});
-
-const SaveMealPlanSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  notes: z.string().optional(),
-  meals: z.array(PlannedMealItemSchema),
-});
 
 export async function GET(req: Request) {
   try {

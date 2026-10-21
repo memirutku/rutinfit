@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { z } from 'zod';
 import { apiError } from '@/lib/api-error';
 import { normalizeName } from '@/lib/text';
+import { PackagedProductSaveSchema } from '@/lib/schemas/food';
 import {
   getProductByBarcode,
   searchProductsByName,
@@ -63,24 +63,6 @@ export async function GET(req: Request) {
   }
 }
 
-const SaveProductSchema = z.object({
-  barcode: z
-    .string()
-    .transform((v) => v.replace(/[^0-9]/g, ''))
-    .refine((v) => v.length >= 6 && v.length <= 14, 'Barkod 6–14 haneli olmalıdır.')
-    .optional()
-    .nullable(),
-  name: z.string().trim().min(1, 'Ürün adı zorunludur.').max(200),
-  brand: z.string().trim().max(120).optional().nullable(),
-  basisGrams: z.number().positive().default(100),
-  calories: z.number().finite().nonnegative(),
-  proteinG: z.number().finite().nonnegative(),
-  carbsG: z.number().finite().nonnegative().default(0),
-  fatG: z.number().finite().nonnegative().default(0),
-  category: z.string().trim().max(60).default('Paketli Gıda'),
-  confidence: z.string().max(30).default('Yüksek'),
-});
-
 /** "Ferrero" + "Ferrero Nutella" → "Ferrero Nutella" (marka iki kez eklenmez). */
 function displayName(name: string, brand?: string | null): string {
   if (!brand) return name;
@@ -89,7 +71,7 @@ function displayName(name: string, brand?: string | null): string {
 
 export async function POST(req: Request) {
   try {
-    const body = SaveProductSchema.parse(await req.json());
+    const body = PackagedProductSaveSchema.parse(await req.json());
     const data = {
       name: displayName(body.name, body.brand),
       category: body.category,
