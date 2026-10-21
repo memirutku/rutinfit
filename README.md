@@ -291,7 +291,11 @@ Next.js 16.4, Prisma 7.10 ve Vitest 5.0 kullanılır (Ekim 2026'da 15.5 / 6.19 /
 **Next.js 16**
 * `src/middleware.ts` → `src/proxy.ts` (`export function proxy`). Proxy her zaman Node.js'te çalışır; `config.runtime` verilemez.
 * Turbopack hem `next dev` hem `next build` için varsayılan; eski webpack ayarı (`chunkLoadTimeout`) kaldırıldı.
-* ESLint: `eslint-config-next` doğrudan flat config. React Compiler kuralları (`react-hooks/set-state-in-effect`, `immutability`, `refs`, `purity`) şimdilik **uyarı**; 13 mevcut kalıp ayrı bir işte düzeltilecek.
+* ESLint: `eslint-config-next` doğrudan flat config. React Compiler kuralları (`react-hooks/set-state-in-effect`, `immutability`, `refs`, `purity`) **hata** düzeyinde (uygulama React Compiler kullanmıyor; kurallar yalnız uyumlu kalıpları zorlar). Kullanılan kalıplar:
+  * Son-değer ref'i (`ref.current = prop`) yerine `useEffectEvent`.
+  * localStorage: `useLocalStorage` (`useSyncExternalStore`, sunucu anlık görüntüsü = `initial`) ya da açılışta bir kez okunan değer için `useState(oku)` + `useHydrated()` (hydration uyuşmazlığı olmaz).
+  * "Açılınca sıfırla / prop değişince doldur" effect'te değil, render sırasında önceki değeri durumda tutarak (`if (prev !== x) { setPrev(x); … }`).
+  * Render'da `Date.now()` yok; saat olay/tikte okunup duruma yazılır (`useCountdown`).
 * `next dev` depoya `AGENTS.md` yazmasın diye `agentRules: false`. Sürüme uygun belgeler: `node_modules/next/dist/docs/`.
 * Açılış anahtarı akışı meta-refresh ile kalır: 16.4'te de `req.url` Host `127.0.0.1` iken `localhost` taşıyor; göreli `Location` 500 veriyor (ölçüldü).
 

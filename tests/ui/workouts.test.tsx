@@ -1,10 +1,13 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import WorkoutsPage from "@/app/workouts/page";
 import { ActiveSessionForm } from "@/components/workouts/ActiveSessionForm";
 import { DraftResumeBanner } from "@/components/workouts/DraftResumeBanner";
 import { ProgressionFeedbackPanel } from "@/components/workouts/ProgressionFeedbackPanel";
 import { WeeklyPlanGrid } from "@/components/workouts/WeeklyPlanGrid";
+import { useWorkoutDraft } from "@/components/workouts/useWorkoutDraft";
 import {
   buildSessionForm,
   parseWorkoutDraft,
@@ -385,5 +388,69 @@ describe("Antrenman sayfası (sorgu katmanıyla)", { timeout: 20_000 }, () => {
     await startStrength();
     fireEvent.click(screen.getByText("Vazgeç"));
     expect(readDraft()).toBeNull();
+  });
+});
+
+describe("useWorkoutDraft", () => {
+  const storeDraft = (template: WorkoutTemplate) =>
+    localStorage.setItem(
+      WORKOUT_DRAFT_KEY,
+      JSON.stringify({ activeSession: template, sessionForm: buildSessionForm(template, false), isShortenedMode: false })
+    );
+
+  it("sunucu HTML'inde ve hydration'da bildirim yok; hydration'dan sonra görünür, uyuşmazlık olmaz", async () => {
+    storeDraft(strength);
+    function Banner() {
+      const { savedDraft } = useWorkoutDraft(null);
+      return <p>{savedDraft ? `taslak: ${savedDraft.sessionForm.name}` : "taslak yok"}</p>;
+    }
+
+    const html = renderToString(<Banner />);
+    expect(html).toContain("taslak yok");
+
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    document.body.appendChild(container);
+    const recoverable = vi.fn();
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    let root: Root | undefined;
+    await act(async () => {
+      root = hydrateRoot(container, <Banner />, { onRecoverableError: recoverable });
+    });
+    expect(container.textContent).toBe("taslak: Ağırlık A");
+    expect(recoverable).not.toHaveBeenCalled();
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+    act(() => root?.unmount());
+    container.remove();
+  });
+
+  it("açılıştaki taslak bir kez okunur: otomatik kayıt bildirimi değiştirmez; gizle kaydı korur, Vazgeç siler", async () => {
+    storeDraft(strength);
+    const { result, rerender } = renderHook(({ active }) => useWorkoutDraft(active), {
+      initialProps: { active: null as Parameters<typeof useWorkoutDraft>[0] },
+    });
+    const atMount = result.current.savedDraft;
+    expect(atMount?.activeSession.id).toBe("t-a");
+
+    rerender({ active: { template: run, form: buildSessionForm(run, false), shortened: false } });
+    await waitFor(() => expect(JSON.parse(readDraft() ?? "null").activeSession.id).toBe("t-run"));
+    expect(result.current.savedDraft).toBe(atMount);
+
+    act(() => result.current.dismiss());
+    expect(result.current.savedDraft).toBeNull();
+    expect(readDraft()).not.toBeNull();
+
+    act(() => result.current.discard());
+    expect(readDraft()).toBeNull();
+  });
+
+  it("localStorage okunamazsa bildirim gösterilmez", () => {
+    const spy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("SecurityError");
+    });
+    const { result } = renderHook(() => useWorkoutDraft(null));
+    expect(result.current.savedDraft).toBeNull();
+    spy.mockRestore();
   });
 });

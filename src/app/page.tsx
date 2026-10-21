@@ -61,9 +61,7 @@ export default function DashboardPage() {
   // İlk yüklemede tam ekran yükleniyor; sonraki yenilemeler arka planda (titreme, kaydırma kaybı yok).
   const anyPending = profile.isPending || foodLogs.isPending || workouts.isPending || progress.isPending;
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-  useEffect(() => {
-    if (!anyPending) setHasLoadedOnce(true);
-  }, [anyPending]);
+  if (!anyPending && !hasLoadedOnce) setHasLoadedOnce(true);
 
   const foodsError = foods.error;
   useEffect(() => {

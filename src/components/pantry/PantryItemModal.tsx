@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import type { PantryItem, PantryItemInput } from "@/lib/schemas/pantry";
 import { PANTRY_ALL, PANTRY_CATEGORIES } from "./PantryFilters";
@@ -41,9 +41,13 @@ interface PantryItemModalProps {
 export function PantryItemModal({ open, onClose, editingItem, onSubmit }: PantryItemModalProps) {
   const [formData, setFormData] = useState<FormState>(() => formFor(editingItem));
 
-  useEffect(() => {
+  // Açılışta (veya açıkken düzenlenen öğe değişince) form öğeden doldurulur. Effect yerine
+  // render sırasında: eski formla bir kare çizilmez.
+  const [filledFor, setFilledFor] = useState({ open, editingItem });
+  if (filledFor.open !== open || filledFor.editingItem !== editingItem) {
+    setFilledFor({ open, editingItem });
     if (open) setFormData(formFor(editingItem));
-  }, [open, editingItem]);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

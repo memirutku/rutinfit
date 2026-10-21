@@ -28,14 +28,6 @@ const config = defineConfig([
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrors: "none" },
       ],
-      // eslint-plugin-react-hooks 7 (eslint-config-next 16) React Compiler kurallarını getirdi.
-      // Uygulama React Compiler kullanmıyor; işaretlenen kalıplar (son-değer ref'i, effect içinde
-      // localStorage'dan ilk değer, sayaçta Date.now) çalışıyor. Davranış değiştirmemek için
-      // yükseltmede uyarıya çekildi; ayrı bir işte düzeltilip yeniden "error" yapılacak.
-      "react-hooks/set-state-in-effect": "warn",
-      "react-hooks/immutability": "warn",
-      "react-hooks/refs": "warn",
-      "react-hooks/purity": "warn",
     },
   },
   {

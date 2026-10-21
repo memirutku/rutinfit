@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { errorMessage } from "@/lib/client/api";
@@ -39,9 +39,12 @@ export function NewRecipeModal({ open, onClose, foods }: NewRecipeModalProps) {
   const [error, setError] = useState<string | null>(null);
   const createRecipe = useCreateRecipe();
 
-  useEffect(() => {
+  // Her açılışta önceki hata silinir (effect yerine render sırasında).
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) setError(null);
-  }, [open]);
+  }
 
   const updateRow = (key: string, patch: Partial<Omit<IngredientRow, "key">>) =>
     setIngredients((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));

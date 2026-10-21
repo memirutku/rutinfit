@@ -78,6 +78,21 @@ describe("PantryItemModal", () => {
     });
   });
 
+  it("yeniden açılınca öğeden yeniden dolar; açıkken başka öğe verilirse ona geçer", () => {
+    const name = () => (screen.getByLabelText("Malzeme Adı *") as HTMLInputElement).value;
+    const { rerender } = renderWithQuery(<PantryItemModal open onClose={vi.fn()} editingItem={milk} onSubmit={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("Malzeme Adı *"), { target: { value: "Ayran" } });
+    expect(name()).toBe("Ayran");
+
+    rerender(<PantryItemModal open={false} onClose={vi.fn()} editingItem={milk} onSubmit={vi.fn()} />);
+    rerender(<PantryItemModal open onClose={vi.fn()} editingItem={milk} onSubmit={vi.fn()} />);
+    expect(name()).toBe("Süt");
+
+    rerender(<PantryItemModal open onClose={vi.fn()} editingItem={eggs} onSubmit={vi.fn()} />);
+    expect(name()).toBe("Yumurta");
+    expect((screen.getByLabelText("Not / Marka (İsteğe bağlı)") as HTMLInputElement).value).toBe("");
+  });
+
   it("yeni malzemede varsayılanlarla açılır", () => {
     renderWithQuery(<PantryItemModal open onClose={vi.fn()} editingItem={null} onSubmit={vi.fn()} />);
     const dialog = screen.getByRole("dialog", { name: "Kilere Malzeme Ekle" });

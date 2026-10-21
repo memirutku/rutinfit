@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { errorMessage } from "@/lib/client/api";
 import { useCreateFood } from "@/lib/client/queries/nutrition";
@@ -37,11 +37,16 @@ export function NewFoodModal({ open, onClose, prefillName }: NewFoodModalProps) 
   const [error, setError] = useState<string | null>(null);
   const createFood = useCreateFood();
 
-  useEffect(() => {
-    if (!open) return;
-    setError(null);
-    if (prefillName !== undefined) setForm((f) => ({ ...f, name: prefillName }));
-  }, [open, prefillName]);
+  // Açılışta (ve açıkken ön ad değişince) hata silinir, ön ad yazılır. Effect yerine render
+  // sırasında; açık gelen ilk render'da da uygulanır (`null` başlangıç).
+  const [applied, setApplied] = useState<{ open: boolean; prefillName?: string } | null>(null);
+  if (!applied || applied.open !== open || applied.prefillName !== prefillName) {
+    setApplied({ open, prefillName });
+    if (open) {
+      setError(null);
+      if (prefillName !== undefined) setForm((f) => ({ ...f, name: prefillName }));
+    }
+  }
 
   const num = (key: "calories" | "proteinG" | "carbsG" | "fatG") => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [key]: parseFloat(e.target.value) || 0 }));

@@ -1,22 +1,31 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useHydrated } from "@/hooks/useHydrated";
 import { parseWorkoutDraft, toDraft, WORKOUT_DRAFT_KEY, type ActiveWorkout, type WorkoutDraft } from "./session-form";
+
+function readStoredDraft(): WorkoutDraft | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return parseWorkoutDraft(window.localStorage.getItem(WORKOUT_DRAFT_KEY));
+  } catch {
+    // gizli pencere / erişim yok
+    return null;
+  }
+}
 
 /**
  * Yarım kalan antrenman taslağı ("Kaldığın yerden devam et"). Açılışta bir kez okunur;
  * aktif seans değiştikçe otomatik kaydedilir. localStorage erişilemezse sessizce geçilir.
+ * Sunucu HTML'inde ve hydration render'ında bildirim yoktur (localStorage yalnız tarayıcıda);
+ * hydration'dan hemen sonra gösterilir.
  */
 export function useWorkoutDraft(active: ActiveWorkout | null) {
-  const [savedDraft, setSavedDraft] = useState<WorkoutDraft | null>(null);
-
-  useEffect(() => {
-    try {
-      setSavedDraft(parseWorkoutDraft(localStorage.getItem(WORKOUT_DRAFT_KEY)));
-    } catch {
-      // gizli pencere / erişim yok
-    }
-  }, []);
+  // Açılıştaki kayıt bir kez okunur; otomatik kayıtlar bildirimi değiştirmez.
+  const [draftAtMount] = useState(readStoredDraft);
+  const [hidden, setHidden] = useState(false);
+  const hydrated = useHydrated();
+  const savedDraft = hydrated && !hidden ? draftAtMount : null;
 
   useEffect(() => {
     if (!active || !active.form.name) return;
@@ -37,11 +46,11 @@ export function useWorkoutDraft(active: ActiveWorkout | null) {
   }, []);
 
   /** Bildirimi gizler; taslak kayıtlı kalır (devam edilen seans üzerine yazar). */
-  const dismiss = useCallback(() => setSavedDraft(null), []);
+  const dismiss = useCallback(() => setHidden(true), []);
 
   /** "Vazgeç": bildirimi gizler ve taslağı siler. */
   const discard = useCallback(() => {
-    setSavedDraft(null);
+    setHidden(true);
     removeStored();
   }, [removeStored]);
 

@@ -1,6 +1,8 @@
 import { act, configure, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import FoodsPage from "@/app/foods/page";
+import { NewFoodModal } from "@/components/foods/NewFoodModal";
+import { NewRecipeModal } from "@/components/foods/NewRecipeModal";
 import { filterFoods } from "@/components/foods/FoodCatalogTab";
 import { recipeTotals } from "@/components/foods/RecipesTab";
 import type { FoodItem, PackagedProduct, Recipe } from "@/lib/schemas/food";
@@ -305,5 +307,50 @@ describe("Yeni tarif penceresi", () => {
     await act(async () => fireEvent.click(within(dialog).getByRole("button", { name: "Tarifi Kaydet" })));
     expect((await within(dialog).findByRole("alert")).textContent).toContain("Malzeme bulunamadı");
     expect(screen.getByRole("dialog", { name: "Yeni Tarif Oluştur" })).toBeTruthy();
+  });
+});
+
+describe("pencereler yeniden açılınca", () => {
+  function stubFailingPost(path: string, message: string) {
+    const s = stubFetch([[path, (_u, init) => (init?.method === "POST" ? jsonResponse({ error: message }, 400) : jsonResponse([]))]]);
+    restore = s.restore;
+  }
+
+  it("yeni besin: açık gelen pencereye ön ad yazılır; yeniden açılınca hata silinir, yeni ön ad yazılır", async () => {
+    stubFailingPost("/api/foods", "Geçersiz veri");
+    const name = () => (screen.getByLabelText("Besin Adı") as HTMLInputElement).value;
+    const { rerender } = renderWithQuery(<NewFoodModal open onClose={() => {}} prefillName="Kefir" />);
+    expect(name()).toBe("Kefir");
+
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Kaydet" })));
+    expect((await screen.findByRole("alert")).textContent).toContain("Geçersiz veri");
+
+    rerender(<NewFoodModal open={false} onClose={() => {}} prefillName="Kefir" />);
+    rerender(<NewFoodModal open onClose={() => {}} prefillName="Ayran" />);
+    expect(name()).toBe("Ayran");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("yeni besin: ön ad verilmezse kapatıp açınca yazılanlar korunur", () => {
+    const name = () => (screen.getByLabelText("Besin Adı") as HTMLInputElement).value;
+    const { rerender } = renderWithQuery(<NewFoodModal open onClose={() => {}} />);
+    fireEvent.change(screen.getByLabelText("Besin Adı"), { target: { value: "Hindi" } });
+    rerender(<NewFoodModal open={false} onClose={() => {}} />);
+    rerender(<NewFoodModal open onClose={() => {}} />);
+    expect(name()).toBe("Hindi");
+  });
+
+  it("yeni tarif: yeniden açılınca önceki hata silinir, form korunur", async () => {
+    stubFailingPost("/api/recipes", "Malzeme bulunamadı");
+    const { rerender } = renderWithQuery(<NewRecipeModal open onClose={() => {}} foods={FOODS} />);
+    fireEvent.change(screen.getByLabelText("Tarif Adı"), { target: { value: "Bulgur Pilavı" } });
+    fireEvent.change(screen.getByLabelText("Malzeme 1"), { target: { value: "f3" } });
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Tarifi Kaydet" })));
+    expect((await screen.findByRole("alert")).textContent).toContain("Malzeme bulunamadı");
+
+    rerender(<NewRecipeModal open={false} onClose={() => {}} foods={FOODS} />);
+    rerender(<NewRecipeModal open onClose={() => {}} foods={FOODS} />);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect((screen.getByLabelText("Tarif Adı") as HTMLInputElement).value).toBe("Bulgur Pilavı");
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { CheckCircle2, Circle } from "lucide-react";
 import { useTimedMessage } from "@/hooks/useTimedMessage";
 import type { ProgressResponse } from "@/lib/schemas/progress";
@@ -42,16 +42,15 @@ export function WellbeingCard({ today, onToggleCreatine, onSave }: WellbeingCard
 
   // Sunucu değerleri değiştiğinde (ilk yükleme, kayıt sonrası) form doldurulur. Yalnız kreatin
   // değiştiğinde veya aynı veri yeniden geldiğinde kullanıcının yazdıkları ezilmez.
-  const seeded = useRef<string | null>(null);
-  useEffect(() => {
-    if (!today) return;
-    const signature = [today.date, today.weightKg, today.energy1to5, today.sleepMinutes].join("|");
-    if (seeded.current === signature) return;
-    seeded.current = signature;
+  // Effect yerine render sırasında: boş formla bir kare çizilmez.
+  const signature = today ? [today.date, today.weightKg, today.energy1to5, today.sleepMinutes].join("|") : null;
+  const [seededSignature, setSeededSignature] = useState<string | null>(null);
+  if (today && signature !== seededSignature) {
+    setSeededSignature(signature);
     if (today.weightKg) setWeight(String(today.weightKg));
     if (today.energy1to5) setEnergy(today.energy1to5);
     if (today.sleepMinutes) setSleep(String(today.sleepMinutes / 60));
-  }, [today]);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
