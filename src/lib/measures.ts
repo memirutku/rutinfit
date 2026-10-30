@@ -53,6 +53,11 @@ const RULES: Array<{ match: RegExp; measures: Measure[] }> = [
   { match: /tam bugday ekmeg/, measures: [m("dilim", 30)] },
   { match: /ekmek|ekmeg/, measures: [m("dilim", 25)] },
   { match: /simit/, measures: [m("adet", 110)] },
+  // B26: Ramazan pidesi ≈ 250 g (yaygın satış ağırlığı), dilimi ≈ 40 g; kuru hurma (Deglet Noor)
+  // tanesi ≈ 8 g; zeytin tanesi ≈ 4 g ("zeytinyağı" yukarıdaki kuralla ayrılır).
+  { match: /pide/, measures: [m("dilim", 40), m("adet", 250)] },
+  { match: /hurma/, measures: [m("adet", 8)] },
+  { match: /\bzeytin\b/, measures: [m("adet", 4)] },
   { match: /\blor\b/, measures: [m("yemek kaşığı", 20)] },
   { match: /peynir/, measures: [m("yemek kaşığı", 15), m("dilim", 30)] },
   { match: /ceviz/, measures: [m("avuç", 30)] },

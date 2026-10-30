@@ -36,7 +36,7 @@ export async function installTurkishCatalogTx(tx: Tx) {
         name: dish.name,
         servings: dish.servings,
         prepMinutes: dish.prepMinutes,
-        tags: JSON.stringify(["Türk mutfağı"]),
+        tags: JSON.stringify(["Türk mutfağı", ...(dish.tags ?? [])]),
         instructions: `Porsiyon: ${dish.portion}. Değerler bu tarifin malzemelerinden hesaplanır; kendi tarifine göre düzenleyebilirsin.`,
         ingredients: { create: dish.ingredients.map((x) => ({ foodItemId: foodIds.get(x.name)!, grams: x.grams })) },
       },

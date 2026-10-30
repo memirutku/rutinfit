@@ -65,6 +65,22 @@ describe("POST /api/food-logs/parse", () => {
     expect(Math.round(glass.macros.calories)).toBe(Math.round(ayran.calculatedMacros.calories / ayran.servings));
   });
 
+  it("B26: Ramazan sofrası yazarak eklenir (pide, hurma, güllaç)", async () => {
+    await installTurkishCatalog();
+    const res = await callRoute(POST, { body: { text: "yarım ramazan pidesi, 3 hurma, 1 dilim güllaç, 5 zeytin, 1 dilim beyaz peynir" } });
+    const [pide, dates, gullac, olives, cheese] = res.json.items;
+    expect(pide.match.name).toBe("Ramazan Pidesi");
+    expect(pide.grams).toBe(125);
+    expect(dates.match.name).toBe("Hurma (kuru)");
+    expect(dates.grams).toBe(24);
+    expect(gullac.match).toMatchObject({ type: "recipe", name: "Güllaç" });
+    expect(gullac.note).toBeUndefined();
+    expect(olives.match.name).toMatch(/^Zeytin \(/);
+    expect(olives.grams).toBe(20);
+    expect(cheese.match.name).toBe("Beyaz Peynir");
+    expect(cheese.grams).toBe(30);
+  });
+
   it("B10: katalogda karşılığı olmayan hızlı kalem (ekmek, simit) yine eşlenir", async () => {
     const res = await callRoute(POST, { body: { text: "2 dilim ekmek, 1 simit" } });
     const [bread, simit] = res.json.items;
@@ -79,6 +95,13 @@ describe("POST /api/food-logs/parse", () => {
     expect(await prisma.foodItem.count({ where: { name: "Beyaz Ekmek" } })).toBe(1);
     // Hızlı kalem eşlenip kataloğa girdiği için katalog artık boş sayılmaz.
     expect(res.json.catalogEmpty).toBe(false);
+  });
+
+  it("B10: '5 zeytin' zeytinyağına değil zeytine eşlenir", async () => {
+    await createFood({ name: "Zeytinyağı", calories: 884, proteinG: 0, carbsG: 0, fatG: 100 });
+    await createFood({ name: "Siyah zeytin", calories: 115, proteinG: 0.8, carbsG: 6.3, fatG: 10.7 });
+    const [olives] = (await callRoute(POST, { body: { text: "5 zeytin" } })).json.items;
+    expect(olives.match.name).toBe("Siyah zeytin");
   });
 
   it("boş metin 400", async () => {
