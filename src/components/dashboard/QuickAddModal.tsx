@@ -124,8 +124,9 @@ export function QuickAddModal({
     setFoodId(id);
   }
 
-  // Seçim yoksa listedeki en iyi eşleşme seçilir (seçim kapanıp açılınca korunur).
-  if (open && !foodId && visible.best) selectItem(visible.best.id);
+  // Seçim yoksa listedeki en iyi eşleşme seçilir (seçim kapanıp açılınca korunur). Besin listesi
+  // yüklenmeden seçilmez: tarifler önce gelirse varsayılan besin yerine tarif seçilmesin.
+  if (open && !foodId && !isLoadingFoods && visible.best) selectItem(visible.best.id);
 
   // Son kullanılan bir besin 50'lik listede olmasa da seçilebilir (ad yerelden gelir).
   const recentOutsideList = recentFoods.filter((r) => !foods.some((f) => f.id === r.id));

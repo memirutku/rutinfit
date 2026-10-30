@@ -100,7 +100,7 @@ test.describe("Dalga 6 · besin", () => {
 
     const before = await protein();
     await page.goto("/");
-    const chip = page.getByRole("button", { name: new RegExp(name) });
+    const chip = page.locator("button[aria-pressed]").filter({ hasText: name });
     let saved = page.waitForResponse((r) => r.url().endsWith("/api/supplements/log") && r.request().method() === "POST");
     await chip.click();
     expect((await saved).ok()).toBe(true);

@@ -87,3 +87,16 @@ describe("B01: boş katalog", () => {
     expect(onSubmit).toHaveBeenCalledWith({ foodItemId: "", recipeId: "r1", name: "Mercimek Çorbası", grams: 250, mealType: "lunch" });
   });
 });
+
+describe("B01: hızlı eklemede varsayılan seçim", () => {
+  it("tarifler besinlerden önce yüklense de aramasız açılışta ilk besin seçilir", async () => {
+    restore = stubFetch([["/api/recipes", () => jsonResponse([soup])]]).restore;
+    const props = { open: true, onClose: vi.fn(), recentFoods: [], onSubmit: vi.fn() };
+    const { rerender } = renderWithQuery(<QuickAddModal {...props} foods={[]} isLoadingFoods />);
+    await screen.findByRole("option", { name: /Mercimek Çorbası/ });
+    expect(screen.getByLabelText<HTMLSelectElement>("Besin Seçin").value).toBe("");
+    rerender(<QuickAddModal {...props} foods={[lentilFood]} isLoadingFoods={false} />);
+    expect(screen.getByLabelText<HTMLSelectElement>("Besin Seçin").value).toBe("f1");
+    expect(screen.getByLabelText("Miktar (Gram)")).toBeTruthy();
+  });
+});
