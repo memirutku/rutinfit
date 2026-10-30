@@ -18,7 +18,7 @@ const daysBetween = (from: string, to: string) =>
   Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 
 /** "Bench Press (Barbell)" ↔ "Bench Press" gibi yazım farklarında da eşleşir. */
-function exerciseMatches(setName: string, exercise: string): boolean {
+export function exerciseMatches(setName: string, exercise: string): boolean {
   const a = normalizeName(setName);
   const b = normalizeName(exercise);
   return a === b || a.includes(b) || b.includes(a);

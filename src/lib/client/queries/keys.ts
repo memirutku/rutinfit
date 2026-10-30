@@ -33,6 +33,10 @@ export const queryKeys = {
   workouts: {
     all: ["workouts"] as const,
     list: (date?: string) => ["workouts", date ?? "recent"] as const,
+    /** F23/F24: antrenman kaydı değişince birlikte tazelenir (aynı önek). */
+    strengthList: ["workouts", "strength", "list"] as const,
+    strengthDetail: (exercise: string) => ["workouts", "strength", "detail", exercise] as const,
+    volume: (weeks: number) => ["workouts", "volume", weeks] as const,
   },
   conversations: {
     all: ["conversations"] as const,

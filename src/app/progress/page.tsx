@@ -18,6 +18,8 @@ import {
 } from "recharts";
 import { useProgress } from "@/lib/client/queries/progress";
 import { formatDateTr } from "@/lib/format";
+import { StrengthSection } from "@/components/progress/StrengthSection";
+import { VolumeSection } from "@/components/progress/VolumeSection";
 
 export default function ProgressPage() {
   const { data, isPending } = useProgress();
@@ -251,6 +253,12 @@ export default function ProgressPage() {
           )}
         </div>
       </div>
+
+      {/* F23: Güç gelişimi ve rekorlar */}
+      <StrengthSection />
+
+      {/* F24: Kas grubu başına haftalık set */}
+      <VolumeSection />
     </div>
   );
 }
