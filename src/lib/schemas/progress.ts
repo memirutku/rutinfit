@@ -24,10 +24,10 @@ export type ProgressLogInput = z.input<typeof ProgressLogSchema>;
 export const WellbeingSchema = z.object({
   id: z.string(),
   date: z.string(),
-  energy1to5: z.number(),
-  hunger1to5: z.number(),
-  sleepMinutes: z.number(),
-  stress1to5: z.number(),
+  energy1to5: z.number().nullable(),
+  hunger1to5: z.number().nullable(),
+  sleepMinutes: z.number().nullable(),
+  stress1to5: z.number().nullable(),
   notes: z.string().nullable(),
 });
 
@@ -37,7 +37,10 @@ export const ProgressResponseSchema = z.object({
   wellbeings: z.array(WellbeingSchema),
   measurements: z.array(z.object({ id: z.string(), date: z.string(), waistCm: z.number().nullable() })),
   creatineCompliance: z.array(z.object({ date: z.string(), taken: z.boolean() })),
-  weeklyWeightDelta: z.number(),
+  /** B02: kreatin takviyesi ya da son 7 günde kaydı var mı (kart yalnız o zaman görünür). */
+  creatineTracked: z.boolean().optional(),
+  /** B04: iki haftadan birinde tartı yoksa null. */
+  weeklyWeightDelta: z.number().nullable(),
   today: z.object({
     date: z.string(),
     creatineTaken: z.boolean(),

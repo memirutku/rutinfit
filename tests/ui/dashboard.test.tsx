@@ -212,7 +212,23 @@ describe("dashboard kartları", () => {
 describe("WellbeingCard", () => {
   it("form değerlerini kayıt gövdesine çevirir", () => {
     expect(toWellbeingValues("112,5", "7,5", 4)).toEqual({ weightKg: 112.5, energy1to5: 4, sleepMinutes: 450 });
-    expect(toWellbeingValues("", "", 3)).toEqual({ weightKg: undefined, energy1to5: 3, sleepMinutes: 420 });
+    // B04: boş alan kaydedilmez (enerji 3, uyku 7 saat uydurulmaz).
+    expect(toWellbeingValues("", "", null)).toEqual({});
+    expect(toWellbeingValues("72,4", "", null)).toEqual({ weightKg: 72.4 });
+  });
+
+  it("B04: kayıt yokken alanlar boş başlar, hazır olma görünmez; yalnız girilen alan kaydedilir", async () => {
+    const onSave = vi.fn().mockResolvedValue(true);
+    const empty = { date: today, creatineTaken: false, weightKg: null, energy1to5: null, sleepMinutes: null, hunger1to5: null };
+    render(<WellbeingCard today={empty} onSave={onSave} lastWeightKg={71.2} />);
+    expect((screen.getByLabelText("Uyku (saat)") as HTMLInputElement).value).toBe("");
+    expect(screen.getByText("— / 5")).toBeTruthy();
+    expect(screen.queryByText(/Hazır olma/)).toBeNull();
+    const weight = screen.getByLabelText("Sabah Kilosu (kg)") as HTMLInputElement;
+    expect(weight.placeholder).toBe("Örn: 71,2");
+    fireEvent.change(weight, { target: { value: "70,9" } });
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Kaydet" })));
+    expect(onSave).toHaveBeenLastCalledWith({ weightKg: 70.9 });
   });
 
   it("sunucu değerleriyle dolar; aynı veri tekrar gelince yazılanı ezmez, değişince yeniden dolar", () => {

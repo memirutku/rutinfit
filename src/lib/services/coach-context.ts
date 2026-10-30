@@ -17,7 +17,7 @@ export interface CoachContext {
   dailySummary: DailyNutritionSummary;
   todayTemplate: { name: string; type: string; targetDurationMinutes: number } | null;
   workoutDoneToday: boolean;
-  wellbeing: { energy1to5: number; sleepMinutes: number } | null;
+  wellbeing: { energy1to5: number | null; sleepMinutes: number | null } | null;
   openGym: { isOnline: boolean; totalWorkouts: number };
   files: Array<{ originalName: string; mimeType: string; summary: string | null; confidence: string; content: string }>;
   /** F56: kullanıcının son mesajında yeme bozukluğu / kendine zarar işareti var. */
@@ -138,9 +138,9 @@ KULLANICININ ONAYLI GÜNCEL VERİLERİ:
         : 'Dinlenme'
     } - Durum: ${ctx.workoutDoneToday ? 'Tamamlandı' : 'Henüz yapılmadı'}
 - OPENGYM HİBRİT BAĞLANTISI: ${ctx.openGym.isOnline ? 'Aktif' : 'Çevrimdışı'} (Kayıtlı Antrenman: ${ctx.openGym.totalWorkouts})
-- GÜNCEL ENERJİ: ${ctx.wellbeing?.energy1to5 ?? 3}/5, UYKU: ${
-      ctx.wellbeing?.sleepMinutes ? Math.round((ctx.wellbeing.sleepMinutes / 60) * 10) / 10 : 7
-    } saat${notesSection(ctx.coachNotes)}${fileContextPrompt(ctx.files)}
+- GÜNCEL ENERJİ: ${ctx.wellbeing?.energy1to5 != null ? `${ctx.wellbeing.energy1to5}/5` : 'girilmedi'}, UYKU: ${
+      ctx.wellbeing?.sleepMinutes != null ? `${Math.round((ctx.wellbeing.sleepMinutes / 60) * 10) / 10} saat` : 'girilmedi'
+    }${notesSection(ctx.coachNotes)}${fileContextPrompt(ctx.files)}
 
 GÜVENLİK VE ÇALIŞMA KURALLARI:
 1. Kalori veya makroları uydurma; önerdiğin tariflerde malzeme gramajlarını belirt. ${ctx.targets.calorieTarget} kcal hedefine ve ${ctx.targets.calorieCeiling} kcal tavanına sadık kal.

@@ -355,10 +355,11 @@ model ProgressPhoto {
 model DailyWellbeing {
   id           String   @id @default(cuid())
   date         String   @unique // YYYY-MM-DD
-  energy1to5   Int      @default(3)
-  hunger1to5   Int      @default(3)
-  sleepMinutes Int      @default(420) // 7 saat
-  stress1to5   Int      @default(3)
+  // B04: girilmeyen alan boş kalır (eskiden 3/5 ve 7 saat uydurulup kaydediliyordu).
+  energy1to5   Int?
+  hunger1to5   Int?
+  sleepMinutes Int?
+  stress1to5   Int?
   soreness1to5 Int? // F51: kas ağrısı (1 yok, 5 çok)
   mood1to5     Int? // F51: ruh hâli
   cycleNote    String? // F82: period_start, period, spotting (yalnız döngü notu açıksa)

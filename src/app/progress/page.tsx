@@ -19,7 +19,7 @@ import {
   Legend,
 } from "recharts";
 import { useProgress } from "@/lib/client/queries/progress";
-import { formatDateTr } from "@/lib/format";
+import { formatDateTr, formatNumberTr } from "@/lib/format";
 import { getLocalDateString } from "@/lib/date-utils";
 import { StrengthSection } from "@/components/progress/StrengthSection";
 import { AdaptiveTdeeCard } from "@/components/progress/AdaptiveTdeeCard";
@@ -44,12 +44,16 @@ export default function ProgressPage() {
   const weights = data?.weights || [];
   const wellbeings = data?.wellbeings || [];
   const creatineList = data?.creatineCompliance || [];
+  const creatineTracked = data?.creatineTracked ?? false;
+  const weeklyDelta = data?.weeklyWeightDelta ?? null;
+  // B04: girilmemiş enerji ortalamaya katılmaz; hiç yoksa "—".
+  const energyValues = wellbeings.map((w) => w.energy1to5).filter((v): v is number => v != null);
 
   // Enerji & Uyku Grafiği için verileri birleştir
   const energySleepChartData = wellbeings.map((w) => ({
     date: formatDateTr(w.date, { short: true }), // gg.aa
     enerji: w.energy1to5,
-    uykuSaat: w.sleepMinutes ? Math.round((w.sleepMinutes / 60) * 10) / 10 : 7,
+    uykuSaat: w.sleepMinutes != null ? Math.round((w.sleepMinutes / 60) * 10) / 10 : null,
   }));
 
   const weightChartData = weights.map((w) => ({
@@ -76,7 +80,8 @@ export default function ProgressPage() {
         </Link>
       </div>
 
-      {/* Kreatin ve Kilo Dalgalanması Bilgilendirme Kartı */}
+      {/* Kreatin ve Kilo Dalgalanması Bilgilendirme Kartı (B02: yalnız kreatin kullanana) */}
+      {creatineTracked && (
       <div className="p-4 bg-blue-50/80 border border-blue-200 rounded-2xl flex items-start gap-3">
         <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
         <div className="text-xs text-blue-900 leading-relaxed">
@@ -91,22 +96,26 @@ export default function ProgressPage() {
           </p>
         </div>
       </div>
+      )}
 
       {/* Özet Kartları */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+      <div className={`grid grid-cols-1 gap-5 ${creatineTracked ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between text-slate-500 text-xs font-semibold mb-2">
             <span>HAFTALIK KİLO FARKI</span>
             <Scale className="w-4 h-4 text-brand-600" />
           </div>
           <div className="text-2xl font-bold text-slate-900">
-            {data && data.weeklyWeightDelta > 0 ? `+${data.weeklyWeightDelta}` : data?.weeklyWeightDelta || "0"} kg
+            {weeklyDelta == null ? "—" : `${weeklyDelta > 0 ? "+" : ""}${formatNumberTr(weeklyDelta)} kg`}
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Önceki haftanın 7 günlük ortalamasına göre değişim
+            {weeklyDelta == null
+              ? "İki haftalık tartı olunca görünür"
+              : "Önceki haftanın 7 günlük ortalamasına göre değişim"}
           </p>
         </div>
 
+        {creatineTracked && (
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between text-slate-500 text-xs font-semibold mb-2">
             <span>SON 7 GÜN KREATİN UYUMU</span>
@@ -131,6 +140,7 @@ export default function ProgressPage() {
             ))}
           </div>
         </div>
+        )}
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between text-slate-500 text-xs font-semibold mb-2">
@@ -138,12 +148,12 @@ export default function ProgressPage() {
             <BatteryMedium className="w-4 h-4 text-amber-500" />
           </div>
           <div className="text-2xl font-bold text-slate-900">
-            {wellbeings.length > 0
-              ? (
-                  wellbeings.reduce((a, b) => a + b.energy1to5, 0) /
-                  wellbeings.length
-                ).toLocaleString("tr-TR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-              : "3,0"}{" "}
+            {energyValues.length > 0
+              ? (energyValues.reduce((a, b) => a + b, 0) / energyValues.length).toLocaleString("tr-TR", {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                })
+              : "—"}{" "}
             / 5
           </div>
           <p className="text-xs text-slate-400 mt-1">
@@ -217,7 +227,7 @@ export default function ProgressPage() {
             Enerji (1-5) ve Uyku Süresi (Saat)
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            7+ saat uyku toparlanmayı ve iş çıkışı antrenman motivasyonunu destekler.
+            7+ saat uyku toparlanmayı ve antrenman motivasyonunu destekler.
           </p>
         </div>
 

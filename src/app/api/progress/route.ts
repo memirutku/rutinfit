@@ -16,7 +16,7 @@ export async function GET() {
     const todayStr = getLocalDateString();
     const weekAgo14 = addDaysToDateString(todayStr, -13);
 
-    const [weightsDesc, wellbeingsDesc, measurementsDesc, recentCreatine, deltaWeights, todayCreatine, todayWellbeing, todayWeight] =
+    const [weightsDesc, wellbeingsDesc, measurementsDesc, recentCreatine, deltaWeights, todayCreatine, todayWellbeing, todayWeight, creatineSupplement] =
       await Promise.all([
         prisma.weightLog.findMany(newestFirst),
         prisma.dailyWellbeing.findMany(newestFirst),
@@ -28,6 +28,7 @@ export async function GET() {
         prisma.supplementLog.findUnique({ where: { date_name: { date: todayStr, name: CREATINE } } }),
         prisma.dailyWellbeing.findUnique({ where: { date: todayStr } }),
         prisma.weightLog.findUnique({ where: { date: todayStr } }),
+        prisma.supplement.findFirst({ where: { name: CREATINE, active: true }, select: { id: true } }),
       ]);
 
     const weights = weightsDesc.reverse();
@@ -38,6 +39,8 @@ export async function GET() {
       wellbeings: wellbeingsDesc.reverse(),
       measurements: measurementsDesc.reverse(),
       creatineCompliance: lastNDates(todayStr, 7).map((date) => ({ date, taken: creatineByDate.get(date) ?? false })),
+      // B02: kreatin kartı yalnız kreatin kullanan kullanıcıya görünür.
+      creatineTracked: !!creatineSupplement || recentCreatine.some((s) => s.taken),
       weeklyWeightDelta: computeWeeklyDelta(deltaWeights, todayStr),
       today: {
         date: todayStr,
@@ -109,10 +112,11 @@ export async function POST(req: Request) {
         },
         create: {
           date: data.date,
-          energy1to5: data.energy1to5 ?? 3,
-          hunger1to5: data.hunger1to5 ?? 3,
-          sleepMinutes: data.sleepMinutes ?? 420,
-          stress1to5: data.stress1to5 ?? 3,
+          // B04: gönderilmeyen alan boş kalır.
+          energy1to5: data.energy1to5 ?? null,
+          hunger1to5: data.hunger1to5 ?? null,
+          sleepMinutes: data.sleepMinutes ?? null,
+          stress1to5: data.stress1to5 ?? null,
           soreness1to5: data.soreness1to5 ?? null,
           mood1to5: data.mood1to5 ?? null,
           cycleNote: data.cycleNote ?? null,

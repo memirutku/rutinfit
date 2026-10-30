@@ -24,13 +24,13 @@ export function computeWeightTrend(weights: DatedWeight[]) {
   });
 }
 
-/** Son 7 takvim gününün ortalaması − ondan önceki 7 günün ortalaması. Veri yoksa 0. */
-export function computeWeeklyDelta(weights: DatedWeight[], today: string): number {
+/** Son 7 takvim gününün ortalaması − ondan önceki 7 günün ortalaması. İki haftadan biri boşsa null (B04). */
+export function computeWeeklyDelta(weights: DatedWeight[], today: string): number | null {
   const lastFrom = addDaysToDateString(today, -6);
   const prevFrom = addDaysToDateString(today, -13);
   const last = average(weights.filter((w) => w.date >= lastFrom && w.date <= today).map((w) => w.weightKg));
   const prev = average(weights.filter((w) => w.date >= prevFrom && w.date < lastFrom).map((w) => w.weightKg));
-  return last !== null && prev !== null ? round1(last - prev) : 0;
+  return last !== null && prev !== null ? round1(last - prev) : null;
 }
 
 /** Bugünden geriye 7 günün tarih listesi (eskiden yeniye). */
