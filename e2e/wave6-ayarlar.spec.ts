@@ -116,4 +116,28 @@ test.describe("Dalga 6 · Ayarlar", () => {
     // "Yenile"ye basmadan sayı artar.
     await expect.poll(count).toBe(before + 1);
   });
+
+  test("B41: hatırlatmalar takvim dosyası olarak iner; dosya geçerli, haftalık tekrarlı ve alarmlıdır", async ({ page, api }, testInfo) => {
+    const title = `E2E Kreatin; al, ${Date.now().toString(36)}`;
+    const created = await (await api.post("/api/reminders", { data: { kind: "custom", title, time: "09:00", days: "135" } })).json();
+    try {
+      await page.goto("/settings#hatirlatmalar");
+      const [download] = await Promise.all([page.waitForEvent("download"), page.locator("#reminders-ics").click()]);
+      expect(download.suggestedFilename()).toMatch(/^rutinfit-hatirlatmalar-\d{4}-\d{2}-\d{2}\.ics$/);
+      const file = testInfo.outputPath("hatirlatmalar.ics");
+      await download.saveAs(file);
+      const ics = fs.readFileSync(file, "utf8");
+      expect(ics.startsWith("BEGIN:VCALENDAR\r\n")).toBe(true);
+      expect(ics.endsWith("END:VCALENDAR\r\n")).toBe(true);
+      const unfolded = ics.replace(/\r\n /g, "");
+      const event = unfolded.split("BEGIN:VEVENT").find((e) => e.includes(`UID:${created.id}@rutinfit.local`))!;
+      expect(event).toContain(`SUMMARY:${title.replace(/;/g, "\\;").replace(/,/g, "\\,")}\r\n`);
+      expect(event).toContain("RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR\r\n");
+      expect(event).toMatch(/DTSTART:\d{8}T090000\r\n/);
+      expect(event).toContain("BEGIN:VALARM");
+      await pageHasText(page, "(İndirilenler klasörü)");
+    } finally {
+      await api.delete(`/api/reminders?id=${created.id}`);
+    }
+  });
 });
