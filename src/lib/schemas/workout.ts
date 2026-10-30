@@ -6,7 +6,8 @@ export const SetLogInputSchema = z.object({
   exerciseName: z.string().min(1),
   setNumber: z.number().int().positive(),
   weightKg: z.number().nonnegative(),
-  reps: z.number().int().nonnegative(),
+  /** B17: 0 tekrarlı (boş) set kaydedilmez. */
+  reps: z.number().int().positive(),
   targetRepMin: z.number().int().positive().default(8),
   targetRepMax: z.number().int().positive().default(12),
   isTargetMet: z.boolean().default(false),
@@ -14,6 +15,8 @@ export const SetLogInputSchema = z.object({
   rpe: z.number().min(1).max(10).multipleOf(0.5).optional().nullable(),
   /** F19: set tipi. */
   setType: z.enum(SET_TYPES).default("normal"),
+  /** B17: false gönderilen (tamamlanmamış) set kaydedilmez. Alan yoksa set tamamlanmış sayılır. */
+  completed: z.boolean().optional(),
 });
 
 /** POST /api/workouts */
@@ -82,6 +85,15 @@ export const WorkoutsResponseSchema = z.object({
   sessions: z.array(WorkoutSessionSchema),
 });
 export type WorkoutsResponse = z.infer<typeof WorkoutsResponseSchema>;
+
+/** B17: GET /api/workouts/last-sets — egzersiz başına son tamamlanmış seansın çalışma setleri. */
+export const LastSetsSchema = z.object({
+  date: z.string(),
+  sets: z.array(z.object({ weightKg: z.number(), reps: z.number() })),
+});
+export type LastSets = z.infer<typeof LastSetsSchema>;
+export const LastSetsResponseSchema = z.record(z.string(), LastSetsSchema);
+export type LastSetsResponse = z.infer<typeof LastSetsResponseSchema>;
 
 export const ProgressionFeedbackSchema = z.object({
   isTargetMetAllSets: z.boolean(),

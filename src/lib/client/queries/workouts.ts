@@ -3,7 +3,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/client/api";
 import { queryKeys } from "./keys";
-import type { FinishWorkoutResponse, TemplateInput, WorkoutSessionInput, WorkoutTemplate, WorkoutsResponse } from "@/lib/schemas/workout";
+import type {
+  FinishWorkoutResponse,
+  LastSetsResponse,
+  TemplateInput,
+  WorkoutSessionInput,
+  WorkoutTemplate,
+  WorkoutsResponse,
+} from "@/lib/schemas/workout";
 import type { StrengthDetail, StrengthList, WeeklyVolumeResponse } from "@/lib/schemas/progress";
 
 /** Şablonlar + son 20 seans (tarih verilirse yalnız o günün seansları). */
@@ -17,6 +24,22 @@ export function useWorkouts(date?: string, options: { enabled?: boolean } = {}) 
       return { templates: data.templates ?? [], sessions: data.sessions ?? [] };
     },
     enabled: options.enabled ?? true,
+  });
+}
+
+/**
+ * B17: verilen egzersizlerin son tamamlanmış seanstaki setleri (seans formunu doldurmak için).
+ * Anahtar "workouts" önekiyle başlar: seans kaydedilince birlikte tazelenir.
+ */
+export function useLastSets(exerciseNames: string[]) {
+  const names = [...new Set(exerciseNames)].sort();
+  return useQuery({
+    queryKey: ["workouts", "last-sets", names] as const,
+    queryFn: () => {
+      const qs = new URLSearchParams(names.map((n) => ["exercise", n]));
+      return apiFetch<LastSetsResponse>(`/api/workouts/last-sets?${qs.toString()}`);
+    },
+    enabled: names.length > 0,
   });
 }
 

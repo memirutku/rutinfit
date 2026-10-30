@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { GET, POST } from "@/app/api/workouts/route";
+import { GET as lastSetsGet } from "@/app/api/workouts/last-sets/route";
 import { prisma } from "@/lib/prisma";
 import { callRoute } from "../helpers/route";
 import { resetDatabase } from "../helpers/db";
@@ -92,10 +93,79 @@ describe("POST /api/workouts", () => {
   });
 });
 
+const oneSet = [{ exerciseName: "Squat", setNumber: 1, weightKg: 60, reps: 5 }];
+
+describe("B17: tamamlanmamış ve boş setler kaydedilmez", () => {
+  it("completed:false gönderilen setler yazılmaz; ilerleme önerisine girmez", async () => {
+    const res = await callRoute(POST, {
+      body: session([
+        { exerciseName: "Bench Press", setNumber: 1, weightKg: 100, reps: 5, targetRepMin: 5, targetRepMax: 5, completed: true },
+        { exerciseName: "Bench Press", setNumber: 2, weightKg: 40, reps: 8, targetRepMin: 5, targetRepMax: 5, completed: false },
+        { exerciseName: "Barbell Row", setNumber: 1, weightKg: 40, reps: 8, completed: false },
+      ]),
+    });
+    expect(res.status).toBe(201);
+    const sets = await prisma.setLog.findMany();
+    expect(sets.map((s) => [s.exerciseName, s.weightKg])).toEqual([["Bench Press", 100]]);
+    expect(Object.keys(res.json.progressionFeedbacks)).toEqual(["Bench Press"]);
+    expect(res.json.progressionFeedbacks["Bench Press"].currentMaxWeight).toBe(100);
+  });
+
+  it("0 tekrarlı (boş) set 400 ile reddedilir", async () => {
+    const res = await callRoute(POST, { body: session([{ exerciseName: "Squat", setNumber: 1, weightKg: 60, reps: 0 }]) });
+    expect(res.status).toBe(400);
+    expect(await prisma.workoutSession.count()).toBe(0);
+  });
+
+  it("hiç tamamlanmış seti olmayan seans 400 döner ve yazılmaz", async () => {
+    expect((await callRoute(POST, { body: session([]) })).status).toBe(400);
+    const allIncomplete = await callRoute(POST, {
+      body: session([{ exerciseName: "Squat", setNumber: 1, weightKg: 60, reps: 5, completed: false }]),
+    });
+    expect(allIncomplete.status).toBe(400);
+    expect(allIncomplete.json.error).toMatch(/tamamlanmış set yok/);
+    expect(await prisma.workoutSession.count()).toBe(0);
+  });
+});
+
+describe("B17: GET /api/workouts/last-sets", () => {
+  it("her egzersiz için son tamamlanmış seansın çalışma setlerini döner (ısınma hariç, ad eşleşmesi esnek)", async () => {
+    await callRoute(POST, {
+      body: { ...session([{ exerciseName: "Bench Press", setNumber: 1, weightKg: 90, reps: 5 }]), date: "2026-10-10" },
+    });
+    await callRoute(POST, {
+      body: {
+        ...session([
+          { exerciseName: "bench press", setNumber: 1, weightKg: 40, reps: 10, setType: "warmup" },
+          { exerciseName: "bench press", setNumber: 2, weightKg: 100, reps: 5 },
+          { exerciseName: "bench press", setNumber: 3, weightKg: 102.5, reps: 3 },
+        ]),
+        date: "2026-10-17",
+      },
+    });
+    const res = await lastSetsGet(new Request("http://x/api/workouts/last-sets?exercise=Bench%20Press&exercise=Squat") as any);
+    const json = await res.json();
+    expect(res.status).toBe(200);
+    expect(json["Bench Press"]).toEqual({
+      date: "2026-10-17",
+      sets: [
+        { weightKg: 100, reps: 5 },
+        { weightKg: 102.5, reps: 3 },
+      ],
+    });
+    expect(json.Squat).toBeUndefined();
+  });
+
+  it("egzersiz verilmezse boş nesne döner", async () => {
+    const res = await lastSetsGet(new Request("http://x/api/workouts/last-sets") as any);
+    expect(await res.json()).toEqual({});
+  });
+});
+
 describe("GET /api/workouts", () => {
   it("tarih filtresiyle yalnız o günün seanslarını döner", async () => {
-    await callRoute(POST, { body: session([]) });
-    await callRoute(POST, { body: { ...session([]), date: "2026-10-19" } });
+    await callRoute(POST, { body: session(oneSet) });
+    await callRoute(POST, { body: { ...session(oneSet), date: "2026-10-19" } });
     const res = await callRoute(GET, { query: { date: "2026-10-19" } });
     expect(res.status).toBe(200);
     expect(res.json.sessions).toHaveLength(1);

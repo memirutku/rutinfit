@@ -10,6 +10,8 @@ import { WeeklyPlanGrid } from "@/components/workouts/WeeklyPlanGrid";
 import { useWorkoutDraft } from "@/components/workouts/useWorkoutDraft";
 import {
   buildSessionForm,
+  incompleteSetCount,
+  markAllCompleted,
   parseWorkoutDraft,
   toWorkoutPayload,
   updateSet,
@@ -83,28 +85,72 @@ describe("seans formu (saf fonksiyonlar)", () => {
     expect(form.setLogs).toHaveLength(12);
     expect(form).toMatchObject({ name: "Ağırlık A", durationMinutes: 40, rpe: 7, notes: "" });
     expect(new Set(form.setLogs.map((s) => s.key)).size).toBe(12);
-    expect(form.setLogs[0]).toMatchObject({ setNumber: 1, weightKg: 40, reps: 12, targetRepMin: 8, targetRepMax: 12 });
+    expect(form.setLogs[0]).toMatchObject({ setNumber: 1, weightKg: null, reps: 12, targetRepMin: 8, targetRepMax: 12 });
+  });
+
+  it("B17: ağırlık alanı boş başlar; hiçbir sette sihirli 40 kg yoktur", () => {
+    for (const shortened of [false, true]) {
+      const form = buildSessionForm(strength, shortened);
+      expect(form.setLogs.every((s) => s.weightKg === null)).toBe(true);
+      expect(form.setLogs.every((s) => !s.completed)).toBe(true);
+    }
+  });
+
+  it("B17: önceki seans varsa ağırlık o seansın aynı numaralı setinden (yoksa son setinden) gelir", () => {
+    const form = buildSessionForm(strength, false, {
+      Squat: { date: "2026-10-20", sets: [{ weightKg: 100, reps: 5 }, { weightKg: 102.5, reps: 5 }] },
+    });
+    const squat = form.setLogs.filter((s) => s.exerciseName === "Squat").map((s) => s.weightKg);
+    expect(squat).toEqual([100, 102.5, 102.5]);
+    expect(form.setLogs.find((s) => s.exerciseName === "Bench Press")?.weightKg).toBeNull();
+  });
+
+  it("B17: yalnız tamamlanan setler gönderilir; set numaraları egzersiz içinde yeniden sıralanır", () => {
+    const base = buildSessionForm(strength, false);
+    const done = new Set([0, 2, 4]); // Squat 1 ve 3, Bench 2
+    const form = { ...base, setLogs: base.setLogs.map((s, i) => (done.has(i) ? { ...s, weightKg: 80, reps: 5, completed: true } : s)) };
+    expect(incompleteSetCount(form)).toBe(9);
+    const payload = toWorkoutPayload(form, "2026-10-20");
+    expect(payload.setLogs?.map((s) => [s.exerciseName, s.setNumber, s.weightKg])).toEqual([
+      ["Squat", 1, 80],
+      ["Squat", 2, 80],
+      ["Bench Press", 1, 80],
+    ]);
+  });
+
+  it("B17: 'tamamlandı say' bütün setleri işaretler; boş ağırlık 0 kg (vücut ağırlığı) gider", () => {
+    const form = markAllCompleted(buildSessionForm(strength, true));
+    expect(incompleteSetCount(form)).toBe(0);
+    const payload = toWorkoutPayload(form, "2026-10-20");
+    expect(payload.setLogs).toHaveLength(6);
+    expect(payload.setLogs?.every((s) => s.weightKg === 0)).toBe(true);
+  });
+
+  it("B17: hafifletilmiş seansın notu kişisel rutin içermez", () => {
+    const form = buildSessionForm(strength, true);
+    expect(form.notes).not.toMatch(/iş çıkışı/i);
+    expect(form.notes).toMatch(/Hazır olma düşük/);
   });
 
   it("updateSet yalnız hedef seti değiştirir, formu yerinde değiştirmez", () => {
     const form = buildSessionForm(strength, true);
     const next = updateSet(form, form.setLogs[1].key, { weightKg: 60 });
     expect(next.setLogs[1].weightKg).toBe(60);
-    expect(form.setLogs[1].weightKg).toBe(40);
+    expect(form.setLogs[1].weightKg).toBeNull();
     expect(next.setLogs[0]).toBe(form.setLogs[0]);
   });
 
-  it("API gövdesi istemci anahtarını içermez; isTargetMet işaretten (yoksa tekrardan) gelir", () => {
+  it("API gövdesi istemci anahtarını içermez; tamamlanan set tamamlandı olarak gider", () => {
     const form: SessionForm = {
       ...buildSessionForm(strength, true),
       templateId: "",
     };
-    form.setLogs = form.setLogs.map((s, i) => (i === 0 ? { ...s, completed: true } : { ...s, completed: undefined, reps: 5 }));
+    form.setLogs = form.setLogs.map((s, i) => (i < 2 ? { ...s, completed: true, weightKg: 50 } : { ...s, completed: undefined, reps: 5 }));
     const payload = toWorkoutPayload(form, "2026-10-20");
     expect(payload).toMatchObject({ date: "2026-10-20", templateId: undefined, completed: true });
+    expect(payload.setLogs).toHaveLength(2);
     expect(payload.setLogs?.[0]).not.toHaveProperty("key");
-    expect(payload.setLogs?.[0].isTargetMet).toBe(true);
-    expect(payload.setLogs?.[1].isTargetMet).toBe(false); // 5 < 8
+    expect(payload.setLogs?.every((s) => s.completed === true)).toBe(true);
   });
 
   it("taslak okuma: bozuk/eksik taslak null; eski (anahtarsız) taslağa anahtar atanır", () => {
@@ -135,7 +181,7 @@ describe("seans formu (saf fonksiyonlar)", () => {
 describe("ActiveSessionForm", () => {
   function renderForm(over: { form?: SessionForm; timer?: Countdown; saveError?: string | null } = {}) {
     const form = over.form ?? buildSessionForm(strength, true);
-    const handlers = { onChange: vi.fn(), onSubmit: vi.fn((e) => e.preventDefault()), onDiscard: vi.fn(), onClose: vi.fn() };
+    const handlers = { onChange: vi.fn(), onFinish: vi.fn(), onDiscard: vi.fn(), onClose: vi.fn() };
     const timer = over.timer ?? countdown();
     render(
       <ActiveSessionForm form={form} restTimer={timer} saving={false} saveError={over.saveError ?? null} {...handlers} />
@@ -150,11 +196,12 @@ describe("ActiveSessionForm", () => {
     expect(weights).toHaveLength(6);
     expect(new Set(weights.map((el) => el.id)).size).toBe(6);
 
+    expect(weights.every((el) => (el as HTMLInputElement).value === "")).toBe(true);
     fireEvent.change(weights[1], { target: { value: "55" } });
     const changed: SessionForm = onChange.mock.calls[0][0];
     expect(changed.setLogs[1].weightKg).toBe(55);
-    expect(changed.setLogs[0].weightKg).toBe(40);
-    expect(form.setLogs[1].weightKg).toBe(40);
+    expect(changed.setLogs[0].weightKg).toBeNull();
+    expect(form.setLogs[1].weightKg).toBeNull();
 
     fireEvent.change(reps[2], { target: { value: "9" } });
     expect((onChange.mock.calls[1][0] as SessionForm).setLogs[2].reps).toBe(9);
@@ -180,14 +227,45 @@ describe("ActiveSessionForm", () => {
   });
 
   it("hata uyarısı ve düğmeler: Vazgeç taslağı siler, İptal Et yalnız kapatır", () => {
-    const { onDiscard, onClose, onSubmit } = renderForm({ saveError: "Antrenman kaydedilemedi, verileriniz korunuyor: x" });
+    const form = markAllCompleted(buildSessionForm(strength, true));
+    const { onDiscard, onClose, onFinish } = renderForm({ form, saveError: "Antrenman kaydedilemedi, verileriniz korunuyor: x" });
     expect(screen.getByRole("alert").textContent).toContain("verileriniz korunuyor");
     fireEvent.click(screen.getByText("Vazgeç"));
     fireEvent.click(screen.getByText("İptal Et"));
     fireEvent.click(screen.getByText("Antrenmanı Bitir & Kaydet"));
     expect(onDiscard).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
-    expect(onSubmit).toHaveBeenCalledTimes(1);
+    // Bütün setler tamamlanmışsa soru sorulmadan kaydedilir.
+    expect(onFinish).toHaveBeenCalledWith(form);
+  });
+
+  it("B17: tamamlanmamış set varsa bitirirken sorar: at ya da tamamlandı say", () => {
+    const base = buildSessionForm(strength, true);
+    const form = { ...base, setLogs: base.setLogs.map((s, i) => (i === 0 ? { ...s, weightKg: 60, completed: true } : s)) };
+    const { onFinish } = renderForm({ form });
+    fireEvent.click(screen.getByText("Antrenmanı Bitir & Kaydet"));
+    expect(onFinish).not.toHaveBeenCalled();
+    const prompt = screen.getByRole("group", { name: /5 set tamamlanmadı/ });
+    expect(prompt.textContent).toMatch(/0 kg/);
+
+    fireEvent.click(screen.getByRole("button", { name: "Seansa dön" }));
+    expect(screen.queryByRole("group", { name: /set tamamlanmadı/ })).toBeNull();
+
+    fireEvent.click(screen.getByText("Antrenmanı Bitir & Kaydet"));
+    fireEvent.click(screen.getByRole("button", { name: "At ve kaydet" }));
+    expect(onFinish).toHaveBeenLastCalledWith(form);
+
+    fireEvent.click(screen.getByText("Antrenmanı Bitir & Kaydet"));
+    fireEvent.click(screen.getByRole("button", { name: "Tamamlandı say ve kaydet" }));
+    const counted: SessionForm = onFinish.mock.calls.at(-1)![0];
+    expect(incompleteSetCount(counted)).toBe(0);
+  });
+
+  it("B17: hiç set tamamlanmadıysa 'at' seçeneği kapalıdır", () => {
+    renderForm();
+    fireEvent.click(screen.getByText("Antrenmanı Bitir & Kaydet"));
+    expect(screen.getByRole("group", { name: /6 set tamamlanmadı/ })).toBeTruthy();
+    expect((screen.getByRole("button", { name: "At ve kaydet" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("F20: her sette RPE seçilir; seçim API gövdesine gider, boş seçim null olur", () => {
@@ -197,7 +275,7 @@ describe("ActiveSessionForm", () => {
     fireEvent.change(rpes[0], { target: { value: "8.5" } });
     const changed: SessionForm = onChange.mock.calls[0][0];
     expect(changed.setLogs[0].rpe).toBe(8.5);
-    const payload = toWorkoutPayload(changed, "2026-10-20");
+    const payload = toWorkoutPayload(markAllCompleted(changed), "2026-10-20");
     expect(payload.setLogs?.[0].rpe).toBe(8.5);
     expect(payload.setLogs?.[1].rpe).toBeNull();
 
@@ -237,7 +315,7 @@ describe("ActiveSessionForm", () => {
     fireEvent.change(types[0], { target: { value: "warmup" } });
     const changed: SessionForm = onChange.mock.calls[0][0];
     expect(changed.setLogs[0].setType).toBe("warmup");
-    const payload = toWorkoutPayload(changed, "2026-10-20");
+    const payload = toWorkoutPayload(markAllCompleted(changed), "2026-10-20");
     expect(payload.setLogs?.[0].setType).toBe("warmup");
     expect(payload.setLogs?.[1].setType).toBe("normal");
   });
@@ -329,13 +407,16 @@ describe("küçük bileşenler", () => {
 describe("Antrenman sayfası (sorgu katmanıyla)", { timeout: 20_000 }, () => {
   const pageTemplate: WorkoutTemplate = { ...strength, exercises: strength.exercises.slice(0, 2) };
   let restore: (() => void) | undefined;
+  let lastSets: Record<string, unknown> = {};
   afterEach(() => {
     restore?.();
     restore = undefined;
+    lastSets = {};
   });
 
   function stubWorkouts(post: () => Response = () => jsonResponse({ error: "beklenmedi" }, 500)) {
     const s = stubFetch([
+      ["/api/workouts/last-sets", () => jsonResponse(lastSets)],
       [
         "/api/workouts",
         (_url, init) =>
@@ -348,7 +429,20 @@ describe("Antrenman sayfası (sorgu katmanıyla)", { timeout: 20_000 }, () => {
 
   async function startStrength() {
     fireEvent.click(await screen.findByText("Başla (40 dk)"));
+    await screen.findByText("Antrenmanı Bitir & Kaydet");
   }
+
+  it("B17: önceki seansın ağırlıkları yüklendiyse alanlar onlarla dolar", async () => {
+    lastSets = { Squat: { date: "2026-10-20", sets: [{ weightKg: 102.5, reps: 5 }] } };
+    const s = stubWorkouts();
+    const { client } = renderWithQuery(<WorkoutsPage />);
+    await waitFor(() => expect(s.calls.some((c) => c.url.includes("/api/workouts/last-sets?exercise=Bench+Press&exercise=Squat"))).toBe(true));
+    await waitFor(() => expect(client.isFetching()).toBe(0));
+    await startStrength();
+    const weights = screen.getAllByLabelText("Ağırlık:") as HTMLInputElement[];
+    expect(weights.slice(0, 3).map((w) => w.value)).toEqual(["102,5", "102,5", "102,5"]);
+    expect(weights[3].value).toBe("");
+  });
 
   it("set tamamlanınca sayaç başlar ve taslak anahtarlarıyla kaydedilir", async () => {
     stubWorkouts();
@@ -380,7 +474,10 @@ describe("Antrenman sayfası (sorgu katmanıyla)", { timeout: 20_000 }, () => {
     renderWithQuery(<WorkoutsPage />);
     await startStrength();
     expect(readDraft()).not.toBeNull();
-    await act(async () => fireEvent.click(screen.getByText("Antrenmanı Bitir & Kaydet")));
+    fireEvent.change(screen.getAllByLabelText("Ağırlık:")[0], { target: { value: "62,5" } });
+    fireEvent.click(screen.getAllByText("Tamamla")[0]);
+    fireEvent.click(screen.getByText("Antrenmanı Bitir & Kaydet"));
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "At ve kaydet" })));
 
     expect(await screen.findByText(/Seans Tamamlandı/)).toBeTruthy();
     expect(screen.queryByText("Antrenmanı Bitir & Kaydet")).toBeNull();
@@ -388,7 +485,9 @@ describe("Antrenman sayfası (sorgu katmanıyla)", { timeout: 20_000 }, () => {
 
     const post = s.calls.find((c) => c.init?.method === "POST");
     const body = JSON.parse(String(post?.init?.body));
-    expect(body.setLogs).toHaveLength(6);
+    // B17: yalnız tamamlanan set gider; tamamlanmayan 5 set kaydedilmez.
+    expect(body.setLogs).toHaveLength(1);
+    expect(body.setLogs[0]).toMatchObject({ exerciseName: "Squat", weightKg: 62.5, completed: true });
     expect(body.setLogs[0]).not.toHaveProperty("key");
   });
 
@@ -396,7 +495,8 @@ describe("Antrenman sayfası (sorgu katmanıyla)", { timeout: 20_000 }, () => {
     stubWorkouts(() => jsonResponse({ error: "Geçersiz veri — weightKg" }, 400));
     renderWithQuery(<WorkoutsPage />);
     await startStrength();
-    await act(async () => fireEvent.click(screen.getByText("Antrenmanı Bitir & Kaydet")));
+    fireEvent.click(screen.getByText("Antrenmanı Bitir & Kaydet"));
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Tamamlandı say ve kaydet" })));
 
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("verileriniz korunuyor");

@@ -1,10 +1,10 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useCountdown } from "@/hooks/useCountdown";
 import { useToday } from "@/hooks/useToday";
 import { errorMessage } from "@/lib/client/api";
-import { useFinishWorkout, useWorkouts } from "@/lib/client/queries/workouts";
+import { useFinishWorkout, useLastSets, useWorkouts } from "@/lib/client/queries/workouts";
 import type { ProgressionFeedback, WorkoutSession, WorkoutTemplate } from "@/lib/schemas/workout";
 import { TemplateEditor } from "@/components/workouts/TemplateEditor";
 import { ProgramPicker } from "@/components/workouts/ProgramPicker";
@@ -24,6 +24,7 @@ import {
   fromDraft,
   toWorkoutPayload,
   type ActiveWorkout,
+  type SessionForm,
   type SessionTemplate,
 } from "@/components/workouts/session-form";
 
@@ -50,8 +51,14 @@ export default function WorkoutsPage() {
   // Kaldığın Yerden Devam Etme: aktif seans her değiştiğinde taslak kaydedilir
   const draft = useWorkoutDraft(active);
 
+  // B17: şablonlardaki egzersizlerin son seans ağırlıkları önceden yüklenir; seans boş ya da
+  // önceki ağırlıklarla açılır (sabit varsayılan yok).
+  const templates = workouts.data?.templates;
+  const exerciseNames = useMemo(() => (templates ?? []).flatMap((t) => t.exercises.map((e) => e.exerciseName)), [templates]);
+  const lastSets = useLastSets(exerciseNames);
+
   function startSession(template: SessionTemplate, shortened: boolean) {
-    setActive({ template, form: buildSessionForm(template, shortened), shortened });
+    setActive({ template, form: buildSessionForm(template, shortened, lastSets.data), shortened });
     setFeedback(null);
   }
 
@@ -66,13 +73,12 @@ export default function WorkoutsPage() {
     draft.removeStored();
   }
 
-  async function handleFinishSession(e: FormEvent) {
-    e.preventDefault();
+  async function handleFinishSession(form: SessionForm) {
     if (!active || submitting.current) return; // çift gönderim koruması
     submitting.current = true;
     setSaveError(null);
     try {
-      const data = await finish.mutateAsync(toWorkoutPayload(active.form, today));
+      const data = await finish.mutateAsync(toWorkoutPayload(form, today));
       setFeedback(data.progressionFeedbacks);
       setActive(null);
       draft.removeStored();
@@ -112,7 +118,7 @@ export default function WorkoutsPage() {
               restTimer={restTimer}
               saving={finish.isPending}
               saveError={saveError}
-              onSubmit={handleFinishSession}
+              onFinish={handleFinishSession}
               onDiscard={discardSession}
               onClose={() => setActive(null)}
             />

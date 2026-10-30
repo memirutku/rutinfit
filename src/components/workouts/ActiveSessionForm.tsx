@@ -1,11 +1,11 @@
 "use client";
 
-import { useId, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import type { Countdown } from "@/hooks/useCountdown";
 import { RestTimer } from "./RestTimer";
 import { SetRow } from "./SetRow";
 import { ExerciseSwap } from "./ExerciseSwap";
-import { replaceExercise, updateSet, type SessionForm } from "./session-form";
+import { incompleteSetCount, markAllCompleted, replaceExercise, updateSet, type SessionForm } from "./session-form";
 
 interface ActiveSessionFormProps {
   form: SessionForm;
@@ -13,7 +13,8 @@ interface ActiveSessionFormProps {
   restTimer: Countdown;
   saving: boolean;
   saveError: string | null;
-  onSubmit: (e: FormEvent) => void;
+  /** Kaydedilecek form (B17: tamamlanmayan setler için karar verildikten sonra). */
+  onFinish: (form: SessionForm) => void;
   /** Üstteki "Vazgeç": seansı kapatır ve taslağı siler. */
   onDiscard: () => void;
   /** Alttaki "İptal Et": seansı kapatır, taslak kayıtlı kalır. */
@@ -27,12 +28,32 @@ export function ActiveSessionForm({
   restTimer,
   saving,
   saveError,
-  onSubmit,
+  onFinish,
   onDiscard,
   onClose,
 }: ActiveSessionFormProps) {
   const rpeId = useId();
   const durationId = useId();
+  const promptId = useId();
+  // B17: tamamlanmamış set varsa bitirmeden önce "at / tamamlandı say" sorulur.
+  const [asking, setAsking] = useState(false);
+  const incomplete = incompleteSetCount(form);
+  const completedCount = form.setLogs.length - incomplete;
+  const emptyWeightIncomplete = form.setLogs.some((s) => !s.completed && s.weightKg === null);
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    if (incomplete > 0) {
+      setAsking(true);
+      return;
+    }
+    onFinish(form);
+  }
+
+  function finishWith(next: SessionForm) {
+    setAsking(false);
+    onFinish(next);
+  }
 
   function toggleSet(key: string, completed: boolean) {
     onChange(updateSet(form, key, { completed: !completed }));
@@ -57,7 +78,7 @@ export function ActiveSessionForm({
         </button>
       </div>
 
-      <form onSubmit={onSubmit} className="space-y-6">
+      <form onSubmit={submit} className="space-y-6">
         {/* Canlı Dinlenme Zamanlayıcısı */}
         <RestTimer countdown={restTimer} />
 
@@ -121,6 +142,47 @@ export function ActiveSessionForm({
           <p role="alert" className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
             {saveError}
           </p>
+        )}
+        {asking && incomplete > 0 && (
+          <div
+            role="group"
+            aria-labelledby={promptId}
+            className="p-4 rounded-xl border border-amber-300 bg-amber-50 text-amber-950 space-y-3"
+          >
+            <p id={promptId} className="text-sm font-bold">
+              {incomplete} set tamamlanmadı.
+            </p>
+            <p className="text-xs text-amber-900">
+              Tamamlanmayan setler kaydedilmez; yaptıysan "tamamlandı say" seç.
+              {emptyWeightIncomplete && " Ağırlığı boş setler 0 kg (vücut ağırlığı) olarak kaydedilir."}
+              {completedCount === 0 && " Henüz tamamlanmış set yok; atarsan kaydedilecek bir şey kalmaz."}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={completedCount === 0 || saving}
+                onClick={() => finishWith(form)}
+                className="px-3 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold disabled:opacity-50"
+              >
+                At ve kaydet
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => finishWith(markAllCompleted(form))}
+                className="px-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-800 text-xs font-bold disabled:opacity-50"
+              >
+                Tamamlandı say ve kaydet
+              </button>
+              <button
+                type="button"
+                onClick={() => setAsking(false)}
+                className="px-3 py-2 rounded-xl text-slate-600 text-xs font-semibold hover:bg-amber-100"
+              >
+                Seansa dön
+              </button>
+            </div>
+          </div>
         )}
         <div className="flex justify-end gap-3 pt-2">
           <button

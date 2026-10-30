@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { WorkoutSessionInputSchema } from "@/lib/schemas/workout";
 import { prisma } from "@/lib/prisma";
-import { apiError } from "@/lib/api-error";
+import { apiError, HttpError } from "@/lib/api-error";
 import { evaluateExerciseProgression } from "@/lib/progression";
 import { isWorkingSet } from "@/lib/set-types";
 import { detectPlateau, exerciseHistory } from "@/lib/strength";
@@ -64,7 +64,12 @@ async function plateauFor(exerciseName: string) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const validated = WorkoutSessionInputSchema.parse(body);
+    const parsed = WorkoutSessionInputSchema.parse(body);
+    // B17: tamamlanmamış setler kaydedilmez; hiç tamamlanmış set yoksa seans da yazılmaz.
+    const validated = { ...parsed, setLogs: parsed.setLogs.filter((s) => s.completed !== false) };
+    if (validated.setLogs.length === 0) {
+      throw new HttpError("Kaydedilecek tamamlanmış set yok. En az bir seti 'Tamamla' ile işaretleyin.", 400);
+    }
 
     const session = await prisma.workoutSession.create({
       data: {

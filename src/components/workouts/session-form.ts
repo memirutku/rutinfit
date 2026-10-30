@@ -1,5 +1,5 @@
 import { clientId } from "@/lib/client/keys";
-import type { WorkoutSessionInput } from "@/lib/schemas/workout";
+import type { LastSetsResponse, WorkoutSessionInput } from "@/lib/schemas/workout";
 import type { SetType } from "@/lib/set-types";
 
 /** Seansa dönüştürülebilen şablon (gerçek şablon ya da koşu için türetilmiş şablon). */
@@ -21,7 +21,8 @@ export interface SessionSet {
   key: string;
   exerciseName: string;
   setNumber: number;
-  weightKg: number;
+  /** B17: boş (null) başlar; önceki seans varsa onun ağırlığıyla dolar. */
+  weightKg: number | null;
   reps: number;
   targetRepMin: number;
   targetRepMax: number;
@@ -64,10 +65,20 @@ export const WORKOUT_DRAFT_KEY = "rutinfit_active_workout_draft";
 const newSetKey = () => clientId("set");
 
 /**
- * Şablondan seans formu kurar. Hafifletilmiş modda ilk 3 egzersiz × 2 set, 25 dk ve
- * RPE 5; normal modda tüm egzersizler × 3 set.
+ * B17: Önceki seanstan gelen ağırlık: aynı numaralı set, yoksa o seansın son seti. Önceki seans
+ * yoksa alan boş kalır (sihirli varsayılan yoktur).
  */
-export function buildSessionForm(template: SessionTemplate, shortened: boolean): SessionForm {
+function previousWeight(previous: LastSetsResponse | undefined, exerciseName: string, setNumber: number): number | null {
+  const sets = previous?.[exerciseName]?.sets;
+  if (!Array.isArray(sets) || sets.length === 0) return null;
+  return (sets[setNumber - 1] ?? sets[sets.length - 1]).weightKg ?? null;
+}
+
+/**
+ * Şablondan seans formu kurar. Hafifletilmiş modda ilk 3 egzersiz × 2 set, 25 dk ve
+ * RPE 5; normal modda tüm egzersizler × 3 set. Ağırlıklar önceki seanstan gelir ya da boştur.
+ */
+export function buildSessionForm(template: SessionTemplate, shortened: boolean, previous?: LastSetsResponse): SessionForm {
   const exercises = shortened ? template.exercises.slice(0, 3) : template.exercises;
   const setsPerExercise = shortened ? 2 : 3;
   const setLogs: SessionSet[] = [];
@@ -77,7 +88,7 @@ export function buildSessionForm(template: SessionTemplate, shortened: boolean):
         key: newSetKey(),
         exerciseName: ex.exerciseName,
         setNumber: s,
-        weightKg: 40, // başlangıç varsayılanı
+        weightKg: previousWeight(previous, ex.exerciseName, s),
         reps: ex.repMax,
         targetRepMin: ex.repMin,
         targetRepMax: ex.repMax,
@@ -90,7 +101,7 @@ export function buildSessionForm(template: SessionTemplate, shortened: boolean):
     name: shortened ? `${template.name} (25 dk Hafifletilmiş)` : template.name,
     durationMinutes: shortened ? 25 : template.targetDurationMinutes,
     rpe: shortened ? 5 : 7,
-    notes: shortened ? "İş çıkışı yorgunluk nedeniyle kısaltılmış seans uygulandı." : "",
+    notes: shortened ? "Hazır olma düşük olduğu için kısaltılmış seans uygulandı." : "",
     setLogs,
   };
 }
@@ -106,8 +117,23 @@ export function updateSet(form: SessionForm, key: string, patch: Partial<Session
   return { ...form, setLogs: form.setLogs.map((s) => (s.key === key ? { ...s, ...patch } : s)) };
 }
 
-/** API'ye gönderilecek gövde (istemci anahtarları gönderilmez). */
+/** B17: "Tamamla" ile işaretlenmemiş set sayısı. */
+export function incompleteSetCount(form: SessionForm): number {
+  return form.setLogs.filter((s) => !s.completed).length;
+}
+
+/** B17: Bitirirken "tamamlandı say": bütün setler tamamlanmış işaretlenir. */
+export function markAllCompleted(form: SessionForm): SessionForm {
+  return { ...form, setLogs: form.setLogs.map((s) => (s.completed ? s : { ...s, completed: true })) };
+}
+
+/**
+ * API'ye gönderilecek gövde (istemci anahtarları gönderilmez). B17: yalnız tamamlanan setler
+ * gider; set numaraları egzersiz içinde 1'den yeniden sıralanır. Boş ağırlık 0 kg'dır
+ * (vücut ağırlığı hareketi).
+ */
 export function toWorkoutPayload(form: SessionForm, date: string): WorkoutSessionInput {
+  const counters = new Map<string, number>();
   return {
     date,
     templateId: form.templateId || undefined,
@@ -116,17 +142,23 @@ export function toWorkoutPayload(form: SessionForm, date: string): WorkoutSessio
     rpe: form.rpe,
     notes: form.notes,
     completed: true,
-    setLogs: form.setLogs.map((s) => ({
-      exerciseName: s.exerciseName,
-      setNumber: s.setNumber,
-      weightKg: s.weightKg,
-      reps: s.reps,
-      targetRepMin: s.targetRepMin,
-      targetRepMax: s.targetRepMax,
-      isTargetMet: s.completed ?? s.reps >= s.targetRepMin,
-      rpe: s.rpe ?? null,
-      setType: s.setType ?? "normal",
-    })),
+    setLogs: form.setLogs
+      .filter((s) => s.completed)
+      .map((s) => {
+        const setNumber = (counters.get(s.exerciseName) ?? 0) + 1;
+        counters.set(s.exerciseName, setNumber);
+        return {
+          exerciseName: s.exerciseName,
+          setNumber,
+          weightKg: s.weightKg ?? 0,
+          reps: s.reps,
+          targetRepMin: s.targetRepMin,
+          targetRepMax: s.targetRepMax,
+          completed: true,
+          rpe: s.rpe ?? null,
+          setType: s.setType ?? "normal",
+        };
+      }),
   };
 }
 

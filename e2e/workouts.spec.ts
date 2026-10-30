@@ -26,6 +26,8 @@ test.describe("Antrenman", () => {
         : route.continue()
     );
     await page.getByRole("button", { name: "Antrenmanı Bitir & Kaydet" }).click();
+    // B17: hiç set tamamlanmadıysa önce sorulur; "tamamlandı say" ile kayda gider.
+    await page.getByRole("button", { name: "Tamamlandı say ve kaydet" }).click();
     await expect(page.getByRole("alert").filter({ hasText: "verileriniz korunuyor" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Antrenmanı Bitir & Kaydet" })).toBeVisible();
     const draft = await page.evaluate(() => localStorage.getItem("rutinfit_active_workout_draft"));
@@ -34,7 +36,11 @@ test.describe("Antrenman", () => {
 
   test("başarılı kayıtta ilerleme analizi gösterilir", async ({ page }) => {
     await page.getByRole("button", { name: /^Başla \(/ }).first().click();
+    await page.getByLabel("Ağırlık:").first().fill("50");
+    await page.getByRole("button", { name: "Tamamla" }).first().click();
     await page.getByRole("button", { name: "Antrenmanı Bitir & Kaydet" }).click();
+    // B17: tamamlanmayan setler için karar sorulur.
+    await page.getByRole("button", { name: "At ve kaydet" }).click();
     await expect(page.getByText(/Seans Tamamlandı/)).toBeVisible();
   });
 });
