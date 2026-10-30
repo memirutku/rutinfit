@@ -31,6 +31,7 @@ export const BACKUP_TABLES = [
   'WorkoutExercise',
   'WorkoutSession',
   'SetLog',
+  'CardioLog',
   'WeightLog',
   'BodyMeasurement',
   'DailyWellbeing',

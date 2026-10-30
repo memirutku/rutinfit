@@ -273,6 +273,23 @@ model SetLog {
   @@index([workoutSessionId])
 }
 
+/// F27: Koşu, yürüyüş, bisiklet, yüzme ve diğer kardiyo (elle kayıt).
+model CardioLog {
+  id            String   @id @default(cuid())
+  date          String // YYYY-MM-DD
+  kind          String // run, walk, cycle, swim, other
+  durationMin   Float
+  distanceKm    Float?
+  avgHr         Int?
+  rpe           Float?
+  kcal          Float?
+  kcalEstimated Boolean  @default(false)
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  @@index([date])
+}
+
 model WeightLog {
   id             String   @id @default(cuid())
   date           String   @unique // YYYY-MM-DD

@@ -12,6 +12,7 @@ import { TextWorkoutModal } from "@/components/workouts/TextWorkoutModal";
 import { MuscleHeatmap } from "@/components/MuscleHeatmap";
 import { PlateCalculator } from "@/components/PlateCalculator";
 import { ExerciseLibraryPanel } from "@/components/workouts/ExerciseLibraryPanel";
+import { CardioPanel } from "@/components/workouts/CardioPanel";
 import { WorkoutTabs, type WorkoutSubTab } from "@/components/workouts/WorkoutTabs";
 import { ProgressionFeedbackPanel } from "@/components/workouts/ProgressionFeedbackPanel";
 import { DraftResumeBanner } from "@/components/workouts/DraftResumeBanner";
@@ -95,6 +96,8 @@ export default function WorkoutsPage() {
       {tab === "plates" && <PlateCalculator />}
 
       {tab === "library" && <ExerciseLibraryPanel />}
+
+      {tab === "cardio" && <CardioPanel today={today} />}
 
       {tab === "workouts" && (
         <>
