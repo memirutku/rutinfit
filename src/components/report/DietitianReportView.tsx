@@ -207,6 +207,9 @@ export function DietitianReportView({ today = getLocalDateString() }: { today?: 
               <SummaryCardView key={card.label} card={card} />
             ))}
           </section>
+          {r.averagesExcludeToday && (
+            <p className="text-[11px] text-slate-500">Bugün henüz bitmediği için ortalamalara katılmadı (günlük tabloda görünür).</p>
+          )}
 
           <section aria-label="Vücut ölçüleri" className="overflow-x-auto break-inside-avoid">
             <h2 className={H2}>Vücut ölçüleri</h2>

@@ -163,8 +163,13 @@ export async function buildDietitianReport(fromParam?: string | null, toParam?: 
     };
   });
   const logged = days.filter((d) => d.kcal !== null);
+  // Recheck (Zeynep): bugün bitmediği için yarım gün ortalamaları düşürmez; başka kayıtlı gün yoksa bugün kullanılır.
+  const todayStr = getLocalDateString();
+  const finished = logged.filter((d) => d.date < todayStr);
+  const averagesExcludeToday = finished.length > 0 && finished.length < logged.length;
+  const basis = finished.length ? finished : logged;
   const pick = (k: "kcal" | "protein" | "carbs" | "fat") => {
-    const v = avg(logged.map((d) => d[k] as number));
+    const v = avg(basis.map((d) => d[k] as number));
     return v === null ? null : r0(v);
   };
 
@@ -252,6 +257,8 @@ export async function buildDietitianReport(fromParam?: string | null, toParam?: 
         }
       : null,
     loggedDays: logged.length,
+    /** Recheck: bugün kayıtlı ama gün bitmediği için ortalamalara katılmadı. */
+    averagesExcludeToday,
     daysOnTarget: days.filter((d) => d.onTarget).length,
     averages,
     /** B43: ortalamaların hedeften sapması (profil ya da kayıt yoksa null). */
@@ -288,6 +295,7 @@ export function reportToXlsx(r: DietitianReport): Buffer {
     ["Ortalama karbonhidrat (g)", r.averages.carbs],
     ["Ortalama yağ (g)", r.averages.fat],
     ["Ortalama sıvı (ml)", r.averages.waterMl],
+    ...(r.averagesExcludeToday ? [["Not", "Bugün henüz bitmediği için ortalamalara katılmadı."] as [string, string]] : []),
     ["Kilo (başlangıç)", r.weight?.start ?? null],
     ["Kilo (son)", r.weight?.end ?? null],
     ["Kilo değişimi", r.weight?.change ?? null],

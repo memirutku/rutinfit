@@ -169,4 +169,19 @@ describe("B43: diyetisyenin baktığı veriler", () => {
     expect(summary).toContainEqual(["Ortalama protein: hedeften fark", "-89 g (hedefin %73 altında)"]);
     expect(summary).toContainEqual(["Plana uyum (dönem)", "%50"]);
   });
+
+  it("recheck (Zeynep): bugünün yarım günü ortalamaları düşürmez; yalnız bugün varsa o kullanılır", async () => {
+    const { getLocalDateString, addDaysToDateString } = await import("@/lib/date-utils");
+    const today = getLocalDateString();
+    const yesterday = addDaysToDateString(today, -1);
+    await createProfile({ calorieTarget: 1500, calorieCeiling: 1600 });
+    await log(yesterday, "08:00", "breakfast", "Kahvaltı", 200, 1400, 70);
+    await log(today, "08:00", "breakfast", "Kahvaltı", 200, 380, 22);
+    const r = (await callRoute(GET, { query: { from: yesterday, to: today } })).json;
+    expect(r.averages).toMatchObject({ kcal: 1400, protein: 70 });
+    expect(r.averagesExcludeToday).toBe(true);
+    const onlyToday = (await callRoute(GET, { query: { from: today, to: today } })).json;
+    expect(onlyToday.averages.kcal).toBe(380);
+    expect(onlyToday.averagesExcludeToday).toBe(false);
+  });
 });
