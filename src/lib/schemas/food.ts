@@ -17,7 +17,8 @@ export const FoodItemInputSchema = z.object({
   carbsG: z.number().nonnegative(),
   fatG: z.number().nonnegative(),
   source: z.string().default("Kullanıcı"),
-  confidence: z.string().default("Yüksek"),
+  // B14: elle eklenen besinin güveni kullanıcının beyanıdır.
+  confidence: z.string().default("Kullanıcı"),
   brand: z.string().trim().max(120).optional().nullable(),
   barcode: barcodeDigits
     .refine((v) => v.length === 0 || (v.length >= 6 && v.length <= 14), "Barkod 6–14 haneli olmalıdır.")
@@ -68,6 +69,10 @@ export const FoodLogCreateSchema = z
     { message: "grams, (tarif için) servings ya da (serbest kayıtta) kalori zorunludur.", path: ["grams"] }
   );
 export type FoodLogCreateInput = z.input<typeof FoodLogCreateSchema>;
+
+/** PATCH /api/food-logs?id= (B13: kaydın öğünü sonradan değiştirilir). */
+export const FoodLogPatchSchema = z.object({ mealType: MealTypeSchema });
+export type FoodLogPatchInput = z.input<typeof FoodLogPatchSchema>;
 
 /** POST /api/foods/barcode: Open Food Facts ürününü yerel kataloğa kaydeder. */
 export const PackagedProductSaveSchema = z.object({

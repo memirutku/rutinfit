@@ -23,6 +23,12 @@ export const queryKeys = {
     list: (limit: number, sort?: "usage") => ["foods", { limit, sort }] as const,
   },
   recipes: ["recipes"] as const,
+  /** B01: katalog kurulumu (Türk paketi ve başlangıç kataloğu aynı önekte). */
+  catalog: {
+    all: ["catalog"] as const,
+    starter: ["catalog", "starter"] as const,
+    turkish: ["catalog", "turkish"] as const,
+  },
   mealPlans: {
     all: ["meal-plans"] as const,
     byDate: (date: string) => ["meal-plans", date] as const,

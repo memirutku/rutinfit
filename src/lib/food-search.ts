@@ -34,11 +34,25 @@ export interface RankableFood {
   confidence?: string | null;
 }
 
+const isWordChar = (c: string | undefined) => !!c && /[\p{L}\p{N}]/u.test(c);
+
+/** Sorgu metinde bütün kelime(ler) olarak geçiyor mu ("zeytin" → "siyah zeytin" evet, "zeytinyağı" hayır)? */
+function hasWholeWord(hay: string, query: string): boolean {
+  for (let i = hay.indexOf(query); i !== -1; i = hay.indexOf(query, i + 1)) {
+    if (!isWordChar(hay[i - 1]) && !isWordChar(hay[i + query.length])) return true;
+  }
+  return false;
+}
+
 function matchScore(query: string, name: string, brand: string): number {
   const hay = brand ? `${name} ${brand}` : name;
   const hayWords = words(hay);
   let score: number;
-  if (name.startsWith(query)) score = 100;
+  // B10: bütün kelime eşleşmesi daha uzun bir kelimenin önekinden önce gelir ("5 zeytin"
+  // Zeytinyağı'na değil zeytine eşlenir); ad birebir aynıysa küçük bir öncelik daha alır.
+  if (name.startsWith(query) && !isWordChar(name[query.length])) score = name === query ? 125 : 120;
+  else if (hasWholeWord(hay, query)) score = 110;
+  else if (name.startsWith(query)) score = 100;
   else if (hayWords.some((w) => w.startsWith(query))) score = 80;
   else if (hay.includes(query)) score = 50;
   else {
@@ -51,7 +65,6 @@ function matchScore(query: string, name: string, brand: string): number {
     }
     score = 20 + total * 5;
   }
-  if (hayWords.includes(query)) score += 10;
   return score;
 }
 

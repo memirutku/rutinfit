@@ -5,6 +5,7 @@ import type { FoodItem } from "@/lib/schemas/food";
 import { FOOD_CATEGORIES } from "./constants";
 import { formatNumberTr } from "@/lib/format";
 import { MeasuresModal } from "./MeasuresModal";
+import { StarterCatalogPrompt } from "./StarterCatalogPrompt";
 
 interface FoodCatalogTabProps {
   foods: FoodItem[];
@@ -14,6 +15,8 @@ interface FoodCatalogTabProps {
   onSearchChange: (value: string) => void;
   category: string;
   onCategoryChange: (value: string) => void;
+  /** B01: katalog boşken "Yeni besin ekle" formu açar. */
+  onNewFood?: () => void;
 }
 
 /** Türkçe büyük/küçük harf duyarsız ad/marka araması ve kategori filtresi. */
@@ -32,6 +35,7 @@ export function FoodCatalogTab({
   onSearchChange,
   category,
   onCategoryChange,
+  onNewFood,
 }: FoodCatalogTabProps) {
   const filtered = filterFoods(foods, search, category);
   const [measuresFor, setMeasuresFor] = useState<FoodItem | null>(null);
@@ -77,7 +81,8 @@ export function FoodCatalogTab({
           {loadError}
         </p>
       )}
-      {!loading && !loadError && filtered.length === 0 && (
+      {!loading && !loadError && foods.length === 0 && <StarterCatalogPrompt onNewFood={onNewFood} />}
+      {!loading && !loadError && foods.length > 0 && filtered.length === 0 && (
         <p className="text-sm text-slate-500">Aramanıza uyan besin bulunamadı.</p>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">

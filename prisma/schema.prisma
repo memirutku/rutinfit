@@ -379,6 +379,9 @@ model Supplement {
   active     Boolean  @default(true)
   sortOrder  Int      @default(0)
   notes      String?
+  /// B12: doz başına enerji ve protein (ör. whey). Doluysa "alındı" işareti günlüğe öğün yazar.
+  caloriesPerDose Float?
+  proteinPerDose  Float?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
@@ -433,6 +436,7 @@ model SupplementLog {
   doseGrams Float    @default(5.0) // doz miktarı (birimi doseUnit)
   doseUnit  String   @default("g") // F15
   taken     Boolean  @default(true)
+  foodLogId String? // B12: işaretlenince yazılan öğün kaydı (geri alınınca silinir)
   createdAt DateTime @default(now())
 
   @@unique([date, name])

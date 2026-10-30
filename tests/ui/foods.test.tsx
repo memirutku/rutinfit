@@ -143,6 +143,14 @@ describe("Tarifler sekmesi", () => {
     expect(recipeTotals(RECIPE)).toEqual({ calories: 855, proteinG: 80, carbsG: 114, fatG: 9.5 });
   });
 
+  it("B11: Türk paketi tarifinde porsiyon ölçüsü (1 kase) kartta yazar", async () => {
+    setup([
+      ["/api/recipes", () => jsonResponse([{ ...PB_RECIPE, instructions: "Porsiyon: 1 kase. Değerler...", calculatedMacros: { calories: 1200, proteinG: 50, carbsG: 40, fatG: 100 } }])],
+    ]);
+    fireEvent.click(await screen.findByRole("button", { name: "Tarifler (1)" }));
+    expect(screen.getByLabelText("Porsiyon başına 600 kcal").textContent).toContain("1 kase");
+  });
+
   it("kart sunucunun hesapladığı toplamı gösterir", async () => {
     setup([
       [
@@ -151,10 +159,11 @@ describe("Tarifler sekmesi", () => {
       ],
     ]);
     fireEvent.click(await screen.findByRole("button", { name: "Tarifler (1)" }));
-    expect(screen.getByText("1200 kcal")).toBeTruthy();
-    expect(screen.queryByText("600 kcal")).toBeNull(); // gram / 100 hesabı
-    expect(screen.getByText("50g")).toBeTruthy();
-    expect(screen.getByText("Hazırlama: 20 dk • 2 porsiyon • porsiyonu 600 kcal")).toBeTruthy(); // F74
+    // B11: öne çıkan sayı porsiyon kalorisidir; tencerenin tamamı küçük yazılır.
+    expect(screen.getByLabelText("Porsiyon başına 600 kcal")).toBeTruthy();
+    expect(screen.queryByText("300 kcal")).toBeNull(); // gram / 100 hesabı
+    expect(screen.getByText("25g")).toBeTruthy(); // porsiyon başına protein
+    expect(screen.getByText("Hazırlama: 20 dk • 2 porsiyon • tamamı 1.200 kcal")).toBeTruthy();
     expect(screen.getByText("Haşla ve karıştır")).toBeTruthy();
   });
 });
@@ -289,6 +298,20 @@ describe("Paketli gıda sekmesi", () => {
 });
 
 describe("Yeni besin penceresi", () => {
+  it("B14: elle eklenen besin 'Genel' kategoride ve 'Kullanıcı' güveniyle başlar; örnek değer yoktur", async () => {
+    const s = setup([["/api/foods", (u, init) => (init?.method === "POST" ? jsonResponse(food({ id: "n" }), 201) : jsonResponse(u.includes("barcode") ? {} : FOODS))]]);
+    fireEvent.click(await screen.findByRole("button", { name: "Yeni Besin" }));
+    const dialog = screen.getByRole("dialog", { name: "Yeni Besin Ekle" });
+    expect(within(dialog).getByLabelText<HTMLSelectElement>("Kategori").value).toBe("Genel");
+    expect(within(dialog).getByLabelText<HTMLInputElement>("Kalori (kcal/100g)").value).toBe("0");
+    expect(within(dialog).getByLabelText<HTMLInputElement>("Protein (g/100g)").value).toBe("0");
+    fireEvent.change(within(dialog).getByLabelText("Besin Adı"), { target: { value: "Hurma" } });
+    fireEvent.change(within(dialog).getByLabelText("Kalori (kcal/100g)"), { target: { value: "282" } });
+    await act(async () => fireEvent.click(within(dialog).getByRole("button", { name: "Kaydet" })));
+    expect(bodyOf(posts(s.calls, "/api/foods")[0])).toMatchObject({ name: "Hurma", calories: 282, proteinG: 0, category: "Genel", confidence: "Kullanıcı", source: "Kullanıcı" });
+  });
+
+
   it("sunucu reddederse hata pencerede gösterilir ve pencere açık kalır; başarıda kapanır", async () => {
     let fail = true;
     const s = setup([

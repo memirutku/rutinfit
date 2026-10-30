@@ -90,6 +90,49 @@ describe("0022: BodyMeasurement yeniden kurulumu (F16)", () => {
   });
 });
 
+describe("0025: varsayılan kreatin (B02) ve takviye besin değeri (B12)", () => {
+  /** 0025'ten önceki migration'ları uygular, `before` ile veri yazar, sonra kalanları uygular. */
+  async function upgrade(before: () => Promise<void>) {
+    const partial = path.join(dir, "migrations");
+    for (const m of listMigrations(MIGRATIONS)) {
+      if (m.name < "0025") fs.cpSync(path.join(MIGRATIONS, m.name), path.join(partial, m.name), { recursive: true });
+    }
+    await runMigrations(client, { migrationsDir: partial });
+    await before();
+    for (const m of listMigrations(MIGRATIONS)) fs.cpSync(path.join(MIGRATIONS, m.name), path.join(partial, m.name), { recursive: true });
+    await runMigrations(client, { migrationsDir: partial });
+  }
+
+  it("yeni kurulumda takviye listesi boştur", async () => {
+    await runMigrations(client, { migrationsDir: MIGRATIONS });
+    expect(await client.supplement.count()).toBe(0);
+  });
+
+  it("hiç kullanılmamış varsayılan kreatin kaldırılır", async () => {
+    await upgrade(async () => {
+      expect(await client.supplement.count()).toBe(1);
+    });
+    expect(await client.supplement.count()).toBe(0);
+  });
+
+  it("kreatin kaydı ya da hatırlatması olan kullanıcının kreatini kalır; yeni alanlar boş gelir", async () => {
+    await upgrade(async () => {
+      await client.$executeRawUnsafe(`INSERT INTO "SupplementLog" (id, date, name, doseGrams, taken) VALUES ('l1', '2026-10-01', 'Kreatin Monohidrat', 5, 1)`);
+    });
+    expect(await client.supplement.findUnique({ where: { id: "default-creatine" } })).toMatchObject({ caloriesPerDose: null, proteinPerDose: null });
+    expect(await client.supplementLog.findUnique({ where: { id: "l1" } })).toMatchObject({ foodLogId: null });
+  });
+
+  it("kreatin hatırlatması olan kullanıcının kreatini kalır", async () => {
+    await upgrade(async () => {
+      await client.$executeRawUnsafe(
+        `INSERT INTO "Reminder" (id, kind, title, time, supplementId, updatedAt) VALUES ('r1', 'supplement', 'Kreatin', '09:00', 'default-creatine', 0)`
+      );
+    });
+    expect(await client.supplement.count()).toBe(1);
+  });
+});
+
 describe("migration ↔ şema uyumu", () => {
   it("prisma/migrations, schema.prisma ile birebir aynı şemayı üretir (drift yok)", () => {
     const shadow = path.join(dir, "shadow.db");

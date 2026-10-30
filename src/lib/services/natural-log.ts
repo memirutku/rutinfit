@@ -4,9 +4,10 @@
  */
 import { prisma } from "../prisma";
 import { rankFoods } from "../food-search";
-import { builtinMeasuresFor, mergeMeasures } from "../measures";
+import { builtinMeasuresFor, mergeMeasures, recipeMeasuresFor, RECIPE_SERVING_UNITS } from "../measures";
 import { parseFoodText, splitFoodText } from "../natural-log";
 import { calculatePortionMacros, calculateRecipeMacros, scaleMacros, type NutritionalValues } from "../nutrition-calculator";
+import { QUICK_FOODS, type QuickFood } from "../quick-foods";
 
 export interface MatchRef {
   type: "food" | "recipe";
@@ -16,6 +17,8 @@ export interface MatchRef {
 
 export interface ParsedMealItem {
   raw: string;
+  /** Ayrıştırılan besin metni ("1 kase mercimek çorbası" → "mercimek çorbası"). */
+  food: string;
   quantity: number;
   unit: string | null;
   match: MatchRef | null;
@@ -26,6 +29,27 @@ export interface ParsedMealItem {
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
+
+/** B10: hızlı kalem (simit, ekmek) katalogda yoksa hızlı ekleme çipinin kullandığı kayıt oluşturulur. */
+async function ensureQuickFood(def: QuickFood) {
+  return (
+    (await prisma.foodItem.findFirst({ where: { name: def.name, source: "RutinFit" }, include: { measures: true } })) ??
+    (await prisma.foodItem.create({
+      data: {
+        name: def.name,
+        category: def.category,
+        basisGrams: def.basisGrams,
+        calories: def.calories,
+        proteinG: def.proteinG,
+        carbsG: def.carbsG,
+        fatG: def.fatG,
+        source: "RutinFit",
+        confidence: "Tahmini",
+      },
+      include: { measures: true },
+    }))
+  );
+}
 
 export async function parseMealText(text: string): Promise<ParsedMealItem[]> {
   const [foods, recipes] = await Promise.all([
@@ -41,10 +65,29 @@ export async function parseMealText(text: string): Promise<ParsedMealItem[]> {
     return { type, id, name: c.name };
   };
 
-  return splitFoodText(text).map((raw) => {
+  // B10: katalogda karşılığı olmayan hızlı kalemler yalnız hiçbir katalog eşleşmesi yoksa denenir.
+  const quickCandidates = Object.values(QUICK_FOODS)
+    .filter((q) => !foods.some((f) => f.name === q.name))
+    .map((q) => ({ id: `quick:${q.name}`, name: q.name, brand: null, confidence: null, def: q as QuickFood }));
+
+  const items: ParsedMealItem[] = [];
+  for (const raw of splitFoodText(text)) {
     const parsed = parseFoodText(raw);
+    if (!rankFoods(candidates, parsed.food).length) {
+      const quick = rankFoods(quickCandidates, parsed.food)[0];
+      if (quick) {
+        const created = await ensureQuickFood(quick.def);
+        if (!foods.some((f) => f.id === created.id)) foods.push(created);
+        candidates.push({ id: `food:${created.id}`, name: created.name, brand: created.brand, confidence: created.confidence });
+      }
+    }
+    items.push(matchItem(raw, parsed));
+  }
+  return items;
+
+  function matchItem(raw: string, parsed: ReturnType<typeof parseFoodText>): ParsedMealItem {
     const ranked = rankFoods(candidates, parsed.food);
-    const base = { raw, quantity: parsed.quantity, unit: parsed.unit, alternatives: ranked.slice(1, 4).map(ref) };
+    const base = { raw, food: parsed.food, quantity: parsed.quantity, unit: parsed.unit, alternatives: ranked.slice(1, 4).map(ref) };
     if (!ranked.length) return { ...base, match: null, grams: null, macros: null, note: `"${parsed.food}" katalogda bulunamadı.` };
     const match = ref(ranked[0]);
     let grams: number;
@@ -55,12 +98,14 @@ export async function parseMealText(text: string): Promise<ParsedMealItem[]> {
       const ingredients = recipe.ingredients.map((i) => ({ grams: i.grams, foodItem: i.foodItem }));
       const total = ingredients.reduce((a, i) => a + i.grams, 0);
       const portion = recipe.servings > 0 ? total / recipe.servings : total;
-      const measure = parsed.unit ? builtinMeasuresFor(recipe.name).find((m) => m.name === parsed.unit) : undefined;
+      // B11: kase/porsiyon/adet/dilim tarifin porsiyonudur (tarif kartıyla aynı sayı).
+      const measure = parsed.unit ? recipeMeasuresFor(recipe.name, portion, recipe.instructions).find((m) => m.name === parsed.unit) : undefined;
       if (parsed.unit === "gram") grams = parsed.quantity;
       else if (measure) grams = parsed.quantity * measure.grams;
+      else if (!parsed.unit || RECIPE_SERVING_UNITS.has(parsed.unit)) grams = parsed.quantity * portion;
       else {
         grams = parsed.quantity * portion;
-        if (parsed.unit && !["porsiyon", "adet"].includes(parsed.unit)) note = `"${parsed.unit}" bu tarif için bilinmiyor; ${parsed.quantity} porsiyon sayıldı.`;
+        note = `"${parsed.unit}" bu tarif için bilinmiyor; ${parsed.quantity} porsiyon sayıldı.`;
       }
       grams = round1(grams);
       const macros = scaleMacros(calculateRecipeMacros(ingredients), total > 0 ? grams / total : 0);
@@ -81,5 +126,5 @@ export async function parseMealText(text: string): Promise<ParsedMealItem[]> {
     }
     grams = round1(grams);
     return { ...base, match, grams, macros: calculatePortionMacros({ ...food, basisGrams: food.basisGrams > 0 ? food.basisGrams : 100 }, grams), note };
-  });
+  }
 }

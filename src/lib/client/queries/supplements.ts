@@ -16,10 +16,11 @@ export function useSupplements(date: string) {
 
 function useInvalidate() {
   const qc = useQueryClient();
-  // Kreatin ilerleme ekranında da görünür.
+  // Kreatin ilerleme ekranında da görünür. B12: besin değeri olan takviye günlüğe öğün yazar.
   return () =>
     Promise.all([
       qc.invalidateQueries({ queryKey: queryKeys.supplements }),
+      qc.invalidateQueries({ queryKey: queryKeys.foodLogs.all }),
       qc.invalidateQueries({ queryKey: queryKeys.progress }),
       qc.invalidateQueries({ queryKey: queryKeys.reminders }),
     ]);

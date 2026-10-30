@@ -47,6 +47,14 @@ describe("F02: arama sıralaması", () => {
     expect(rankFoods(foods, "", usage, "2026-10-30").map((f) => f.id)).toEqual(["4", "1", "2", "3", "5"]);
   });
 
+  it("B10: bütün kelime eşleşmesi, daha uzun kelimenin önekinden önce gelir (zeytin ≠ zeytinyağı)", () => {
+    const list = [food("oil", "Zeytinyağı"), food("mine", "Siyah zeytin", { confidence: "Kullanıcı" }), food("green", "Zeytin (yeşil, salamura)")];
+    expect(rankFoods(list, "zeytin").map((f) => f.id)).toEqual(["green", "mine", "oil"]);
+    expect(rankFoods(list, "zeytinyagi").map((f) => f.id)).toEqual(["oil"]);
+    // Ad birebir aynıysa daha uzun adın önüne geçer (tarif "Güllaç", malzeme "Güllaç Yaprağı").
+    expect(rankFoods([food("leaf", "Güllaç Yaprağı"), food("dish", "Güllaç")], "gullac").map((f) => f.id)).toEqual(["dish", "leaf"]);
+  });
+
   it("markada da arar", () => {
     expect(rankFoods([food("x", "Granola", { brand: "Eti" })], "eti").map((f) => f.id)).toEqual(["x"]);
   });

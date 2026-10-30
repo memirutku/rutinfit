@@ -128,11 +128,12 @@ export default function DashboardPage() {
       date: todayStr,
       time: new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }),
       mealType: values.mealType,
-      foodItemId: values.foodItemId,
+      // B01: hızlı eklemede tarif de seçilebilir.
+      ...(values.recipeId ? { recipeId: values.recipeId } : { foodItemId: values.foodItemId }),
       name: values.name,
       grams: values.grams,
     });
-    setRecentFoods((prev) => pushRecentFood(prev, { id: values.foodItemId, name: values.name, defaultGrams: values.grams }));
+    if (!values.recipeId) setRecentFoods((prev) => pushRecentFood(prev, { id: values.foodItemId, name: values.name, defaultGrams: values.grams }));
     setUndo({ toast: { key: `add-${created.id}`, name: created.name, action: "added" }, logId: created.id });
     setIsQuickAddOpen(false);
   }
@@ -268,8 +269,8 @@ export default function DashboardPage() {
         hideNumbers={hideNumbers}
         onOpenSavedMeals={() => setSavedMealsOpen(true)}
         onOpenNaturalLog={() => setNaturalLogOpen(true)}
-        onQuickFood={(item, count) =>
-          quickFood.mutate({ item, count, date: todayStr }, { onError: (e) => showError(e, "Eklenemedi.") })
+        onQuickFood={(item, count, mealType) =>
+          quickFood.mutate({ item, count, date: todayStr, mealType }, { onError: (e) => showError(e, "Eklenemedi.") })
         }
       />
 

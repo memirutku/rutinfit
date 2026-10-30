@@ -169,7 +169,7 @@ describe("dashboard kartları", () => {
     expect(macros.textContent).not.toMatch(/\d+g/);
     expect(macros.textContent).toContain("Protein");
 
-    const { container: meals } = render(<TodayMealsList logs={[log()]} onAdd={vi.fn()} onDelete={vi.fn()} hideNumbers />);
+    const { container: meals } = renderWithQuery(<TodayMealsList logs={[log()]} onAdd={vi.fn()} onDelete={vi.fn()} hideNumbers />);
     expect(meals.textContent).not.toMatch(/kcal/);
 
     const { container: alert } = render(
@@ -178,12 +178,16 @@ describe("dashboard kartları", () => {
     expect(alert.textContent).not.toMatch(/\d/);
   });
 
-  it("F79: öğün listesindeki hızlı Türk sofrası düğmeleri kalemi ve adedi bildirir", () => {
+  it("F79: öğün listesindeki hızlı Türk sofrası düğmeleri kalemi, adedi ve öğünü bildirir", () => {
+    // B13: öğün sınırında soru çıkar; sınırdan uzak bir saat sabitlenir.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 9, 30, 13, 0));
     const onQuickFood = vi.fn();
-    render(<TodayMealsList logs={[]} onAdd={vi.fn()} onDelete={vi.fn()} onQuickFood={onQuickFood} />);
+    renderWithQuery(<TodayMealsList logs={[]} onAdd={vi.fn()} onDelete={vi.fn()} onQuickFood={onQuickFood} />);
     fireEvent.click(screen.getByRole("button", { name: "+ Simit" }));
     fireEvent.click(screen.getByRole("button", { name: "+ 2 dilim ekmek" }));
-    expect(onQuickFood.mock.calls).toEqual([["simit", 1], ["ekmek-dilimi", 2]]);
+    expect(onQuickFood.mock.calls).toEqual([["simit", 1, "lunch"], ["ekmek-dilimi", 2, "lunch"]]);
+    vi.useRealTimers();
   });
 
   it("F51: hazır olma düşükse antrenman kartı kısaltılmış seansı önerir", () => {
@@ -209,7 +213,7 @@ describe("dashboard kartları", () => {
   it("TodayMealsList boş durumu ve silme düğmesi", () => {
     const onDelete = vi.fn();
     const onAdd = vi.fn();
-    const { rerender } = render(<TodayMealsList logs={[]} onAdd={onAdd} onDelete={onDelete} />);
+    const { rerender } = renderWithQuery(<TodayMealsList logs={[]} onAdd={onAdd} onDelete={onDelete} />);
     expect(screen.getByText("Henüz bugün için bir öğün kaydetmediniz")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Öğün Ekle/ }));
     expect(onAdd).toHaveBeenCalled();
