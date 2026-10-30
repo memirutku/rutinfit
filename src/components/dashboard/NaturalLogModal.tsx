@@ -5,10 +5,13 @@ import { Modal } from "@/components/ui/Modal";
 import { DecimalInput } from "@/components/ui/DecimalInput";
 import { apiFetch, errorMessage } from "@/lib/client/api";
 import { useCreateFoodLog } from "@/lib/client/queries/nutrition";
+import { useProfile } from "@/lib/client/queries/system";
 import { formatNumberTr } from "@/lib/format";
-import { MEAL_TYPES, MEAL_TYPE_LABELS, type MealType } from "@/lib/schemas/enums";
+import { MEAL_TYPES, mealTypeLabel, type MealType } from "@/lib/schemas/enums";
+import type { FoodItem } from "@/lib/schemas/food";
 import type { MatchRef, ParsedMealItem } from "@/lib/services/natural-log";
 import { StarterCatalogPrompt } from "@/components/foods/StarterCatalogPrompt";
+import { UnmatchedFoodActions, capitalizeTr, type ApproxEntry } from "@/components/foods/UnmatchedFoodActions";
 
 interface Row extends ParsedMealItem {
   key: string;
@@ -16,6 +19,8 @@ interface Row extends ParsedMealItem {
   choice: string;
   /** Çözümlemedeki gram (kalori bu orana göre ölçeklenir). */
   baseGrams: number | null;
+  /** B10: bulunamayan satır için girilen yaklaşık kalori (serbest kayıt). */
+  approx: ApproxEntry | null;
 }
 
 const refKey = (r: MatchRef) => `${r.type}:${r.id}`;
@@ -35,7 +40,9 @@ export function NaturalLogModal({ open, date, defaultMealType, onClose }: { open
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const createLog = useCreateFoodLog();
-  const ready = (rows ?? []).filter((r) => r.match && r.grams && r.grams > 0);
+  // B10: Ramazan modunda öğün adları Sahur ve İftar.
+  const ramadan = useProfile().data?.ramadanMode ?? false;
+  const ready = (rows ?? []).filter((r) => (r.match ? !!r.grams && r.grams > 0 : !!r.approx && r.approx.kcal > 0));
 
   async function parse() {
     setParsing(true);
@@ -46,7 +53,7 @@ export function NaturalLogModal({ open, date, defaultMealType, onClose }: { open
         json: { text },
       });
       setCatalogEmpty(!!empty);
-      setRows(items.map((i, n) => ({ ...i, key: `${n}:${i.raw}`, choice: i.match ? refKey(i.match) : "", baseGrams: i.grams })));
+      setRows(items.map((i, n) => ({ ...i, key: `${n}:${i.raw}`, choice: i.match ? refKey(i.match) : "", baseGrams: i.grams, approx: null })));
     } catch (e) {
       setError(errorMessage(e, "Metin çözümlenemedi."));
     } finally {
@@ -55,6 +62,26 @@ export function NaturalLogModal({ open, date, defaultMealType, onClose }: { open
   }
 
   const update = (key: string, patch: Partial<Row>) => setRows((rs) => rs?.map((r) => (r.key === key ? { ...r, ...patch } : r)) ?? null);
+
+  /** Bulunamayan satırın tahmini gramı: gram yazıldıysa o, yoksa 100 g. */
+  const guessGrams = (r: Row) => (r.unit === "gram" && r.quantity > 0 ? r.quantity : 100);
+
+  /** B10: satır yeni eklenen besine bağlanır; değerler 100 g'den ölçeklenir. */
+  function linkToNewFood(r: Row, food: FoodItem) {
+    const grams = guessGrams(r);
+    const basis = food.basisGrams > 0 ? food.basisGrams : 100;
+    const f = grams / basis;
+    const match: MatchRef = { type: "food", id: food.id, name: food.name };
+    update(r.key, {
+      match,
+      choice: refKey(match),
+      grams,
+      baseGrams: grams,
+      approx: null,
+      macros: { calories: food.calories * f, proteinG: food.proteinG * f, carbsG: food.carbsG * f, fatG: food.fatG * f },
+      note: r.unit && r.unit !== "gram" ? `"${r.unit}" için gram bilinmiyor; ${grams} g sayıldı, düzeltebilirsin.` : undefined,
+    });
+  }
 
   function close() {
     setText("");
@@ -69,6 +96,21 @@ export function NaturalLogModal({ open, date, defaultMealType, onClose }: { open
     try {
       const time = new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
       for (const r of ready) {
+        if (!r.match && r.approx) {
+          // B10: katalog dışı serbest kayıt; değerleri kullanıcı girdi.
+          await createLog.mutateAsync({
+            date,
+            time,
+            mealType,
+            name: `${capitalizeTr(r.food ?? r.raw)} (yaklaşık)`,
+            grams: r.approx.grams,
+            caloriesSnapshot: r.approx.kcal,
+            proteinSnapshot: 0,
+            carbsSnapshot: 0,
+            fatSnapshot: 0,
+          });
+          continue;
+        }
         const options = [r.match!, ...r.alternatives];
         const chosen = options.find((o) => refKey(o) === r.choice) ?? r.match!;
         await createLog.mutateAsync({
@@ -105,7 +147,7 @@ export function NaturalLogModal({ open, date, defaultMealType, onClose }: { open
             <select id="nl-meal" value={mealType} onChange={(e) => setMealType(e.target.value as MealType)} className={INPUT}>
               {MEAL_TYPES.map((t) => (
                 <option key={t} value={t}>
-                  {MEAL_TYPE_LABELS[t]}
+                  {mealTypeLabel(t, ramadan)}
                 </option>
               ))}
             </select>
@@ -142,7 +184,16 @@ export function NaturalLogModal({ open, date, defaultMealType, onClose }: { open
                         {kcal !== null ? `${formatNumberTr(kcal)} kcal` : "Kaydedince katalogdan hesaplanır"}
                       </span>
                     </div>
-                  ) : null}
+                  ) : (
+                    <UnmatchedFoodActions
+                      raw={r.raw}
+                      food={r.food ?? r.raw}
+                      defaultGrams={guessGrams(r)}
+                      approx={r.approx}
+                      onApprox={(approx) => update(r.key, { approx })}
+                      onFoodCreated={(food) => linkToNewFood(r, food)}
+                    />
+                  )}
                   {r.note && <p className="mt-1 text-amber-800">{r.note}</p>}
                 </li>
               );

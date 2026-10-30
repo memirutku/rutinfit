@@ -10,7 +10,8 @@ const ParseSchema = z.object({ text: z.string().trim().min(1, "Metin boş olamaz
 export async function POST(req: Request) {
   try {
     const { text } = ParseSchema.parse(await req.json());
-    const [items, catalog] = await Promise.all([parseMealText(text), starterCatalogStatus()]);
+    const items = await parseMealText(text);
+    const catalog = await starterCatalogStatus();
     // B01: katalog boşsa istemci "başlangıç kataloğunu yükle" önerir.
     return NextResponse.json({ items, catalogEmpty: catalog.foods + catalog.recipes === 0 });
   } catch (error) {

@@ -4,6 +4,7 @@ import { installTurkishCatalog } from "@/lib/services/turkish-catalog";
 import { callRoute } from "../helpers/route";
 import { resetDatabase } from "../helpers/db";
 import { createFood } from "../helpers/factories";
+import { prisma } from "@/lib/prisma";
 
 beforeEach(resetDatabase);
 
@@ -25,6 +26,8 @@ describe("POST /api/food-logs/parse", () => {
     expect(items[1].macros.calories).toBe(147);
     expect(items[2].macros.calories).toBeCloseTo(214.5, 1);
     expect(items[4].note).toMatch(/bulunamadı/);
+    // B10: istemci yeni besin adını ayrıştırılan metinden önerir.
+    expect(items[4].food).toBe("ejder meyvesi");
   });
 
   it("F06: ölçü bilinmiyorsa porsiyon/100 g sayılır ve not düşülür; alternatifler verilir", async () => {
@@ -37,6 +40,22 @@ describe("POST /api/food-logs/parse", () => {
     expect(tomato.grams).toBe(100);
     expect(tomato.note).toMatch(/100 g/);
     expect(Array.isArray(pilav.alternatives)).toBe(true);
+  });
+
+  it("B10: katalogda karşılığı olmayan hızlı kalem (ekmek, simit) yine eşlenir", async () => {
+    const res = await callRoute(POST, { body: { text: "2 dilim ekmek, 1 simit" } });
+    const [bread, simit] = res.json.items;
+    expect(bread.match).toMatchObject({ type: "food", name: "Beyaz Ekmek" });
+    expect(bread.grams).toBe(50);
+    expect(bread.macros.calories).toBe(133);
+    expect(simit.match.name).toBe("Simit");
+    expect(simit.grams).toBe(110);
+    // Kalem kataloğa hızlı ekleme çipinin bulacağı biçimde bir kez girer.
+    expect(await prisma.foodItem.count({ where: { name: "Beyaz Ekmek", source: "RutinFit" } })).toBe(1);
+    await callRoute(POST, { body: { text: "1 dilim ekmek" } });
+    expect(await prisma.foodItem.count({ where: { name: "Beyaz Ekmek" } })).toBe(1);
+    // Hızlı kalem eşlenip kataloğa girdiği için katalog artık boş sayılmaz.
+    expect(res.json.catalogEmpty).toBe(false);
   });
 
   it("boş metin 400", async () => {
