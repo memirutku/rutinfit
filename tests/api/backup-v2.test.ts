@@ -68,6 +68,8 @@ async function seedRichData() {
   await prisma.reminder.create({ data: { kind: "water", title: "Su iç", time: "10:00", days: "12345", lastFiredOn: "2026-10-19" } });
   // F14: biten bir oruç; F76: Ramazan ayarı profilde.
   await prisma.fastingSession.create({ data: { startedAt: new Date("2026-10-18T20:00:00Z"), endedAt: new Date("2026-10-19T12:00:00Z"), targetHours: 16 } });
+  // F16: genişletilmiş ölçü (fotoğraf kayıtları yedeğe girmez).
+  await prisma.bodyMeasurement.create({ data: { date: "2026-10-18", waistCm: 99, hipCm: 105, restingHr: 60, systolic: 120, diastolic: 80, notes: "Sabah" } });
   // F49: haftalık değerlendirme.
   await prisma.weeklyCheckin.create({
     data: { weekStart: "2026-10-12", metrics: JSON.stringify({ loggedDays: 6 }), summary: "İyi hafta.", aiGenerated: true, suggestion: JSON.stringify({ kind: "keep", text: "Devam" }) },

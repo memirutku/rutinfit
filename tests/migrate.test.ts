@@ -68,6 +68,28 @@ describe("runMigrations", () => {
   });
 });
 
+describe("0022: BodyMeasurement yeniden kurulumu (F16)", () => {
+  it("bel ölçüsü verisi korunur, yeni alanlar boş gelir, waistCm artık isteğe bağlı", async () => {
+    // 0022'den önceki migration'lar ayrı bir klasörde uygulanır, veri yazılır, sonra 0022 eklenir.
+    const partial = path.join(dir, "migrations");
+    for (const m of listMigrations(MIGRATIONS)) {
+      if (m.name >= "0022") continue;
+      fs.cpSync(path.join(MIGRATIONS, m.name), path.join(partial, m.name), { recursive: true });
+    }
+    await runMigrations(client, { migrationsDir: partial });
+    await client.$executeRawUnsafe(`INSERT INTO "BodyMeasurement" (id, date, waistCm) VALUES ('m1', '2026-10-01', 101.5)`);
+
+    for (const m of listMigrations(MIGRATIONS)) {
+      if (m.name >= "0022") fs.cpSync(path.join(MIGRATIONS, m.name), path.join(partial, m.name), { recursive: true });
+    }
+    const result = await runMigrations(client, { migrationsDir: partial, backupsDir: path.join(dir, "backups") });
+    expect(result.applied[0]).toMatch(/^0022_/);
+    expect(await client.bodyMeasurement.findUnique({ where: { id: "m1" } })).toMatchObject({ date: "2026-10-01", waistCm: 101.5, hipCm: null, systolic: null });
+    await client.bodyMeasurement.create({ data: { date: "2026-10-02", restingHr: 58 } });
+    expect(await client.bodyMeasurement.count()).toBe(2);
+  });
+});
+
 describe("migration ↔ şema uyumu", () => {
   it("prisma/migrations, schema.prisma ile birebir aynı şemayı üretir (drift yok)", () => {
     const shadow = path.join(dir, "shadow.db");

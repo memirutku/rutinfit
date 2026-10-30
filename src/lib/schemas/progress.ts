@@ -32,7 +32,7 @@ export const WellbeingSchema = z.object({
 export const ProgressResponseSchema = z.object({
   weights: z.array(z.object({ date: z.string(), weightKg: z.number(), rollingAvg: z.number() })),
   wellbeings: z.array(WellbeingSchema),
-  measurements: z.array(z.object({ id: z.string(), date: z.string(), waistCm: z.number() })),
+  measurements: z.array(z.object({ id: z.string(), date: z.string(), waistCm: z.number().nullable() })),
   creatineCompliance: z.array(z.object({ date: z.string(), taken: z.boolean() })),
   weeklyWeightDelta: z.number(),
   today: z.object({

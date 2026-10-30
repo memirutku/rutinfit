@@ -56,3 +56,6 @@ playwright-report/
 # Masaüstü paketi (scripts/prepare-desktop.mjs üretir)
 src-tauri/resources/
 src-tauri/binaries/
+
+# F16: yerel geliştirmede ilerleme fotoğrafları
+/progress-photos/

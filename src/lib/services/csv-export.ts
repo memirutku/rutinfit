@@ -76,7 +76,7 @@ export async function bodyCsv(range: Range): Promise<string> {
   ]);
   const byDate = new Map<string, { weight?: number; waist?: number }>();
   for (const w of weights) byDate.set(w.date, { ...byDate.get(w.date), weight: w.weightKg });
-  for (const m of waists) byDate.set(m.date, { ...byDate.get(m.date), waist: m.waistCm });
+  for (const m of waists) if (m.waistCm != null) byDate.set(m.date, { ...byDate.get(m.date), waist: m.waistCm });
   return toCsv(
     ["date", "weight_kg", "waist_cm"],
     [...byDate.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, v]) => [date, v.weight, v.waist])

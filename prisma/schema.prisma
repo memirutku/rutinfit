@@ -319,11 +319,36 @@ model WeightLog {
   createdAt      DateTime @default(now())
 }
 
+/// F16: Vücut ölçüleri ve sağlık metrikleri (her alan isteğe bağlı; gün başına bir kayıt).
 model BodyMeasurement {
+  id             String   @id @default(cuid())
+  date           String   @unique // YYYY-MM-DD
+  waistCm        Float?
+  hipCm          Float?
+  chestCm        Float?
+  armCm          Float?
+  thighCm        Float?
+  neckCm         Float?
+  bodyFatPercent Float?
+  restingHr      Int?
+  systolic       Int?
+  diastolic      Int?
+  notes          String?
+  createdAt      DateTime @default(now())
+}
+
+/// F16: İlerleme fotoğrafı. Dosya veri klasöründe (progress-photos) durur; yedek dosyasına girmez.
+model ProgressPhoto {
   id        String   @id @default(cuid())
-  date      String   @unique // YYYY-MM-DD
-  waistCm   Float
+  date      String // YYYY-MM-DD
+  pose      String // front, side, back
+  fileName  String   @unique
+  mimeType  String
+  sizeBytes Int
+  notes     String?
   createdAt DateTime @default(now())
+
+  @@index([date])
 }
 
 model DailyWellbeing {

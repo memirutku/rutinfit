@@ -18,9 +18,12 @@ import {
 } from "recharts";
 import { useProgress } from "@/lib/client/queries/progress";
 import { formatDateTr } from "@/lib/format";
+import { getLocalDateString } from "@/lib/date-utils";
 import { StrengthSection } from "@/components/progress/StrengthSection";
 import { AdaptiveTdeeCard } from "@/components/progress/AdaptiveTdeeCard";
 import { CheckinCard } from "@/components/progress/CheckinCard";
+import { BodyMetricsSection } from "@/components/progress/BodyMetricsSection";
+import { PhotosSection } from "@/components/progress/PhotosSection";
 import { VolumeSection } from "@/components/progress/VolumeSection";
 
 export default function ProgressPage() {
@@ -261,6 +264,10 @@ export default function ProgressPage() {
 
       {/* F10: Gerçek harcama tahmini (adaptif TDEE) */}
       <AdaptiveTdeeCard />
+
+      {/* F16: Vücut ölçüleri, sağlık metrikleri ve fotoğraflar */}
+      <BodyMetricsSection today={getLocalDateString()} />
+      <PhotosSection />
 
       {/* F23: Güç gelişimi ve rekorlar */}
       <StrengthSection />
