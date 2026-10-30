@@ -44,6 +44,30 @@ describe("F76 + F14: oruç", () => {
     expect(screen.getByText(/2.500 ml hedefle/)).toBeTruthy();
   });
 
+  it("B26: Ramazan dışında iftar sayacı yerine Ramazan'a kalan gün görünür", async () => {
+    restore = stubFetch([
+      ["/api/fasting", () =>
+        jsonResponse({
+          ramadan: {
+            province: "İstanbul",
+            today: times("2026-10-30", "05:51", "18:09"),
+            tomorrow: times("2026-10-31", "05:52", "18:08"),
+            phase: "fasting",
+            minutesLeft: 120,
+            progressPercent: 80,
+            waterAdvice: "x",
+            period: { inRamadan: false, day: null, start: "2027-02-08", end: "2027-03-09", daysUntil: 101 },
+          },
+          timer: noTimer,
+        })],
+    ]).restore;
+    renderWithQuery(<FastingCard />);
+    expect(await screen.findByText("Ramazan'a 101 gün")).toBeTruthy();
+    expect(screen.getByText(/Başlangıç 08\.02\.2027/)).toBeTruthy();
+    expect(screen.queryByText(/İftara/)).toBeNull();
+    expect(screen.queryByRole("progressbar")).toBeNull();
+  });
+
   it("Ramazan kapalı ve hedef yoksa kart görünmez", async () => {
     let served = false;
     restore = stubFetch([["/api/fasting", () => ((served = true), jsonResponse({ ramadan: null, timer: noTimer }))]]).restore;

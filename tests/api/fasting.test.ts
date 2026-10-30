@@ -61,6 +61,16 @@ describe("/api/fasting (F14 + F76)", () => {
     expect((await callRoute(STOP, { body: {} })).status).toBe(404);
   });
 
+  it("B26: Ramazan dışında kalan gün döner; su hatırlatması oruç saatinde de susturulmaz", async () => {
+    await createProfile({ ramadanMode: true, ramadanProvince: "İstanbul", waterTargetMl: 2500 });
+    const inside = await getFastingStatus(new Date("2026-02-19T12:00:00+03:00"));
+    expect(inside.ramadan!.period).toMatchObject({ inRamadan: true, day: 1 });
+    const outside = await getFastingStatus(new Date("2026-10-30T12:00:00+03:00"));
+    expect(outside.ramadan!.period).toMatchObject({ inRamadan: false, start: "2027-02-08", daysUntil: 101 });
+    await prisma.reminder.create({ data: { kind: "water", title: "Su iç", time: "12:00" } });
+    expect((await dueReminders(new Date(2026, 9, 30, 12, 10))).map((d) => d.title)).toEqual(["Su iç"]);
+  });
+
   it("Ramazan modunda oruç saatlerinde su hatırlatması gelmez, iftardan sonra gelir", async () => {
     await createProfile({ ramadanMode: true, ramadanProvince: "Ankara", waterTargetMl: 2500 });
     await prisma.reminder.create({ data: { kind: "water", title: "Su iç", time: "12:00" } });
