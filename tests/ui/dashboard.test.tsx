@@ -161,6 +161,13 @@ describe("dashboard kartları", () => {
     expect(onQuickFood.mock.calls).toEqual([["simit", 1], ["ekmek-dilimi", 2]]);
   });
 
+  it("F51: hazır olma düşükse antrenman kartı kısaltılmış seansı önerir", () => {
+    const { rerender } = render(<TodayWorkoutCard template={template} isCompleted={false} readiness={{ score: 32, band: "low", contributions: [], drags: ["Uyku 5 sa"] }} />);
+    expect(screen.getByRole("note").textContent).toMatch(/Hazır olma düşük \(32\)/);
+    rerender(<TodayWorkoutCard template={template} isCompleted={false} readiness={{ score: 80, band: "high", contributions: [], drags: [] }} />);
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+
   it("TodayWorkoutCard bekleyen ve tamamlanan seansı ayırır; şablon yoksa dinlenme günüdür", () => {
     const { rerender } = render(<TodayWorkoutCard template={template} isCompleted={false} />);
     expect(screen.getByText("Ağırlık A")).toBeTruthy();
@@ -223,6 +230,19 @@ describe("WellbeingCard", () => {
 
     rerender(<WellbeingCard today={{ ...progress(true).today, weightKg: 108.2 }} {...props} />);
     expect(weight.value).toBe("108.2");
+  });
+
+  it("F51: stres, kas ağrısı ve ruh hâli seçilir; hazır olma skoru canlı hesaplanır ve kaydedilir", async () => {
+    const onSave = vi.fn().mockResolvedValue(true);
+    render(<WellbeingCard today={{ ...progress(false).today, energy1to5: 2, sleepMinutes: 300 }} onToggleCreatine={vi.fn()} onSave={onSave} />);
+    fireEvent.click(screen.getByRole("button", { name: "Stres 4/5" }));
+    fireEvent.click(screen.getByRole("button", { name: "Kas ağrısı 4/5" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ruh hâli 2/5" }));
+    expect(screen.getByText(/Hazır olma: 30 · Düşük/)).toBeTruthy();
+    expect(screen.getByText(/Düşüren: Enerji 2\/5, Uyku 5 sa/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0][0]).toMatchObject({ energy1to5: 2, sleepMinutes: 300, stress1to5: 4, soreness1to5: 4, mood1to5: 2 });
   });
 
   it("kreatin düğmesi durumu aria-pressed ile bildirir", () => {

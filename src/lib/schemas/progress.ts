@@ -9,6 +9,9 @@ export const ProgressLogSchema = z.object({
   hunger1to5: z.number().int().min(1).max(5).optional(),
   sleepMinutes: z.number().int().nonnegative().optional(),
   stress1to5: z.number().int().min(1).max(5).optional(),
+  /** F51 */
+  soreness1to5: z.number().int().min(1).max(5).optional(),
+  mood1to5: z.number().int().min(1).max(5).optional(),
   notes: z.string().optional(),
   creatineTaken: z.boolean().optional(),
   creatineDoseGrams: z.number().positive().default(5.0),
@@ -39,6 +42,10 @@ export const ProgressResponseSchema = z.object({
     energy1to5: z.number().nullable(),
     sleepMinutes: z.number().nullable(),
     hunger1to5: z.number().nullable(),
+    /** F51 */
+    stress1to5: z.number().nullable().optional(),
+    soreness1to5: z.number().nullable().optional(),
+    mood1to5: z.number().nullable().optional(),
   }),
 });
 export type ProgressResponse = z.infer<typeof ProgressResponseSchema>;

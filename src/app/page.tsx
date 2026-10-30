@@ -28,6 +28,7 @@ import { getRhythmStep, WELLBEING_SECTION_ID, type RhythmAction } from "@/compon
 import { SetupWizard } from "@/components/onboarding/SetupWizard";
 import { DrinksCard } from "@/components/dashboard/DrinksCard";
 import { SavedMealsModal } from "@/components/dashboard/SavedMealsModal";
+import { computeReadiness } from "@/lib/readiness";
 
 interface UndoState {
   toast: UndoToastData;
@@ -165,6 +166,8 @@ export default function DashboardPage() {
   const currentDayOfWeek = new Date().getDay() || 7;
   const todayTemplate = workouts.data?.templates.find((t) => t.dayOfWeek === currentDayOfWeek);
   const isWorkoutCompleted = !!workouts.data?.sessions.some((s) => s.date === todayStr && s.completed);
+  // F51: kaydedilmiş bugünkü durumdan hazır olma.
+  const readiness = progress.data ? computeReadiness(progress.data.today) : null;
   const step = getRhythmStep(new Date().getHours(), homeTime, !!progress.data?.today.creatineTaken);
 
   return (
@@ -181,7 +184,7 @@ export default function DashboardPage() {
 
       {/* İkinci Sıra: Günün Antrenmanı & Kreatin / İyilik Hali */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <TodayWorkoutCard template={todayTemplate} isCompleted={isWorkoutCompleted} />
+        <TodayWorkoutCard template={todayTemplate} isCompleted={isWorkoutCompleted} readiness={readiness} />
         <WellbeingCard today={progress.data?.today} onToggleCreatine={handleToggleCreatine} onSave={handleSaveWellbeing} />
       </div>
 

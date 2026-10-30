@@ -3,15 +3,18 @@
 import Link from "next/link";
 import { Clock, Dumbbell, ExternalLink } from "lucide-react";
 import type { WorkoutTemplate } from "@/lib/schemas/workout";
+import type { Readiness } from "@/lib/readiness";
 
 interface TodayWorkoutCardProps {
   /** Haftanın bugününe ait şablon; yoksa dinlenme günü gösterilir. */
   template?: WorkoutTemplate;
   isCompleted: boolean;
+  /** F51: bugünkü hazır olma; düşükse kısaltılmış seans önerilir. */
+  readiness?: Readiness | null;
 }
 
 /** Günün Antrenmanı Kartı */
-export function TodayWorkoutCard({ template, isCompleted }: TodayWorkoutCardProps) {
+export function TodayWorkoutCard({ template, isCompleted, readiness }: TodayWorkoutCardProps) {
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
       <div>
@@ -35,6 +38,13 @@ export function TodayWorkoutCard({ template, isCompleted }: TodayWorkoutCardProp
         <p className="text-sm text-slate-600 mb-3">
           {template?.notes || "Haftalık toparlanma ve hazırlık günü. İsteğe bağlı hafif yürüyüş."}
         </p>
+
+        {template && !isCompleted && readiness?.band === "low" && (
+          <p role="note" className="mb-3 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+            Hazır olma düşük ({readiness.score}). Bugün 25 dakikalık kısaltılmış seans daha uygun olabilir; Antrenman
+            sayfasında “25 dk Hafiflet” ile başlatabilirsin.
+          </p>
+        )}
 
         <div className="flex items-center gap-4 text-xs text-slate-500 font-medium mb-4">
           <span className="flex items-center gap-1">
