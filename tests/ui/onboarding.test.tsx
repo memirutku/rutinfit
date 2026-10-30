@@ -140,6 +140,10 @@ describe("F09: kurulum sihirbazı", () => {
     restore = s.restore;
     const onClose = vi.fn();
     renderWithQuery(<SetupWizard open profile={PROFILE} onClose={onClose} />);
+    // Boş alandan çıkmak hata göstermez (ör. "Şimdilik geç"e basarken).
+    fireEvent.blur(screen.getByLabelText("Cinsiyet"));
+    fireEvent.blur(screen.getByLabelText("Boy (cm)"));
+    expect(screen.queryByRole("alert")).toBeNull();
     const age = screen.getByLabelText("Yaş");
     fireEvent.change(age, { target: { value: "5" } });
     expect(screen.queryByRole("alert")).toBeNull();

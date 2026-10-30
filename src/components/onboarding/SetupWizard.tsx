@@ -111,7 +111,10 @@ export function SetupWizard({ open, profile, onClose }: SetupWizardProps) {
   const [submitError, setSubmitError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
   const set = <K extends keyof WizardState>(key: K, value: WizardState[K]) => setState((s) => ({ ...s, [key]: value }));
-  const touch = (field: BodyField) => setTouched((t) => ({ ...t, [field]: true }));
+  // Boş alandan çıkmak (ya da "Şimdilik geç"e basmak) hata göstermez; yalnız yazılmış bir değer denetlenir.
+  const touch = (field: BodyField) => {
+    if (field !== "sex" && state[field]) setTouched((t) => ({ ...t, [field]: true }));
+  };
 
   const today = getLocalDateString();
   const plan = planTargets(
