@@ -201,7 +201,7 @@ export default function DashboardPage() {
         ? "Kilo kaydedildi."
         : weightGoal.reached
           ? "Kilo kaydedildi. Hedefine ulaştın!"
-          : `Kilo kaydedildi. Hedefine ${formatNumberTr(weightGoal.remainingKg)} kg kaldı.`
+          : `Kilo kaydedildi. 7 günlük ortalamana göre hedefine ${formatNumberTr(weightGoal.remainingKg)} kg kaldı.`
       : null;
 
   return (
@@ -235,7 +235,13 @@ export default function DashboardPage() {
 
       {/* B07: kilo hedefine ilerleme (hedef kilo girildiyse) */}
       {weightGoal && (goalType === "lose" || goalType === "gain") && (
-        <WeightGoalCard progress={weightGoal} goalType={goalType} hideNumbers={hideNumbers} note={weightNote} />
+        <WeightGoalCard
+          progress={weightGoal}
+          goalType={goalType}
+          hideNumbers={hideNumbers}
+          note={weightNote}
+          todayWeightKg={progress.data?.today.weightKg ?? null}
+        />
       )}
 
       {/* İkinci Sıra: Günün Antrenmanı & İyilik Hali */}

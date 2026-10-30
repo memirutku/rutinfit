@@ -290,8 +290,10 @@ describe("B07: WeightGoalCard", () => {
   const p = { startKg: 90, currentKg: 88, targetKg: 75, changedKg: 2, remainingKg: 13, percent: 13, weeksLeft: 26, etaDate: "2027-04-30", reached: false };
 
   it("güncel kilo, verilen ve kalan kg ile tahmini varışı gösterir", () => {
-    render(<WeightGoalCard progress={p} goalType="lose" note="Kilo kaydedildi. Hedefine 13 kg kaldı." />);
+    render(<WeightGoalCard progress={p} goalType="lose" note="Kilo kaydedildi. Hedefine 13 kg kaldı." todayWeightKg={87.6} />);
     const card = screen.getByRole("region", { name: "Kilo hedefim" });
+    expect(card.textContent).toContain("7 günlük ortalama");
+    expect(card.textContent).toContain("Bugünkü tartı 87,6 kg");
     expect(card.textContent).toContain("88 kg");
     expect(card.textContent).toContain("2 kg verdin");
     expect(card.textContent).toContain("13 kg kaldı");
@@ -433,7 +435,7 @@ describe("DashboardPage", () => {
     expect(card.textContent).toContain("12 kg kaldı");
     fireEvent.change(screen.getByLabelText("Sabah Kilosu (kg)"), { target: { value: "110,5" } });
     fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
-    expect(await screen.findByText(/Kilo kaydedildi\. Hedefine 12 kg kaldı\./)).toBeTruthy();
+    expect(await screen.findByText(/Kilo kaydedildi\. 7 günlük ortalamana göre hedefine 12 kg kaldı\./)).toBeTruthy();
   });
 
   it("B25: Ramazan günlerinde vakit kartı en üstte, ritim oruca göre, alkol satırı yok", async () => {

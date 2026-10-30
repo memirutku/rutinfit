@@ -11,6 +11,8 @@ interface WeightGoalCardProps {
   hideNumbers?: boolean;
   /** Kilo kaydından hemen sonra gösterilen kısa mesaj. */
   note?: string | null;
+  /** Bugünkü tek tartı (büyük sayı 7 günlük ortalamadır; ikisi karışmasın diye ayrıca yazılır). */
+  todayWeightKg?: number | null;
 }
 
 const kg = (n: number) => `${formatNumberTr(n)} kg`;
@@ -24,7 +26,7 @@ function verbal(p: WeightGoalProgress): string {
 }
 
 /** B07: Kilo hedefine ilerleme kartı (7 günlük ortalamaya göre). */
-export function WeightGoalCard({ progress: p, goalType, hideNumbers = false, note }: WeightGoalCardProps) {
+export function WeightGoalCard({ progress: p, goalType, hideNumbers = false, note, todayWeightKg = null }: WeightGoalCardProps) {
   const verb = goalType === "lose" ? "verdin" : "aldın";
   return (
     <section aria-label="Kilo hedefim" className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
@@ -37,8 +39,11 @@ export function WeightGoalCard({ progress: p, goalType, hideNumbers = false, not
         <p className="text-lg font-bold text-slate-900">{verbal(p)}</p>
       ) : (
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-          <p className="text-2xl font-extrabold text-slate-900">{kg(p.currentKg)}</p>
+          <p className="text-2xl font-extrabold text-slate-900">
+            {kg(p.currentKg)} <span className="text-xs font-semibold text-slate-500">7 günlük ortalama</span>
+          </p>
           <p className="text-sm text-slate-500">
+            {todayWeightKg != null && <>Bugünkü tartı {kg(todayWeightKg)} · </>}
             Hedef {kg(p.targetKg)} · Başlangıç {kg(p.startKg)}
           </p>
         </div>
@@ -75,7 +80,7 @@ export function WeightGoalCard({ progress: p, goalType, hideNumbers = false, not
           )}
         </p>
       )}
-      <p className="text-[11px] text-slate-400">Güncel kilo 7 günlük ortalamadır; tek günlük tartı dalgalanmasını yansıtmaz.</p>
+      <p className="text-[11px] text-slate-400">İlerleme 7 günlük ortalamaya göre hesaplanır; tek günlük dalgalanma onu oynatmaz.</p>
       {note && (
         <p role="status" className="text-xs font-semibold text-emerald-700">
           {note}
