@@ -221,4 +221,35 @@ test.describe("Dalga 6 · plan, alışveriş ve rapor", () => {
     await expect(page.getByLabel("Yağ Hedefi (g)")).toHaveValue("43");
     await expect(page.getByRole("status", { name: "Makro dengesi" })).toHaveCount(0);
   });
+
+  test("B16: haftalık editörde uzun ad sarılır, gün toplamı ve bugün vurgusu var, haftalar arasında gezilir", async ({ page, api }) => {
+    const date = uniqDate();
+    const longName = uniq("Zeytinyağlı taze fasulye 1 porsiyon, laktozsuz yoğurt 1 kase ve tam buğday ekmeği 1 dilim");
+    const nextWeek = new Date(Date.parse(`${date}T00:00:00Z`) + 7 * 86_400_000).toISOString().slice(0, 10);
+    await api.post("/api/meal-plans/meals", { data: { date, mealType: "dinner", customName: longName, servings: 1 } });
+    await recipeMeal(api, date, "lunch", "E2E Mercimek"); // 400 kcal
+    const nextName = uniq("Gelecek hafta öğünü");
+    await api.post("/api/meal-plans/meals", { data: { date: nextWeek, mealType: "lunch", customName: nextName, servings: 1 } });
+
+    await openDay(page, date);
+    await page.getByRole("button", { name: "Hafta", exact: true }).click();
+    const day = page.getByRole("region", { name: dayLabel(date) });
+    await expect(day).toContainText("Planlanan: 400 kcal · 1 öğün tarifsiz");
+    const name = day.getByText(longName);
+    await expect(name).toBeVisible();
+    // Sarılır: ad tek satırdan uzun olduğu için yüksekliği birden çok satır kadardır ve kesilmez.
+    const box = (await name.boundingBox())!;
+    expect(box.height).toBeGreaterThan(20);
+    expect(await name.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+
+    await page.getByRole("button", { name: "Sonraki hafta" }).click();
+    await expect(page.getByRole("region", { name: dayLabel(nextWeek) })).toContainText(nextName);
+    await page.getByRole("button", { name: "Önceki hafta" }).click();
+    await expect(page.getByRole("region", { name: dayLabel(date) })).toContainText(longName);
+
+    // Bugünün haftası: bugün vurgulanır.
+    await page.getByRole("button", { name: "Bu hafta" }).click();
+    await expect(page.locator('section[aria-current="date"]')).toHaveCount(1);
+    await expect(page.locator('section[aria-current="date"]')).toContainText("Bugün");
+  });
 });

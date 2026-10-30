@@ -67,7 +67,9 @@ export default function NutritionPage() {
       )}
 
       {/* F30: HAFTALIK PLAN EDİTÖRÜ */}
-      {activeTab === "week" && <WeekPlanEditor selectedDate={selectedDate} />}
+      {activeTab === "week" && (
+        <WeekPlanEditor selectedDate={selectedDate} onDateChange={setSelectedDate} hideNumbers={profile.data?.hideNumbers ?? false} />
+      )}
 
       {/* 1. SEKME: YEMEK PLANI */}
       {activeTab === "plan" && (
