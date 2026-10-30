@@ -419,6 +419,8 @@ model Reminder {
   enabled      Boolean  @default(true)
   mealType     String?
   supplementId String?
+  // B26: sahur/iftar türünde vakitten kaç dakika önce (time kullanılmaz; vakit her gün hesaplanır)
+  offsetMinutes Int?
   lastFiredOn  String? // YYYY-MM-DD: aynı gün ikinci kez gösterilmez
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

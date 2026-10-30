@@ -68,6 +68,40 @@ describe("F76 + F14: oruç", () => {
     expect(screen.queryByRole("progressbar")).toBeNull();
   });
 
+  it("B26: sahur ve iftar hatırlatması tek tıkla kurulur", async () => {
+    const posts: unknown[] = [];
+    let reminders: Array<{ id: string; kind: string }> = [];
+    restore = stubFetch([
+      ["/api/reminders", (_u, init) => {
+        if (init?.method === "POST") {
+          const body = JSON.parse(String(init.body));
+          posts.push(body);
+          reminders = [...reminders, { id: `r${reminders.length}`, kind: body.kind }];
+          return jsonResponse({}, 201);
+        }
+        return jsonResponse({ reminders });
+      }],
+      ["/api/fasting", () =>
+        jsonResponse({
+          ramadan: {
+            province: "Ankara",
+            today: times("2026-02-19", "06:06", "18:35"),
+            tomorrow: times("2026-02-20", "06:05", "18:36"),
+            phase: "fasting",
+            minutesLeft: 360,
+            progressPercent: 52,
+            waterAdvice: "su",
+            period: { inRamadan: true, day: 1, start: "2026-02-19", end: "2026-03-19", daysUntil: 0 },
+          },
+          timer: noTimer,
+        })],
+    ]).restore;
+    renderWithQuery(<FastingCard />);
+    fireEvent.click(await screen.findByRole("button", { name: "Sahur ve iftar hatırlatması kur" }));
+    expect(await screen.findByText(/Sahur ve iftar hatırlatmaları açık/)).toBeTruthy();
+    expect(posts).toEqual([{ kind: "sahur", offsetMinutes: 45 }, { kind: "iftar", offsetMinutes: 15 }]);
+  });
+
   it("Ramazan kapalı ve hedef yoksa kart görünmez", async () => {
     let served = false;
     restore = stubFetch([["/api/fasting", () => ((served = true), jsonResponse({ ramadan: null, timer: noTimer }))]]).restore;

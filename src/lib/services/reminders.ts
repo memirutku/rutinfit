@@ -11,7 +11,7 @@ import { summarizeDrinks } from "../drinks";
 import { formatNumberTr } from "../format";
 import { MEAL_TYPE_LABELS, type MealType } from "../schemas/enums";
 import type { DueReminder, Reminder, ReminderInput, ReminderKind } from "../schemas/reminder";
-import { isRamadanFastingNow } from "./fasting";
+import { isRamadanFastingNow, ramadanStatus } from "./fasting";
 
 /** Vakti geçen bir hatırlatma bu kadar dakika gösterilmeye devam eder. */
 export const REMINDER_GRACE_MINUTES = 60;
@@ -21,7 +21,19 @@ const minutes = (hhmm: string) => {
   return h * 60 + m;
 };
 
-const toView = (r: { id: string; kind: string; title: string; time: string; days: string; enabled: boolean; mealType: string | null; supplementId: string | null }): Reminder => ({
+const isRelative = (kind: string) => kind === "sahur" || kind === "iftar";
+
+const toView = (r: {
+  id: string;
+  kind: string;
+  title: string;
+  time: string;
+  days: string;
+  enabled: boolean;
+  mealType: string | null;
+  supplementId: string | null;
+  offsetMinutes?: number | null;
+}): Reminder => ({
   id: r.id,
   kind: r.kind as ReminderKind,
   title: r.title,
@@ -30,7 +42,13 @@ const toView = (r: { id: string; kind: string; title: string; time: string; days
   enabled: r.enabled,
   mealType: r.mealType,
   supplementId: r.supplementId,
+  relative: isRelative(r.kind) ? { anchor: r.kind === "sahur" ? "imsak" : "iftar", offsetMinutes: r.offsetMinutes ?? 0 } : null,
 });
+
+const hhmm = (min: number) => {
+  const m = ((min % 1440) + 1440) % 1440;
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+};
 
 export async function listReminders(): Promise<Reminder[]> {
   const rows = await prisma.reminder.findMany({ orderBy: [{ time: "asc" }, { createdAt: "asc" }] });
@@ -54,6 +72,10 @@ async function defaultTitle(input: ReminderInput): Promise<string> {
       return "Antrenman zamanı";
     case "custom":
       return input.title;
+    case "sahur":
+      return "Sahur vakti yaklaşıyor";
+    case "iftar":
+      return "İftara az kaldı";
   }
 }
 
@@ -63,7 +85,9 @@ export async function createReminder(input: ReminderInput): Promise<Reminder> {
     data: {
       kind: input.kind,
       title: input.title?.trim() || fallback,
-      time: input.time,
+      // B26: sahur/iftar saati her gün imsak/iftardan hesaplanır; sütun boş kalmasın diye yer tutucu.
+      time: "time" in input ? input.time : "00:00",
+      offsetMinutes: "offsetMinutes" in input ? input.offsetMinutes : null,
       days: input.days ?? "1234567",
       enabled: input.enabled ?? true,
       mealType: input.kind === "meal" ? input.mealType : null,
@@ -93,8 +117,22 @@ export async function dueReminders(now = new Date()): Promise<DueReminder[]> {
   const today = getLocalDateString(now);
   const weekday = String(getLocalWeekday(now));
   const nowMin = minutes(getLocalTimeString(now));
-  let candidates = (await prisma.reminder.findMany({ where: { enabled: true } })).filter((r) => {
-    const age = nowMin - minutes(r.time);
+  const enabled = await prisma.reminder.findMany({ where: { enabled: true } });
+  // B26: sahur/iftar hatırlatmasının saati bugünün imsak/iftar vaktinden hesaplanır (yalnız Ramazan günlerinde).
+  const ramadan = enabled.some((r) => isRelative(r.kind))
+    ? await prisma.userProfile.findFirst().then((p) => (p ? ramadanStatus(p, now) : null))
+    : null;
+  const ramadanActive = !!ramadan && ramadan.period?.inRamadan !== false;
+  const effectiveTime = (r: (typeof enabled)[number]): string | null => {
+    if (!isRelative(r.kind)) return r.time;
+    if (!ramadanActive) return null;
+    const anchor = r.kind === "sahur" ? ramadan!.today.imsak : ramadan!.today.iftar;
+    return hhmm(minutes(anchor) - (r.offsetMinutes ?? 0));
+  };
+  let candidates = enabled.filter((r) => {
+    const time = effectiveTime(r);
+    if (!time) return false;
+    const age = nowMin - minutes(time);
     return r.days.includes(weekday) && r.lastFiredOn !== today && age >= 0 && age <= REMINDER_GRACE_MINUTES;
   });
   if (!candidates.length) return [];
@@ -144,6 +182,12 @@ export async function dueReminders(now = new Date()): Promise<DueReminder[]> {
         break;
       case "custom":
         body = "";
+        break;
+      case "sahur":
+        body = `İmsak ${ramadan!.today.imsak}. Sahur için ${r.offsetMinutes ?? 0} dakika var.`;
+        break;
+      case "iftar":
+        body = `İftar ${ramadan!.today.iftar}.`;
         break;
     }
     if (body !== null) due.push({ id: r.id, kind, title: r.title, body });

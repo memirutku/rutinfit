@@ -8,7 +8,7 @@ import { useDeleteReminder, useReminders, useSaveReminder } from "@/lib/client/q
 import { useSupplements } from "@/lib/client/queries/supplements";
 import { getLocalDateString } from "@/lib/date-utils";
 import { MEAL_TYPES, MEAL_TYPE_LABELS, type MealType } from "@/lib/schemas/enums";
-import { REMINDER_KINDS, REMINDER_KIND_LABELS, type ReminderInput, type ReminderKind } from "@/lib/schemas/reminder";
+import { REMINDER_KIND_LABELS, TIMED_REMINDER_KINDS, type ReminderInput, type ReminderKind } from "@/lib/schemas/reminder";
 
 const INPUT = "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm";
 const LABEL = "block text-xs font-semibold text-slate-600 mb-1";
@@ -103,7 +103,10 @@ export function RemindersSection() {
         {reminders.data?.map((r) => (
           <li key={r.id} className="flex items-center justify-between gap-2 py-2">
             <span className={r.enabled ? "text-slate-800" : "text-slate-400"}>
-              <span className="font-mono font-bold">{r.time}</span> · {r.title} <span className="text-xs text-slate-500">· {daysLabel(r.days)}</span>
+              <span className="font-mono font-bold">
+                {r.relative ? `${r.relative.anchor === "imsak" ? "İmsaktan" : "İftardan"} ${r.relative.offsetMinutes} dk önce` : r.time}
+              </span>{" "}
+              · {r.title} <span className="text-xs text-slate-500">· {daysLabel(r.days)}</span>
             </span>
             <span className="shrink-0 flex items-center gap-2">
               <label className="inline-flex items-center gap-1 text-xs text-slate-600">
@@ -125,7 +128,7 @@ export function RemindersSection() {
             Tür
           </label>
           <select id="rem-kind" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as ReminderKind })} className={INPUT}>
-            {REMINDER_KINDS.map((k) => (
+            {TIMED_REMINDER_KINDS.map((k) => (
               <option key={k} value={k}>
                 {REMINDER_KIND_LABELS[k]}
               </option>

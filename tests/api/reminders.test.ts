@@ -92,4 +92,25 @@ describe("/api/reminders (F83)", () => {
     await callRoute(deleteSupplement, { method: "DELETE", query: { id: supp.id } });
     expect(await prisma.reminder.count()).toBe(0);
   });
+
+  it("B26: sahur ve iftar hatırlatması imsak/iftara göre kayar; yalnız Ramazan modunda ve Ramazan günlerinde gelir", async () => {
+    await createProfile({ ramadanMode: true, ramadanProvince: "Ankara" });
+    const sahur = await add({ kind: "sahur", offsetMinutes: 45 });
+    const iftar = await add({ kind: "iftar", offsetMinutes: 15 });
+    expect(sahur).toMatchObject({ title: "Sahur vakti yaklaşıyor", relative: { anchor: "imsak", offsetMinutes: 45 } });
+    expect(iftar).toMatchObject({ title: "İftara az kaldı", relative: { anchor: "iftar", offsetMinutes: 15 } });
+    expect((await callRoute(POST, { body: { kind: "sahur", offsetMinutes: 500 } })).status).toBe(400);
+
+    // 19 Şubat 2026 Ankara: imsak 06:06, iftar 18:35
+    expect((await dueReminders(new Date(2026, 1, 19, 5, 0))).map((d) => d.id)).toEqual([]);
+    const atSahur = await dueReminders(new Date(2026, 1, 19, 5, 25));
+    expect(atSahur.map((d) => d.id)).toEqual([sahur.id]);
+    expect(atSahur[0].body).toContain("İmsak 06:06");
+    expect((await dueReminders(new Date(2026, 1, 19, 18, 25))).map((d) => d.id)).toEqual([iftar.id]);
+
+    // Ramazan dışında ve mod kapalıyken gelmez.
+    expect(await dueReminders(new Date(2026, 9, 30, 17, 55))).toEqual([]);
+    await prisma.userProfile.update({ where: { id: "default-user" }, data: { ramadanMode: false } });
+    expect(await dueReminders(new Date(2026, 1, 19, 18, 25))).toEqual([]);
+  });
 });
