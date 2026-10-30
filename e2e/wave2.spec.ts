@@ -51,6 +51,8 @@ test.describe("Dalga 2", () => {
   test("F51: günlük durumda ölçek seçilince hazır olma skoru görünür", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Kas ağrısı 2/5" }).click();
+    // Recheck: tek girdiden skor çıkmaz; ikinci girdiyle görünür.
+    await page.getByRole("button", { name: "Ruh hâli 4/5" }).click();
     await expect(page.getByText(/Hazır olma: \d+ · (Düşük|Orta|Yüksek)/)).toBeVisible();
   });
 });
