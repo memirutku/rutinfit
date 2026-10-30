@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
 import { getLocalDateString, getLocalTimeString } from "@/lib/date-utils";
 import { findDrinkPreset, summarizeDrinks } from "@/lib/drinks";
+import { SUGAR_CUBE_G } from "@/lib/quick-foods";
 import { DrinkInputSchema } from "@/lib/schemas/drinks";
 import { formatNumberTr } from "@/lib/format";
 
@@ -31,7 +32,12 @@ export async function POST(req: Request) {
     const kind = input.kind ?? p!.kind;
     const ml = input.ml ?? p!.ml;
     const name = input.name ?? p?.name ?? "İçecek";
-    const kcal = input.kcal ?? p?.kcal ?? 0;
+    // F79: şeker 4 kcal/g; kalorisi içeceğin besin günlüğü kaydına eklenir.
+    const sugarCubes = input.sugarCubes ?? 0;
+    const sugarG = sugarCubes * SUGAR_CUBE_G;
+    const kcal = (input.kcal ?? p?.kcal ?? 0) + sugarG * 4;
+    const foodName =
+      sugarCubes > 0 ? `${name} (${formatNumberTr(sugarCubes)} küp şeker)` : `${name} (${formatNumberTr(ml)} ml)`;
     const date = input.date ?? getLocalDateString();
     const time = input.time ?? getLocalTimeString();
 
@@ -43,11 +49,11 @@ export async function POST(req: Request) {
                 date,
                 time,
                 mealType: "extra",
-                name: `${name} (${formatNumberTr(ml)} ml)`,
+                name: foodName,
                 grams: ml,
                 caloriesSnapshot: kcal,
                 proteinSnapshot: input.proteinG ?? p?.proteinG ?? 0,
-                carbsSnapshot: input.carbsG ?? p?.carbsG ?? 0,
+                carbsSnapshot: (input.carbsG ?? p?.carbsG ?? 0) + sugarG,
                 fatSnapshot: 0,
               },
             })

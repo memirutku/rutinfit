@@ -3,6 +3,7 @@
 import { Bookmark, Plus, Trash2, Utensils } from "lucide-react";
 import type { FoodLog } from "@/lib/schemas/food";
 import { formatNumberTr } from "@/lib/format";
+import type { QuickFoodId } from "@/lib/quick-foods";
 
 /** Ana paneldeki kısa öğün etiketleri (Hızlı Ekle penceresindeki uzun adlardan farklıdır). */
 export function dashboardMealLabel(mealType: string): string {
@@ -27,11 +28,19 @@ interface TodayMealsListProps {
   hideNumbers?: boolean;
   /** F01: kayıtlı öğünler ve kopyalama penceresi. */
   onOpenSavedMeals?: () => void;
+  /** F79: Türk sofrası hızlı ekleme (simit, ekmek dilimi). */
+  onQuickFood?: (item: QuickFoodId, count: number) => void;
   onDelete: (log: FoodLog) => void;
 }
 
 /** Bugün Kaydedilen Öğünler ve Hızlı Yönetim */
-export function TodayMealsList({ logs, onAdd, onDelete, hideNumbers = false, onOpenSavedMeals }: TodayMealsListProps) {
+const QUICK_CHIPS: Array<{ label: string; item: QuickFoodId; count: number }> = [
+  { label: "+ Simit", item: "simit", count: 1 },
+  { label: "+ 1 dilim ekmek", item: "ekmek-dilimi", count: 1 },
+  { label: "+ 2 dilim ekmek", item: "ekmek-dilimi", count: 2 },
+];
+
+export function TodayMealsList({ logs, onAdd, onDelete, hideNumbers = false, onOpenSavedMeals, onQuickFood }: TodayMealsListProps) {
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
       <div className="flex items-center justify-between mb-4">
@@ -66,6 +75,22 @@ export function TodayMealsList({ logs, onAdd, onDelete, hideNumbers = false, onO
           </button>
         </div>
       </div>
+
+      {onQuickFood && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-4">
+          <span className="text-[11px] font-bold text-slate-400 uppercase">Hızlı</span>
+          {QUICK_CHIPS.map((c) => (
+            <button
+              key={c.label}
+              type="button"
+              onClick={() => onQuickFood(c.item, c.count)}
+              className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:border-emerald-400 hover:text-emerald-700"
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {logs.length === 0 ? (
         <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">

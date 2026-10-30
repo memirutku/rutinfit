@@ -153,6 +153,14 @@ describe("dashboard kartları", () => {
     expect(alert.textContent).not.toMatch(/\d/);
   });
 
+  it("F79: öğün listesindeki hızlı Türk sofrası düğmeleri kalemi ve adedi bildirir", () => {
+    const onQuickFood = vi.fn();
+    render(<TodayMealsList logs={[]} onAdd={vi.fn()} onDelete={vi.fn()} onQuickFood={onQuickFood} />);
+    fireEvent.click(screen.getByRole("button", { name: "+ Simit" }));
+    fireEvent.click(screen.getByRole("button", { name: "+ 2 dilim ekmek" }));
+    expect(onQuickFood.mock.calls).toEqual([["simit", 1], ["ekmek-dilimi", 2]]);
+  });
+
   it("TodayWorkoutCard bekleyen ve tamamlanan seansı ayırır; şablon yoksa dinlenme günüdür", () => {
     const { rerender } = render(<TodayWorkoutCard template={template} isCompleted={false} />);
     expect(screen.getByText("Ağırlık A")).toBeTruthy();

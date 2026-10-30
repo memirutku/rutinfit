@@ -18,6 +18,8 @@ export const DrinkInputSchema = z
     kcal: z.number().nonnegative().max(3000).optional(),
     carbsG: z.number().nonnegative().max(500).optional(),
     proteinG: z.number().nonnegative().max(200).optional(),
+    /** F79: çay / Türk kahvesine eklenen küp şeker (yarım küp olabilir). */
+    sugarCubes: z.number().min(0).max(6).multipleOf(0.5).optional(),
   })
   .refine((v) => v.presetId || (v.kind && v.ml), { message: "Hazır içecek ya da tür ve miktar gerekli." });
 export type DrinkInput = z.input<typeof DrinkInputSchema>;

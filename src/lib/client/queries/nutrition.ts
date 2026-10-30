@@ -15,6 +15,7 @@ import type {
   RecipeInput,
 } from "@/lib/schemas/food";
 import type { MealPlan } from "@/lib/schemas/meal-plan";
+import type { QuickFoodId } from "@/lib/quick-foods";
 
 /* ----------------------------- Sorgular ----------------------------- */
 
@@ -105,5 +106,19 @@ export function useSavePackagedProduct() {
     mutationFn: (input: PackagedProductSaveInput) =>
       apiFetch<{ foodItem: FoodItem; message: string }>("/api/foods/barcode", { method: "POST", json: input }),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.foods.all }),
+  });
+}
+
+/** F79: simit, ekmek dilimi gibi kalemleri tek tıkla ekler. */
+export function useQuickAddFood() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { item: QuickFoodId; count: number; date: string }) =>
+      apiFetch<FoodLog>("/api/quick-add", { method: "POST", json: input }),
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.foodLogs.all }),
+        qc.invalidateQueries({ queryKey: queryKeys.foods.all }),
+      ]),
   });
 }

@@ -32,6 +32,17 @@ describe("/api/drinks", () => {
     expect(await prisma.foodLog.count()).toBe(0);
   });
 
+  it("F79: şekerli çay şekerin kalorisini besin günlüğüne yazar; şekersiz çay yazmaz", async () => {
+    const sweet = await callRoute(POST, { body: { date: "2026-10-30", presetId: "cay", sugarCubes: 2 } });
+    expect(sweet.status).toBe(201);
+    expect(sweet.json).toMatchObject({ kind: "tea", caffeineMg: 30, kcal: 32 });
+    expect(await prisma.foodLog.findFirstOrThrow()).toMatchObject({ name: "Çay (2 küp şeker)", caloriesSnapshot: 32, carbsSnapshot: 8 });
+
+    await callRoute(POST, { body: { date: "2026-10-30", presetId: "cay", sugarCubes: 0 } });
+    expect(await prisma.foodLog.count()).toBe(1);
+    expect((await callRoute(POST, { body: { presetId: "cay", sugarCubes: 9 } })).status).toBe(400);
+  });
+
   it("geçersiz tür ya da miktar 400; bilinmeyen hazır içecek 400; olmayan kayıt silinince 404", async () => {
     expect((await callRoute(POST, { body: { kind: "lava", ml: 100 } })).status).toBe(400);
     expect((await callRoute(POST, { body: { kind: "water", ml: 0 } })).status).toBe(400);

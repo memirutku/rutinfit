@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { GlassWater, X } from "lucide-react";
 import { useAddDrink, useDeleteDrink, useDrinks } from "@/lib/client/queries/drinks";
 import { CAFFEINE_DAILY_LIMIT_MG, DRINK_PRESETS } from "@/lib/drinks";
 import { formatNumberTr } from "@/lib/format";
+import { SUGARABLE_DRINKS, SUGAR_OPTIONS } from "@/lib/quick-foods";
 
 const EVERYDAY = DRINK_PRESETS.filter((p) => p.kind !== "alcohol");
 const ALCOHOL = DRINK_PRESETS.filter((p) => p.kind === "alcohol");
@@ -16,6 +18,10 @@ export function DrinksCard({ date }: { date: string }) {
   const drinks = useDrinks(date);
   const add = useAddDrink();
   const remove = useDeleteDrink();
+  // F79: çay ve Türk kahvesine eklenecek şeker.
+  const [sugarCubes, setSugarCubes] = useState(0);
+  const addPreset = (presetId: string) =>
+    add.mutate({ date, presetId, ...(SUGARABLE_DRINKS.has(presetId) && sugarCubes > 0 ? { sugarCubes } : {}) });
   const s = drinks.data?.summary;
   const hydration = s?.hydrationMl ?? 0;
   const target = s?.waterTargetMl ?? 2500;
@@ -48,9 +54,26 @@ export function DrinksCard({ date }: { date: string }) {
         )}
       </div>
 
+      <div className="flex items-center gap-2">
+        <label htmlFor="drink-sugar" className="text-[11px] font-bold text-slate-500">
+          Şeker (çay ve Türk kahvesi)
+        </label>
+        <select
+          id="drink-sugar"
+          value={sugarCubes}
+          onChange={(e) => setSugarCubes(Number(e.target.value))}
+          className="px-2 py-1 rounded-lg border border-slate-200 bg-white text-xs"
+        >
+          {SUGAR_OPTIONS.map((o) => (
+            <option key={o.cubes} value={o.cubes}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
       <div className="flex flex-wrap gap-1.5">
         {EVERYDAY.map((p) => (
-          <button key={p.id} type="button" className={BUTTON} disabled={add.isPending} onClick={() => add.mutate({ date, presetId: p.id })}>
+          <button key={p.id} type="button" className={BUTTON} disabled={add.isPending} onClick={() => addPreset(p.id)}>
             {p.label}
           </button>
         ))}
@@ -58,7 +81,7 @@ export function DrinksCard({ date }: { date: string }) {
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-[11px] font-bold text-slate-400 uppercase">Alkol</span>
         {ALCOHOL.map((p) => (
-          <button key={p.id} type="button" className={BUTTON} disabled={add.isPending} onClick={() => add.mutate({ date, presetId: p.id })}>
+          <button key={p.id} type="button" className={BUTTON} disabled={add.isPending} onClick={() => addPreset(p.id)}>
             {p.label}
           </button>
         ))}

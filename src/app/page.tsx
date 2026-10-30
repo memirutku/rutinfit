@@ -11,7 +11,7 @@ import { DEFAULT_TARGETS } from "@/lib/constants";
 import type { MealType } from "@/lib/schemas/enums";
 import type { FoodLog } from "@/lib/schemas/food";
 import { useProfile } from "@/lib/client/queries/system";
-import { useCreateFoodLog, useDeleteFoodLog, useFoodLogs, useFoods } from "@/lib/client/queries/nutrition";
+import { useCreateFoodLog, useDeleteFoodLog, useFoodLogs, useFoods, useQuickAddFood } from "@/lib/client/queries/nutrition";
 import { useWorkouts } from "@/lib/client/queries/workouts";
 import { useProgress, useSaveProgress, useToggleCreatine } from "@/lib/client/queries/progress";
 import { UndoToast, type UndoToastData } from "@/components/dashboard/UndoToast";
@@ -43,6 +43,7 @@ export default function DashboardPage() {
   // F09: kurulmamış profilde sihirbaz açılır; "Şimdilik geç" bu oturum için kapatır.
   const [wizardDismissed, setWizardDismissed] = useState(false);
   const [savedMealsOpen, setSavedMealsOpen] = useState(false);
+  const quickFood = useQuickAddFood();
   const showWizard = profile.data?.isOnboarded === false && !wizardDismissed;
   const foodLogs = useFoodLogs(todayStr);
   const workouts = useWorkouts(todayStr);
@@ -192,6 +193,9 @@ export default function DashboardPage() {
         onDelete={handleDeleteFoodLog}
         hideNumbers={hideNumbers}
         onOpenSavedMeals={() => setSavedMealsOpen(true)}
+        onQuickFood={(item, count) =>
+          quickFood.mutate({ item, count, date: todayStr }, { onError: (e) => showError(e, "Eklenemedi.") })
+        }
       />
 
       <SavedMealsModal
