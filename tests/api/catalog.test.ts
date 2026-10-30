@@ -152,6 +152,8 @@ describe("Diğer uç noktalar", () => {
     const res = await callRoute(diagnosticsGet);
     expect(res.status).toBe(200);
     expect(res.json.counts.foods).toBe(1);
+    // F67: sürüm, doğrulama talimatında gösterilir.
+    expect(res.json.system.appVersion).toMatch(/^\d+\.\d+\.\d+/);
   });
 
   it("openGym kapalıyken durum çevrimdışı döner", async () => {

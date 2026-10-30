@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import { prisma } from "@/lib/prisma";
 import { getStoragePaths } from "@/lib/storage-paths";
+import packageJson from "../../../../package.json";
 
 export async function GET() {
   try {
@@ -88,6 +89,7 @@ export async function GET() {
         openFoodFactsCache: cacheCount,
       },
       system: {
+        appVersion: packageJson.version,
         nodeVersion: process.version,
         platform: process.platform,
         arch: process.arch,

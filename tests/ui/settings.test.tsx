@@ -162,6 +162,43 @@ describe("Ayarlar — F58 koç kontrolleri", () => {
   });
 });
 
+describe("Ayarlar — F67 şeffaflık", () => {
+  const local = { providerType: "ollama", baseUrl: "http://127.0.0.1:11434/v1", modelName: "llama3.2", coachEnabled: true, tone: "supportive", endpointKind: "local" };
+
+  it("yerel uç noktayı gösterir; OpenAI seçilince ne gideceğini açıkça uyarır", async () => {
+    setup([
+      ["/api/ai/settings", () => jsonResponse(local)],
+      ["/api/ai/exposure", () => jsonResponse({ applicable: true, exposed: false, port: 11434, lanAddresses: ["192.168.1.20"] })],
+    ]);
+    expect(await screen.findByText(/Bu bilgisayarda · 127\.0\.0\.1:11434/)).toBeTruthy();
+    expect(screen.queryByText(/OpenAI sunucularına gönderilir/)).toBeNull();
+    fireEvent.change(screen.getByLabelText("Sağlayıcı"), { target: { value: "openai" } });
+    expect(screen.getByText(/OpenAI sunucularına gönderilir/)).toBeTruthy();
+  });
+
+  it("bulut uç noktası rozetle işaretlenir", async () => {
+    setup([
+      ["/api/ai/settings", () => jsonResponse({ ...local, providerType: "openai", baseUrl: "https://api.openai.com/v1", endpointKind: "cloud" })],
+      ["/api/ai/exposure", () => jsonResponse({ applicable: false, exposed: false, port: null, lanAddresses: [] })],
+    ]);
+    expect(await screen.findByText(/Bulut · api\.openai\.com/)).toBeTruthy();
+  });
+
+  it("'cihazdan ne çıkar' tablosu, sürüm ve doğrulama komutu; model sunucusu ağa açıksa uyarı", async () => {
+    setup([
+      ["/api/ai/settings", () => jsonResponse(local)],
+      ["/api/ai/exposure", () => jsonResponse({ applicable: true, exposed: true, port: 11434, lanAddresses: ["192.168.1.20"], exposedAt: "192.168.1.20:11434" })],
+      ["/api/diagnostics", () => jsonResponse({ ...DIAGNOSTICS, system: { ...DIAGNOSTICS.system, appVersion: "0.1.0" } })],
+    ]);
+    expect(await screen.findByRole("heading", { name: /Hesap yok, bulut yok/ })).toBeTruthy();
+    expect(screen.getByText("world.openfoodfacts.org")).toBeTruthy();
+    expect(await screen.findByText(/192\.168\.1\.20:11434/)).toBeTruthy();
+    expect(screen.getByText(/OLLAMA_HOST=127\.0\.0\.1/)).toBeTruthy();
+    expect(await screen.findByText(/Sürüm 0\.1\.0/)).toBeTruthy();
+    expect(screen.getByText(/shasum -a 256/)).toBeTruthy();
+  });
+});
+
 describe("Ayarlar — yapay zekâ ve openGym bağlantı testi", () => {
   it("AI testi başarılıysa mesajı ve algılanan modelleri gösterir", async () => {
     const { calls } = setup([

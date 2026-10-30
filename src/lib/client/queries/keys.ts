@@ -5,6 +5,7 @@
 export const queryKeys = {
   profile: ["profile"] as const,
   aiSettings: ["ai-settings"] as const,
+  aiExposure: ["ai-exposure"] as const,
   progress: ["progress"] as const,
   foodLogs: {
     all: ["food-logs"] as const,

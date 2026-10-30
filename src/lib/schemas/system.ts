@@ -55,6 +55,8 @@ export const DiagnosticsSchema = z.object({
     pantryItems: z.number(),
   }),
   system: z.object({
+    /** F67: uygulama sürümü (sürüm doğrulaması için). */
+    appVersion: z.string().optional(),
     nodeVersion: z.string(),
     platform: z.string(),
     arch: z.string(),
@@ -70,6 +72,16 @@ export const BackupImportResultSchema = z.object({
   counts: z.record(z.string(), z.number()).optional(),
 });
 export type BackupImportResult = z.infer<typeof BackupImportResultSchema>;
+
+/** F67: GET /api/ai/exposure yanıtı. */
+export const ExposureSchema = z.object({
+  applicable: z.boolean(),
+  exposed: z.boolean(),
+  port: z.number().nullable(),
+  lanAddresses: z.array(z.string()),
+  exposedAt: z.string().optional(),
+});
+export type ExposureResult = z.infer<typeof ExposureSchema>;
 
 /** F58/F67: GET /api/ai/settings yanıtı. */
 export const AISettingsSchema = z.object({

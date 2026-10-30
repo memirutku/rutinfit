@@ -23,6 +23,24 @@ function failureResult(error: unknown): TestConnectionResult {
   return { success: false, message };
 }
 
+/** F67: kayıtlı (kullanılan) uç noktanın yeri. */
+function EndpointBadge({ settings }: { settings: AISettingsView | undefined }) {
+  if (!settings) return null;
+  let host = settings.baseUrl;
+  try {
+    host = new URL(settings.baseUrl).host;
+  } catch {
+    // geçersiz adres olduğu gibi gösterilir
+  }
+  const [label, tone] =
+    settings.endpointKind === "local"
+      ? [`Bu bilgisayarda · ${host}`, "bg-emerald-50 text-emerald-700"]
+      : settings.endpointKind === "cloud"
+        ? [`Bulut · ${host}`, "bg-amber-50 text-amber-800"]
+        : ["Geçersiz adres", "bg-rose-50 text-rose-700"];
+  return <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${tone}`}>{label}</span>;
+}
+
 /** Yerel yapay zekâ sağlayıcısı: adres/model seçimi ve bağlantı testi. */
 export function AIProviderSection() {
   const saved = useAISettings();
@@ -50,7 +68,7 @@ export function AIProviderSection() {
           <Bot className="w-5 h-5 text-indigo-600" />
           <h3 className="font-bold text-slate-900 text-base">Yerel Yapay Zekâ Sağlayıcısı</h3>
         </div>
-        <span className="text-xs bg-indigo-50 text-indigo-700 font-semibold px-2.5 py-1 rounded-full">Gizlilik Garantili</span>
+        <EndpointBadge settings={saved.data} />
       </div>
 
       <div className="space-y-4">
@@ -97,6 +115,13 @@ export function AIProviderSection() {
             />
           </div>
         </div>
+
+        {provider === "openai" && (
+          <div role="note" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed">
+            OpenAI seçildiğinde mesajların, profil özetin (boy, kilo, hedefler), bugünkü öğünlerin ve eklediğin dosyaların
+            içeriği OpenAI sunucularına gönderilir. Diğer tüm veriler bu bilgisayarda kalır.
+          </div>
+        )}
 
         <div className="flex items-center gap-3 pt-2">
           <button

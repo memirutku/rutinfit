@@ -6,6 +6,7 @@ import { queryKeys } from "./keys";
 import type { Profile, ProfileInput } from "@/lib/schemas/profile";
 import type {
   AISettingsView,
+  ExposureResult,
   UpdateAISettingsInput,
   BackupImportResult,
   Diagnostics,
@@ -46,8 +47,12 @@ export function useTestAIConnection() {
   return useMutation({
     mutationFn: (input: TestConnectionInput) =>
       apiFetch<TestConnectionResult>("/api/ai/test-connection", { method: "POST", json: input }),
-    // Başarılı test ayarları kaydeder: uç nokta göstergesi tazelenir.
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.aiSettings }),
+    // Başarılı test ayarları kaydeder: uç nokta göstergesi ve ağ kontrolü tazelenir.
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.aiSettings }),
+        qc.invalidateQueries({ queryKey: queryKeys.aiExposure }),
+      ]),
   });
 }
 
@@ -56,6 +61,14 @@ export function useAISettings() {
   return useQuery({
     queryKey: queryKeys.aiSettings,
     queryFn: () => apiFetch<AISettingsView>("/api/ai/settings"),
+  });
+}
+
+/** F67: yerel model sunucusu yerel ağa açık mı? */
+export function useAIExposure() {
+  return useQuery({
+    queryKey: queryKeys.aiExposure,
+    queryFn: () => apiFetch<ExposureResult>("/api/ai/exposure"),
   });
 }
 

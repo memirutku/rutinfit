@@ -336,7 +336,7 @@ Next.js 16.4, Prisma 7.10 ve Vitest 5.0 kullanılır (Ekim 2026'da 15.5 / 6.19 /
 
 ## 🤖 Yerel Yapay Zeka Bağlantısı (Ollama & LM Studio)
 
-RutinFit, kişisel sağlık ve besin verilerinizi asla harici bir bulut sunucusuna göndermez. Gizlilik için yapay zekâ adresi yalnız bu bilgisayardaki bir sunucu (`127.0.0.1` / `localhost`) veya resmi `https://api.openai.com` olabilir; ayar yalnız bağlantı testi başarılıysa kaydedilir:
+Yerel modelle (Ollama, LM Studio) kişisel sağlık ve besin verileriniz bu bilgisayardan çıkmaz. Yapay zekâ adresi yalnız bu bilgisayardaki bir sunucu (`127.0.0.1` / `localhost`) veya resmi `https://api.openai.com` olabilir; ayar yalnız bağlantı testi başarılıysa kaydedilir. OpenAI seçilirse mesajlar, profil özeti, günün öğünleri ve eklenen dosyaların içeriği OpenAI'ye gider; Ayarlar bunu açıkça uyarır. Koç Ayarlar'dan tamamen kapatılabilir.
 
 1. **Ollama ile:**
    ```bash
@@ -352,6 +352,8 @@ RutinFit, kişisel sağlık ve besin verilerinizi asla harici bir bulut sunucusu
 ## 🛡️ Güvenlik Politikası ve Desteklenen Platformlar
 
 * **Ağ erişimi:** Sunucu yalnız `127.0.0.1` adresini dinler. API istekleri Host başlığına (DNS rebinding), `Sec-Fetch-Site`/`Origin` başlıklarına (başka sitelerden gelen istekler) göre süzülür; masaüstü uygulamasında ayrıca her açılışta üretilen bir anahtarla kurulan HttpOnly oturum çerezi gerekir.
+* **Hesap yok, bulut yok:** Ayarlar'daki **Şeffaflık** bölümü bu bilgisayardan neyin çıktığını (yalnız seçiliyse OpenAI ve paketli gıda araması için Open Food Facts), kullanılan AI uç noktasını ve yerel model sunucusunun yerel ağa açık olup olmadığını gösterir.
+* **Sürüm doğrulama:** Her sürümle `SHA256SUMS.txt` yayımlanır. İndirilen dosya `shasum -a 256 RutinFit_<sürüm>_aarch64.dmg` ile doğrulanır.
 * **AI onayları:** Taslaklar transaction içinde atomik olarak uygulanır (çift tıklama iki kez yazamaz); ham onay anahtarı saklanmaz.
 * **Güvenlik Politikası:** Güvenlik açıklarını bildirmek için lütfen [SECURITY.md](SECURITY.md) dosyasını inceleyiniz.
 * **Katkıda Bulunma:** Projeye katkıda bulunmak için [CONTRIBUTING.md](CONTRIBUTING.md) ve [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) rehberlerini takip ediniz.
