@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Circle } from "lucide-react";
 import { useTimedMessage } from "@/hooks/useTimedMessage";
 import type { ProgressResponse } from "@/lib/schemas/progress";
 import { WELLBEING_SECTION_ID } from "./rhythm";
@@ -65,13 +64,12 @@ function Scale({ label, hint, value, onChange }: { label: string; hint: string; 
 interface WellbeingCardProps {
   /** Sunucudaki bugünün kaydı; değerleri değişince form yeniden doldurulur. */
   today?: ProgressResponse["today"];
-  onToggleCreatine: () => void;
   /** true dönerse "Kayıt güncellendi ✓" gösterilir; hata mesajını çağıran gösterir. */
   onSave: (values: WellbeingValues) => Promise<boolean>;
 }
 
-/** Günlük Kreatin & İyilik Hali Hızlı Giriş */
-export function WellbeingCard({ today, onToggleCreatine, onSave }: WellbeingCardProps) {
+/** Günlük iyilik hâli hızlı girişi (takviyeler F15 ile ayrı kartta). */
+export function WellbeingCard({ today, onSave }: WellbeingCardProps) {
   const [weight, setWeight] = useState("");
   const [energy, setEnergy] = useState(3);
   const [sleep, setSleep] = useState("7");
@@ -80,10 +78,9 @@ export function WellbeingCard({ today, onToggleCreatine, onSave }: WellbeingCard
   const [mood, setMood] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const saved = useTimedMessage<string>(3000);
-  const creatineTaken = !!today?.creatineTaken;
 
   // Sunucu değerleri değiştiğinde (ilk yükleme, kayıt sonrası) form doldurulur. Yalnız kreatin
-  // değiştiğinde veya aynı veri yeniden geldiğinde kullanıcının yazdıkları ezilmez.
+  // gibi formda olmayan alanlar değiştiğinde veya aynı veri yeniden geldiğinde kullanıcının yazdıkları ezilmez.
   // Effect yerine render sırasında: boş formla bir kare çizilmez.
   const signature = today
     ? [today.date, today.weightKg, today.energy1to5, today.sleepMinutes, today.stress1to5, today.soreness1to5, today.mood1to5].join("|")
@@ -128,24 +125,7 @@ export function WellbeingCard({ today, onToggleCreatine, onSave }: WellbeingCard
     >
       <div>
         <div className="flex items-center justify-between mb-4">
-          <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Günlük Ritim & Kreatin</span>
-          <button
-            type="button"
-            onClick={onToggleCreatine}
-            aria-pressed={creatineTaken}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
-              creatineTaken
-                ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                : "bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300"
-            }`}
-          >
-            {creatineTaken ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            ) : (
-              <Circle className="w-4 h-4 text-slate-400" />
-            )}
-            <span>5g Kreatin Alındı</span>
-          </button>
+          <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Günlük Ritim</span>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -233,10 +213,6 @@ export function WellbeingCard({ today, onToggleCreatine, onSave }: WellbeingCard
             {saved.message && <span className="text-xs text-emerald-600 font-medium">{saved.message}</span>}
           </div>
         </form>
-      </div>
-
-      <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-400">
-        <p>💡 Dinlenme günleri dahil günlük 5g kreatin kullanımı kas doygunluğunu korur.</p>
       </div>
     </div>
   );

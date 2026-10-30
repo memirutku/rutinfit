@@ -334,11 +334,25 @@ model DailyWellbeing {
   updatedAt    DateTime @updatedAt
 }
 
+/// F15: Kullanıcının takviye listesi. Günlük kayıtlar ada göre SupplementLog'da tutulur.
+model Supplement {
+  id         String   @id @default(cuid())
+  name       String   @unique
+  doseAmount Float
+  doseUnit   String   @default("g") // g, mg, mcg, IU, kapsül, tablet, damla, ml, ölçek
+  active     Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
 model SupplementLog {
   id        String   @id @default(cuid())
   date      String // YYYY-MM-DD
   name      String   @default("Kreatin Monohidrat")
-  doseGrams Float    @default(5.0)
+  doseGrams Float    @default(5.0) // doz miktarı (birimi doseUnit)
+  doseUnit  String   @default("g") // F15
   taken     Boolean  @default(true)
   createdAt DateTime @default(now())
 

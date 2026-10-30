@@ -47,6 +47,7 @@ export const BACKUP_TABLES = [
   'AIMessage',
   'AuditEvent',
   'WeeklyCheckin',
+  'Supplement',
 ] as const;
 
 /** Yeniden üretilebilir önbellekler ve makineye özgü ayarlar (otomatik yedek klasörü) yedeğe alınmaz. */

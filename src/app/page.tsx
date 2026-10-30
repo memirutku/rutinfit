@@ -31,6 +31,7 @@ import { SavedMealsModal } from "@/components/dashboard/SavedMealsModal";
 import { computeReadiness } from "@/lib/readiness";
 import { useAllCustomMeasures } from "@/lib/client/queries/measures";
 import { NaturalLogModal } from "@/components/dashboard/NaturalLogModal";
+import { SupplementsCard } from "@/components/dashboard/SupplementsCard";
 import { mealTypeForHour } from "@/lib/meal-time";
 
 interface UndoState {
@@ -188,14 +189,17 @@ export default function DashboardPage() {
         <MacroBalanceCard summary={summary} targets={targets} hideNumbers={hideNumbers} />
       </div>
 
-      {/* İkinci Sıra: Günün Antrenmanı & Kreatin / İyilik Hali */}
+      {/* İkinci Sıra: Günün Antrenmanı & İyilik Hali */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <TodayWorkoutCard template={todayTemplate} isCompleted={isWorkoutCompleted} readiness={readiness} />
-        <WellbeingCard today={progress.data?.today} onToggleCreatine={handleToggleCreatine} onSave={handleSaveWellbeing} />
+        <WellbeingCard today={progress.data?.today} onSave={handleSaveWellbeing} />
       </div>
 
-      {/* F13: sıvı, kafein ve alkol */}
-      <DrinksCard date={todayStr} />
+      {/* F13: sıvı, kafein ve alkol · F15: takviyeler */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <DrinksCard date={todayStr} />
+        <SupplementsCard date={todayStr} />
+      </div>
 
       <TodayMealsList
         logs={foodLogs.data?.logs ?? []}

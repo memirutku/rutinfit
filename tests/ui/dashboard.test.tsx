@@ -216,7 +216,7 @@ describe("WellbeingCard", () => {
   });
 
   it("sunucu değerleriyle dolar; aynı veri tekrar gelince yazılanı ezmez, değişince yeniden dolar", () => {
-    const props = { onToggleCreatine: vi.fn(), onSave: vi.fn() };
+    const props = { onSave: vi.fn() };
     const { rerender } = render(<WellbeingCard today={progress(false).today} {...props} />);
     const weight = screen.getByLabelText("Sabah Kilosu (kg)") as HTMLInputElement;
     expect(weight.value).toBe("110.5");
@@ -234,7 +234,7 @@ describe("WellbeingCard", () => {
 
   it("F51: stres, kas ağrısı ve ruh hâli seçilir; hazır olma skoru canlı hesaplanır ve kaydedilir", async () => {
     const onSave = vi.fn().mockResolvedValue(true);
-    render(<WellbeingCard today={{ ...progress(false).today, energy1to5: 2, sleepMinutes: 300 }} onToggleCreatine={vi.fn()} onSave={onSave} />);
+    render(<WellbeingCard today={{ ...progress(false).today, energy1to5: 2, sleepMinutes: 300 }} onSave={onSave} />);
     fireEvent.click(screen.getByRole("button", { name: "Stres 4/5" }));
     fireEvent.click(screen.getByRole("button", { name: "Kas ağrısı 4/5" }));
     fireEvent.click(screen.getByRole("button", { name: "Ruh hâli 2/5" }));
@@ -245,20 +245,9 @@ describe("WellbeingCard", () => {
     expect(onSave.mock.calls[0][0]).toMatchObject({ energy1to5: 2, sleepMinutes: 300, stress1to5: 4, soreness1to5: 4, mood1to5: 2 });
   });
 
-  it("kreatin düğmesi durumu aria-pressed ile bildirir", () => {
-    const onToggleCreatine = vi.fn();
-    const { rerender } = render(<WellbeingCard today={progress(false).today} onToggleCreatine={onToggleCreatine} onSave={vi.fn()} />);
-    const toggle = screen.getByRole("button", { name: "5g Kreatin Alındı" });
-    expect(toggle.getAttribute("aria-pressed")).toBe("false");
-    fireEvent.click(toggle);
-    expect(onToggleCreatine).toHaveBeenCalled();
-    rerender(<WellbeingCard today={progress(true).today} onToggleCreatine={onToggleCreatine} onSave={vi.fn()} />);
-    expect(toggle.getAttribute("aria-pressed")).toBe("true");
-  });
-
   it("kayıt başarılıysa onay gösterir, başarısızsa göstermez", async () => {
     const onSave = vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false);
-    render(<WellbeingCard today={progress(false).today} onToggleCreatine={vi.fn()} onSave={onSave} />);
+    render(<WellbeingCard today={progress(false).today} onSave={onSave} />);
     fireEvent.click(screen.getByRole("button", { name: "2" }));
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "Kaydet" })));
     expect(onSave).toHaveBeenLastCalledWith({ weightKg: 110.5, energy1to5: 2, sleepMinutes: 450 });
@@ -270,8 +259,9 @@ describe("WellbeingCard", () => {
 });
 
 describe("DashboardPage", () => {
-  function stubDashboard(opts: { progressPost?: () => Response | Promise<Response>; logs?: FoodLog[] } = {}) {
+  function stubDashboard(opts: { progressPost?: () => Response | Promise<Response>; supplementPost?: () => Response | Promise<Response>; logs?: FoodLog[] } = {}) {
     let taken = false;
+    const creatine = () => ({ id: "s1", name: "Kreatin Monohidrat", doseAmount: 5, doseUnit: "g", active: true, notes: null, takenToday: taken, takenLast7: taken ? 1 : 0 });
     const foodLogs = (): FoodLogsResponse => ({ date: today, logs: opts.logs ?? [log()], summary: summary(), targets });
     const s = stubFetch([
       ["/api/food-logs", (_u, init) => (init?.method === "DELETE" ? jsonResponse({ success: true }) : init?.method === "POST" ? jsonResponse(log({ id: "log2" }), 201) : jsonResponse(foodLogs()))],
@@ -284,6 +274,8 @@ describe("DashboardPage", () => {
         },
       ],
       ["/api/profile", () => jsonResponse({ workdayHomeTime: "20:15" })],
+      ["/api/supplements/log", () => (opts.supplementPost ? opts.supplementPost() : ((taken = !taken), jsonResponse({ success: true })))],
+      ["/api/supplements", () => jsonResponse({ supplements: [creatine()] })],
     ]);
     restore = s.restore;
     return s;
@@ -320,11 +312,11 @@ describe("DashboardPage", () => {
     expect(screen.getByText("Henüz bugün için bir öğün kaydetmediniz")).toBeTruthy();
   });
 
-  it("kreatin işareti anında değişir; sunucu 500 dönerse geri alınır ve hata gösterilir", async () => {
+  it("F15: takviye işareti anında değişir; sunucu 500 dönerse geri alınır ve hata gösterilir", async () => {
     let fail: (r: Response) => void = () => {};
-    stubDashboard({ progressPost: () => new Promise<Response>((resolve) => (fail = resolve)) });
+    stubDashboard({ supplementPost: () => new Promise<Response>((resolve) => (fail = resolve)) });
     renderWithQuery(<DashboardPage />);
-    const toggle = await screen.findByRole("button", { name: "5g Kreatin Alındı" });
+    const toggle = await screen.findByRole("button", { name: /Kreatin Monohidrat/ });
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
 
     fireEvent.click(toggle);

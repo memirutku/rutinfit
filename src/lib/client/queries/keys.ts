@@ -7,6 +7,7 @@ export const queryKeys = {
   aiSettings: ["ai-settings"] as const,
   aiExposure: ["ai-exposure"] as const,
   progress: ["progress"] as const,
+  supplements: ["supplements"] as const,
   foodLogs: {
     all: ["food-logs"] as const,
     byDate: (date: string) => ["food-logs", date] as const,
