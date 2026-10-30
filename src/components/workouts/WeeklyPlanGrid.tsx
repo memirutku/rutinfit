@@ -23,14 +23,18 @@ export function runSessionTemplate(template: WorkoutTemplate): SessionTemplate {
 
 type StartSession = (template: SessionTemplate, shortened: boolean) => void;
 
+/** F17: şablonu düzenle (şablon) ya da o gün için yeni şablon ekle (null). */
+type EditTemplate = (template: WorkoutTemplate | null, dayOfWeek: number) => void;
+
 interface WeeklyPlanGridProps {
   templates: WorkoutTemplate[];
   loading: boolean;
   onStart: StartSession;
+  onEdit?: EditTemplate;
 }
 
 /** Haftalık 3+2+2 planı: her gün için şablon kartı ve seans başlatma düğmeleri. */
-export function WeeklyPlanGrid({ templates, loading, onStart }: WeeklyPlanGridProps) {
+export function WeeklyPlanGrid({ templates, loading, onStart, onEdit }: WeeklyPlanGridProps) {
   return (
     <div className="space-y-4">
       <h3 className="font-bold text-slate-900 text-base">Haftalık Antrenman Planı (3+2+2)</h3>
@@ -47,6 +51,7 @@ export function WeeklyPlanGrid({ templates, loading, onStart }: WeeklyPlanGridPr
             dayName={d.name}
             template={templates.find((t) => t.dayOfWeek === d.day)}
             onStart={onStart}
+            onEdit={onEdit ? (t) => onEdit(t, d.day) : undefined}
           />
         ))}
       </div>
@@ -58,9 +63,10 @@ interface DayTemplateCardProps {
   dayName: string;
   template?: WorkoutTemplate;
   onStart: StartSession;
+  onEdit?: (template: WorkoutTemplate | null) => void;
 }
 
-export function DayTemplateCard({ dayName, template, onStart }: DayTemplateCardProps) {
+export function DayTemplateCard({ dayName, template, onStart, onEdit }: DayTemplateCardProps) {
   const isStrength = template?.type === "strength";
   const isRun = template?.type === "easy_run";
 
@@ -82,7 +88,19 @@ export function DayTemplateCard({ dayName, template, onStart }: DayTemplateCardP
           </span>
         </div>
 
-        <h4 className="font-bold text-slate-900 text-base mb-1">{template?.name || "Dinlenme"}</h4>
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <h4 className="font-bold text-slate-900 text-base">{template?.name || "Dinlenme"}</h4>
+          {onEdit && (
+            <button
+              type="button"
+              aria-label={template ? `${template.name} şablonunu düzenle` : `${dayName} için şablon ekle`}
+              onClick={() => onEdit(template ?? null)}
+              className="shrink-0 px-2 py-1 rounded-lg border border-slate-200 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              {template ? "Düzenle" : "+ Şablon"}
+            </button>
+          )}
+        </div>
         <p className="text-xs text-slate-500 mb-3 leading-relaxed">{template?.notes || "Toparlanma günü."}</p>
 
         {/* Hareketler listesi */}

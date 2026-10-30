@@ -5,7 +5,8 @@ import { useCountdown } from "@/hooks/useCountdown";
 import { useToday } from "@/hooks/useToday";
 import { errorMessage } from "@/lib/client/api";
 import { useFinishWorkout, useWorkouts } from "@/lib/client/queries/workouts";
-import type { ProgressionFeedback, WorkoutSession } from "@/lib/schemas/workout";
+import type { ProgressionFeedback, WorkoutSession, WorkoutTemplate } from "@/lib/schemas/workout";
+import { TemplateEditor } from "@/components/workouts/TemplateEditor";
 import { MuscleHeatmap } from "@/components/MuscleHeatmap";
 import { PlateCalculator } from "@/components/PlateCalculator";
 import { ExerciseLibraryPanel } from "@/components/workouts/ExerciseLibraryPanel";
@@ -37,6 +38,8 @@ export default function WorkoutsPage() {
   const [active, setActive] = useState<ActiveWorkout | null>(null);
   const [feedback, setFeedback] = useState<Record<string, ProgressionFeedback> | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // F17: şablon editörü (null: kapalı)
+  const [editing, setEditing] = useState<{ template: WorkoutTemplate | null; dayOfWeek: number } | null>(null);
   const submitting = useRef(false);
 
   // Kaldığın Yerden Devam Etme: aktif seans her değiştiğinde taslak kaydedilir
@@ -112,6 +115,13 @@ export default function WorkoutsPage() {
             templates={workouts.data?.templates ?? []}
             loading={workouts.isPending}
             onStart={startSession}
+            onEdit={(template, dayOfWeek) => setEditing({ template, dayOfWeek })}
+          />
+          <TemplateEditor
+            open={editing !== null}
+            template={editing?.template ?? null}
+            dayOfWeek={editing?.dayOfWeek ?? 1}
+            onClose={() => setEditing(null)}
           />
         </>
       )}

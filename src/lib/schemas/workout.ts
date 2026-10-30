@@ -93,3 +93,25 @@ export const FinishWorkoutResponseSchema = z.object({
   progressionFeedbacks: z.record(z.string(), ProgressionFeedbackSchema),
 });
 export type FinishWorkoutResponse = z.infer<typeof FinishWorkoutResponseSchema>;
+
+/** F17: şablon egzersizi (şablon editörü). */
+export const TemplateExerciseInputSchema = z
+  .object({
+    exerciseName: z.string().trim().min(1, "Egzersiz adı boş olamaz.").max(80),
+    targetSets: z.number().int().min(1).max(10),
+    repMin: z.number().int().min(1).max(100),
+    repMax: z.number().int().min(1).max(100),
+    restSeconds: z.number().int().min(0).max(600),
+  })
+  .refine((e) => e.repMin <= e.repMax, { message: "Tekrar alt sınırı üst sınırdan büyük olamaz.", path: ["repMin"] });
+
+/** F17: POST/PUT /api/workouts/templates */
+export const TemplateInputSchema = z.object({
+  name: z.string().trim().min(1, "Şablon adı boş olamaz.").max(80),
+  type: z.enum(["strength", "easy_run", "rest"]),
+  dayOfWeek: z.number().int().min(1).max(7),
+  targetDurationMinutes: z.number().int().min(5).max(240),
+  notes: z.string().trim().max(300).optional().nullable(),
+  exercises: z.array(TemplateExerciseInputSchema).max(20).default([]),
+});
+export type TemplateInput = z.input<typeof TemplateInputSchema>;

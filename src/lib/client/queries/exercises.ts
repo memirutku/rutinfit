@@ -12,11 +12,12 @@ export interface ExerciseFilters {
 }
 
 /** F25: kütüphane listesi (özel egzersizler dahil). */
-export function useExercises(filters: ExerciseFilters) {
+export function useExercises(filters: ExerciseFilters, options: { enabled?: boolean } = {}) {
   const params = new URLSearchParams(Object.entries(filters).filter(([, v]) => v) as [string, string][]);
   return useQuery({
     queryKey: queryKeys.exercises.list(params.toString()),
     queryFn: () => apiFetch<LibraryExercise[]>(`/api/exercises${params.size ? `?${params}` : ""}`),
+    enabled: options.enabled ?? true,
   });
 }
 
