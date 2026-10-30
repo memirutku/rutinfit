@@ -19,6 +19,7 @@ export const queryKeys = {
   mealPlans: {
     all: ["meal-plans"] as const,
     byDate: (date: string) => ["meal-plans", date] as const,
+    adherence: (from: string, to: string) => ["meal-plans", "adherence", from, to] as const,
   },
   shopping: {
     all: ["shopping"] as const,

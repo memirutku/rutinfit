@@ -113,6 +113,7 @@ model PlannedMeal {
   plannedTime String?
   servings    Float   @default(1)
   isCompleted Boolean @default(false)
+  adherence   String? // F78: done (uygulandı), partial (kısmen), skipped (atlandı)
 
   mealPlan MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
   recipe   Recipe?  @relation(fields: [recipeId], references: [id])

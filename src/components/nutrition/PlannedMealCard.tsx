@@ -3,6 +3,7 @@
 import { Clock, Flame } from "lucide-react";
 import type { MealType } from "@/lib/schemas/enums";
 import type { PlannedMeal } from "@/lib/schemas/meal-plan";
+import { ADHERENCE_LABELS, ADHERENCE_VALUES, type Adherence } from "@/lib/adherence";
 
 /** Günlük öğün planı yoksa gösterilen varsayılan dağılım rehberi. */
 export interface MealTemplate {
@@ -60,10 +61,18 @@ interface PlannedMealCardProps {
   multiplier: number;
   onMultiplierChange: (multiplier: number) => void;
   onLogEaten: () => void;
+  /** F78: uyum işareti; aynı değere tekrar basılırsa null (işaret kalkar). */
+  onAdherence?: (value: Adherence | null) => void;
 }
 
+const ADHERENCE_TONE: Record<Adherence, string> = {
+  done: "bg-emerald-600 border-emerald-600 text-white",
+  partial: "bg-amber-500 border-amber-500 text-white",
+  skipped: "bg-slate-500 border-slate-500 text-white",
+};
+
 /** Bir öğün kartı: porsiyon çarpanı, makro rozetleri, malzemeler ve "Yedim" düğmesi. */
-export function PlannedMealCard({ template, planned, multiplier: mult, onMultiplierChange, onLogEaten }: PlannedMealCardProps) {
+export function PlannedMealCard({ template, planned, multiplier: mult, onMultiplierChange, onLogEaten, onAdherence }: PlannedMealCardProps) {
   const macros = planned?.calculatedMacros;
   const cal = Math.round((macros?.calories || template.targetKcal) * mult);
   const pro = round1((macros?.proteinG || template.targetProtein) * mult);
@@ -130,6 +139,27 @@ export function PlannedMealCard({ template, planned, multiplier: mult, onMultipl
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {planned && onAdherence && (
+          <div className="flex items-center gap-1.5 mb-3" role="group" aria-label="Plana uyum">
+            {ADHERENCE_VALUES.map((v) => {
+              const active = planned.adherence === v;
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => onAdherence(active ? null : v)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+                    active ? ADHERENCE_TONE[v] : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {ADHERENCE_LABELS[v]}
+                </button>
+              );
+            })}
           </div>
         )}
 

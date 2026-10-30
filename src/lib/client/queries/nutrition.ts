@@ -16,6 +16,7 @@ import type {
 } from "@/lib/schemas/food";
 import type { MealPlan } from "@/lib/schemas/meal-plan";
 import type { QuickFoodId } from "@/lib/quick-foods";
+import type { Adherence, AdherenceSummary } from "@/lib/adherence";
 
 /* ----------------------------- Sorgular ----------------------------- */
 
@@ -120,5 +121,23 @@ export function useQuickAddFood() {
         qc.invalidateQueries({ queryKey: queryKeys.foodLogs.all }),
         qc.invalidateQueries({ queryKey: queryKeys.foods.all }),
       ]),
+  });
+}
+
+/** F78: tarih aralığındaki plana uyum özeti. */
+export function useAdherenceSummary(from: string, to: string) {
+  return useQuery({
+    queryKey: queryKeys.mealPlans.adherence(from, to),
+    queryFn: () => apiFetch<AdherenceSummary>(`/api/meal-plans/adherence?from=${from}&to=${to}`),
+  });
+}
+
+/** F78: planlı öğünü işaretler; planlar ve uyum özeti tazelenir (aynı önek). */
+export function useSetAdherence() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { plannedMealId: string; adherence: Adherence | null }) =>
+      apiFetch("/api/meal-plans/adherence", { method: "PATCH", json: input }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mealPlans.all }),
   });
 }
