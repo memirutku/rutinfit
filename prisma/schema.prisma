@@ -39,6 +39,7 @@ model UserProfile {
   goalType          String @default("lose") // lose, maintain, gain
   goalRateKgPerWeek Float  @default(0.5)
   targetWeightKg    Float?
+  waterTargetMl     Int    @default(2500) // F13: günlük sıvı hedefi
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -135,10 +136,30 @@ model FoodLog {
 
   foodItem FoodItem? @relation(fields: [foodItemId], references: [id])
   recipe   Recipe?   @relation(fields: [recipeId], references: [id])
+  drinkLog DrinkLog?
 
   @@index([date, createdAt])
   @@index([foodItemId])
   @@index([recipeId])
+}
+
+/// F13: Su, çay, kahve ve alkol. Kalorili içeceğin enerjisi bağlı FoodLog kaydındadır.
+model DrinkLog {
+  id         String   @id @default(cuid())
+  date       String // YYYY-MM-DD
+  time       String   @default("12:00") // HH:mm
+  kind       String // water, tea, coffee, alcohol, other
+  name       String
+  ml         Float
+  caffeineMg Float    @default(0)
+  alcoholG   Float    @default(0)
+  kcal       Float    @default(0)
+  foodLogId  String?  @unique
+  createdAt  DateTime @default(now())
+
+  foodLog FoodLog? @relation(fields: [foodLogId], references: [id], onDelete: SetNull)
+
+  @@index([date])
 }
 
 model WorkoutTemplate {

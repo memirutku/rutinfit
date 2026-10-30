@@ -26,6 +26,7 @@ import { WellbeingCard, type WellbeingValues } from "@/components/dashboard/Well
 import { TodayMealsList } from "@/components/dashboard/TodayMealsList";
 import { getRhythmStep, WELLBEING_SECTION_ID, type RhythmAction } from "@/components/dashboard/rhythm";
 import { SetupWizard } from "@/components/onboarding/SetupWizard";
+import { DrinksCard } from "@/components/dashboard/DrinksCard";
 
 interface UndoState {
   toast: UndoToastData;
@@ -179,6 +180,9 @@ export default function DashboardPage() {
         <TodayWorkoutCard template={todayTemplate} isCompleted={isWorkoutCompleted} />
         <WellbeingCard today={progress.data?.today} onToggleCreatine={handleToggleCreatine} onSave={handleSaveWellbeing} />
       </div>
+
+      {/* F13: sıvı, kafein ve alkol */}
+      <DrinksCard date={todayStr} />
 
       <TodayMealsList
         logs={foodLogs.data?.logs ?? []}

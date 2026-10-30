@@ -50,6 +50,12 @@ async function seedRichData() {
     },
   });
   await prisma.auditEvent.create({ data: { actionType: "APPLY_DRAFT", entityType: "food_log", status: "SUCCESS" } });
+  // F13: kalorili içecek kendi besin kaydıyla bağlı.
+  const beerLog = await prisma.foodLog.create({
+    data: { date: "2026-10-19", time: "20:00", mealType: "extra", name: "Bira (330 ml)", grams: 330, caloriesSnapshot: 143, proteinSnapshot: 1, carbsSnapshot: 13, fatSnapshot: 0 },
+  });
+  await prisma.drinkLog.create({ data: { date: "2026-10-19", time: "20:00", kind: "alcohol", name: "Bira", ml: 330, alcoholG: 13, kcal: 143, foodLogId: beerLog.id } });
+  await prisma.drinkLog.create({ data: { date: "2026-10-19", time: "09:00", kind: "water", name: "Su", ml: 500 } });
 }
 
 async function snapshot() {
@@ -101,7 +107,8 @@ describe("Yedek v2 — tam kapsam", () => {
     const backup = (await callRoute(exportBackup)).json;
     await callRoute(importBackup, { body: backup });
     await callRoute(importBackup, { body: backup });
-    expect(await prisma.foodLog.count()).toBe(1);
+    expect(await prisma.foodLog.count()).toBe(2); // öğün + biranın kalori kaydı
+    expect(await prisma.drinkLog.count()).toBe(2);
     expect(await prisma.setLog.count()).toBe(1);
     expect(await prisma.aIMessage.count()).toBe(2);
   });

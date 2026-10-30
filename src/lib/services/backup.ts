@@ -23,6 +23,7 @@ export const BACKUP_TABLES = [
   'MealPlan',
   'PlannedMeal',
   'FoodLog',
+  'DrinkLog',
   'WorkoutTemplate',
   'WorkoutExercise',
   'WorkoutSession',

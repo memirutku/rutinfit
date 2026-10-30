@@ -25,6 +25,10 @@ export const queryKeys = {
     week: (weekStart: string) => ["shopping", weekStart] as const,
   },
   pantry: ["pantry"] as const,
+  drinks: {
+    all: ["drinks"] as const,
+    byDate: (date: string) => ["drinks", date] as const,
+  },
   workouts: {
     all: ["workouts"] as const,
     list: (date?: string) => ["workouts", date ?? "recent"] as const,

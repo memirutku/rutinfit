@@ -33,6 +33,8 @@ export const UpdateProfileSchema = z.object({
   goalType: z.enum(GOAL_TYPE_KEYS).optional(),
   goalRateKgPerWeek: z.number().min(0).max(2).optional(),
   targetWeightKg: z.number().positive().max(400).nullable().optional(),
+  /** F13: günlük sıvı hedefi (ml). */
+  waterTargetMl: z.number().int().min(500).max(8000).optional(),
   /** F56: tabanın altındaki hedef bilerek (sağlık profesyoneliyle) seçildi. Saklanmaz. */
   acknowledgeLowCalorie: z.boolean().optional(),
 });
