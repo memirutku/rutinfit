@@ -224,4 +224,13 @@ test.describe("Dalga 6 · Antrenman", () => {
     await expect(group.getByText("Isınma · %90")).toBeVisible();
     await page.getByRole("button", { name: "Vazgeç" }).first().click();
   });
+
+  test("B23: plaka hesabı 142,5 kg için her tarafa 61,25 kg ve 1,25'lik plakayı virgülle gösterir", async ({ page }) => {
+    await openWorkouts(page);
+    await page.getByRole("button", { name: "Plaka & 1RM" }).click();
+    await page.getByLabel("Hedef Toplam Ağırlık (kg)").fill("142,5");
+    await expect(page.getByText("61,25 kg", { exact: true })).toBeVisible();
+    await expect(page.getByText("1 × 1,25 kg")).toBeVisible();
+    await expect(page.getByText("61,3 kg")).toHaveCount(0);
+  });
 });
