@@ -2,10 +2,22 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@/lib/db/client";
 import { ZodError } from "zod";
 
+/** Servislerin kullanıcıya gösterilecek mesaj ve HTTP koduyla fırlattığı hata. */
+export class HttpError extends Error {
+  constructor(
+    message: string,
+    readonly status: number
+  ) {
+    super(message);
+    this.name = "HttpError";
+  }
+}
+
 /**
  * Route hatalarını doğru HTTP koduna çevirir; iç ayrıntıları (Prisma sorgusu, yığın izi)
  * istemciye sızdırmaz, sunucu günlüğüne yazar.
  *
+ * - HttpError → kendi kodu ve mesajı
  * - ZodError → 400 (alan bazlı sorunlarla)
  * - P2025 kayıt yok → 404
  * - P2002 benzersizlik çakışması → 409
@@ -13,6 +25,9 @@ import { ZodError } from "zod";
  * - diğerleri → 500
  */
 export function apiError(error: unknown, fallbackMessage: string, context = "API") {
+  if (error instanceof HttpError) {
+    return NextResponse.json({ error: error.message }, { status: error.status });
+  }
   if (error instanceof ZodError) {
     const first = error.issues[0];
     const where = first?.path?.length ? `${first.path.join(".")}: ` : "";

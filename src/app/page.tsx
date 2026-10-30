@@ -27,6 +27,7 @@ import { TodayMealsList } from "@/components/dashboard/TodayMealsList";
 import { getRhythmStep, WELLBEING_SECTION_ID, type RhythmAction } from "@/components/dashboard/rhythm";
 import { SetupWizard } from "@/components/onboarding/SetupWizard";
 import { DrinksCard } from "@/components/dashboard/DrinksCard";
+import { SavedMealsModal } from "@/components/dashboard/SavedMealsModal";
 
 interface UndoState {
   toast: UndoToastData;
@@ -41,6 +42,7 @@ export default function DashboardPage() {
   const hideNumbers = profile.data?.hideNumbers ?? false;
   // F09: kurulmamış profilde sihirbaz açılır; "Şimdilik geç" bu oturum için kapatır.
   const [wizardDismissed, setWizardDismissed] = useState(false);
+  const [savedMealsOpen, setSavedMealsOpen] = useState(false);
   const showWizard = profile.data?.isOnboarded === false && !wizardDismissed;
   const foodLogs = useFoodLogs(todayStr);
   const workouts = useWorkouts(todayStr);
@@ -189,6 +191,15 @@ export default function DashboardPage() {
         onAdd={() => handleOpenQuickAdd()}
         onDelete={handleDeleteFoodLog}
         hideNumbers={hideNumbers}
+        onOpenSavedMeals={() => setSavedMealsOpen(true)}
+      />
+
+      <SavedMealsModal
+        open={savedMealsOpen}
+        date={todayStr}
+        todayLogs={foodLogs.data?.logs ?? []}
+        hideNumbers={hideNumbers}
+        onClose={() => setSavedMealsOpen(false)}
       />
 
       <QuickAddModal

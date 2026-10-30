@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Trash2, Utensils } from "lucide-react";
+import { Bookmark, Plus, Trash2, Utensils } from "lucide-react";
 import type { FoodLog } from "@/lib/schemas/food";
 import { formatNumberTr } from "@/lib/format";
 
@@ -25,11 +25,13 @@ interface TodayMealsListProps {
   onAdd: () => void;
   /** F56: kalori ve makroları gizle. */
   hideNumbers?: boolean;
+  /** F01: kayıtlı öğünler ve kopyalama penceresi. */
+  onOpenSavedMeals?: () => void;
   onDelete: (log: FoodLog) => void;
 }
 
 /** Bugün Kaydedilen Öğünler ve Hızlı Yönetim */
-export function TodayMealsList({ logs, onAdd, onDelete, hideNumbers = false }: TodayMealsListProps) {
+export function TodayMealsList({ logs, onAdd, onDelete, hideNumbers = false, onOpenSavedMeals }: TodayMealsListProps) {
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
       <div className="flex items-center justify-between mb-4">
@@ -44,13 +46,25 @@ export function TodayMealsList({ logs, onAdd, onDelete, hideNumbers = false }: T
             </p>
           </div>
         </div>
-        <button
-          onClick={onAdd}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Öğün Ekle</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {onOpenSavedMeals && (
+            <button
+              type="button"
+              onClick={onOpenSavedMeals}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors"
+            >
+              <Bookmark className="w-3.5 h-3.5" />
+              <span>Kayıtlı öğünler</span>
+            </button>
+          )}
+          <button
+            onClick={onAdd}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Öğün Ekle</span>
+          </button>
+        </div>
       </div>
 
       {logs.length === 0 ? (

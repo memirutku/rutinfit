@@ -24,6 +24,8 @@ export const BACKUP_TABLES = [
   'PlannedMeal',
   'FoodLog',
   'DrinkLog',
+  'SavedMeal',
+  'SavedMealItem',
   'WorkoutTemplate',
   'WorkoutExercise',
   'WorkoutSession',
@@ -55,6 +57,7 @@ const OWNED_CHILDREN: Partial<Record<string, string>> = {
   PlannedMeal: 'mealPlanId',
   WorkoutExercise: 'templateId',
   SetLog: 'workoutSessionId',
+  SavedMealItem: 'savedMealId',
   ExtractedArtifact: 'fileId',
   AIMessage: 'conversationId',
 };

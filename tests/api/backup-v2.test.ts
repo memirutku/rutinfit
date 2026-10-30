@@ -56,6 +56,14 @@ async function seedRichData() {
   });
   await prisma.drinkLog.create({ data: { date: "2026-10-19", time: "20:00", kind: "alcohol", name: "Bira", ml: 330, alcoholG: 13, kcal: 143, foodLogId: beerLog.id } });
   await prisma.drinkLog.create({ data: { date: "2026-10-19", time: "09:00", kind: "water", name: "Su", ml: 500 } });
+  // F01: kayıtlı öğün, katalog gıdasına bağlı kalemiyle.
+  await prisma.savedMeal.create({
+    data: {
+      name: "Sabah kasesi",
+      mealType: "breakfast",
+      items: { create: [{ foodItemId: food.id, name: "Granola", grams: 60, caloriesSnapshot: 270, proteinSnapshot: 6, carbsSnapshot: 36, fatSnapshot: 9 }] },
+    },
+  });
 }
 
 async function snapshot() {

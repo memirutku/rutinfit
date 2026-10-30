@@ -25,6 +25,7 @@ export const queryKeys = {
     week: (weekStart: string) => ["shopping", weekStart] as const,
   },
   pantry: ["pantry"] as const,
+  savedMeals: ["saved-meals"] as const,
   drinks: {
     all: ["drinks"] as const,
     byDate: (date: string) => ["drinks", date] as const,

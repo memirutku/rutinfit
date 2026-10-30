@@ -62,6 +62,7 @@ model FoodItem {
 
   recipeIngredients RecipeIngredient[]
   foodLogs          FoodLog[]
+  savedMealItems    SavedMealItem[]
 }
 
 model Recipe {
@@ -74,9 +75,10 @@ model Recipe {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  ingredients  RecipeIngredient[]
-  plannedMeals PlannedMeal[]
-  foodLogs     FoodLog[]
+  ingredients    RecipeIngredient[]
+  plannedMeals   PlannedMeal[]
+  foodLogs       FoodLog[]
+  savedMealItems SavedMealItem[]
 }
 
 model RecipeIngredient {
@@ -139,6 +141,40 @@ model FoodLog {
   drinkLog DrinkLog?
 
   @@index([date, createdAt])
+  @@index([foodItemId])
+  @@index([recipeId])
+}
+
+/// F01: Kayıtlı öğün (ör. "her sabahki kahvaltım"). Kalemler eklenirken katalog gıdası
+/// güncel değeriyle, serbest kalem kayıtlı değeriyle hesaplanır.
+model SavedMeal {
+  id        String   @id @default(cuid())
+  name      String
+  mealType  String? // varsayılan öğün
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items SavedMealItem[]
+}
+
+model SavedMealItem {
+  id               String  @id @default(cuid())
+  savedMealId      String
+  foodItemId       String?
+  recipeId         String?
+  name             String
+  grams            Float
+  caloriesSnapshot Float
+  proteinSnapshot  Float
+  carbsSnapshot    Float
+  fatSnapshot      Float
+  orderIndex       Int     @default(0)
+
+  savedMeal SavedMeal @relation(fields: [savedMealId], references: [id], onDelete: Cascade)
+  foodItem  FoodItem? @relation(fields: [foodItemId], references: [id], onDelete: SetNull)
+  recipe    Recipe?   @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+
+  @@index([savedMealId])
   @@index([foodItemId])
   @@index([recipeId])
 }
