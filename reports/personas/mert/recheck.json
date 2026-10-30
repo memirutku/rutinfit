@@ -1,0 +1,109 @@
+{
+  "persona": "mert",
+  "findings": [
+    {
+      "id": "B02",
+      "status": "kapandı",
+      "step": 1,
+      "screenshot": "01-ilk-acilis-ve-sihirbaz.png",
+      "evidence": "Sihirbazdan sonra panoda 'Eve tahmini varış: 18:00' yazıyor; bu saat Mert'in kendi girdiği değer. Kilo örneği 'Örn: 85'; iş çıkışı bandı, 112 kg ve kreatin yok. Takviye kartında 'Takviye listen boş' ve '+ Takviye / Düzenle' var; adım 15'te de aynı durum sürüyor."
+    },
+    {
+      "id": "B04",
+      "status": "kapandı",
+      "step": 15,
+      "screenshot": "15-panoda-kalori-ve-protein.png",
+      "evidence": "Günlük Ritim'de uyku alanı boş ('Örn: 7,5'), enerji '— / 5' gösteriyor ve hazır olma skoru yok. İlerleme'de (adım 10) haftalık kilo farkı '—', ortalama enerji '— / 5'. Yalnız dokunulan alanların kaydedildiği bu koşuda denenmedi."
+    },
+    {
+      "id": "B17",
+      "status": "kapandı",
+      "step": 8,
+      "screenshot": "08-seansi-kaydeder.png",
+      "evidence": "Ağırlık alanları boş ('—') açılıyor. Kayıttan sonra yalnız Bench için öneri çıkıyor ve seans geçmişi '1 set · 500 kg' diyor. İlerleme'de 30.10 bench hacmi 500 kg, Ön Omuz ve Arka Kol 6'şar set; hayali setler yok (adım 10). Tamamlanmamış setler sorusunun penceresi ekran görüntüsünde yok, yalnız sonucu görünüyor."
+    },
+    {
+      "id": "B18",
+      "status": "kapandı",
+      "step": 5,
+      "screenshot": "05-bugunun-seansini-baslatir.png",
+      "evidence": "Seans şablondaki set sayılarıyla açılıyor: Bench ve Row 4, OHP ve Lat Pulldown 3, Pushdown 2 set; her hareketin yanında '0 / 4 set' gibi bir sayaç var. Her harekette '+ Set' düğmesi, her set satırında silme (çöp kutusu) düğmesi bulunuyor."
+    },
+    {
+      "id": "B19",
+      "status": "kapandı",
+      "step": 9,
+      "screenshot": "09-metinden-antrenman-ekler.png",
+      "evidence": "Kayıttan sonra '29.10.2026 tarihine 14 set kaydedildi.' onayı çıkıyor. Yeni 'Seans geçmişi' listesinde 'Dünkü alt vücut' 29.10 tarihinde, 'Dün' etiketiyle ve Gör/Düzenle/Sil düğmeleriyle görünüyor."
+    },
+    {
+      "id": "B20",
+      "status": "kapandı",
+      "step": 15,
+      "screenshot": "15-panoda-kalori-ve-protein.png",
+      "evidence": "Pano artık 'Alt Gövde B · Bekliyor' ve altında 'Bugün yapılan: Üst Gövde A ✓' gösteriyor. Haftalık planda Cuma 'Bugün' rozetiyle vurgulu (adım 4). Kart açıklamaları şablondan üretiliyor ('4 hareket · 12 set: Deadlift…'), 'Toparlanma günü' yazısı yok."
+    },
+    {
+      "id": "B21",
+      "status": "kapandı",
+      "step": 3,
+      "screenshot": "03-hazir-programlara-bakar.png",
+      "evidence": "Hazır programlarda 'İleri' rozetli '5/3/1 (Wendler) · 4 gün' var. Kartta dört ana kaldırış için 1RM alanı, TM = 1RM'in %90'ı açıklaması ve 5'li/3'lü/5-3-1/deload döngüsü yazıyor. Mert Üst/alt'ı seçtiği için yüzdelik yüklemenin seansa yansıması bu koşuda görülmedi."
+    },
+    {
+      "id": "B22",
+      "status": "kapandı",
+      "step": 6,
+      "screenshot": "06-ilk-seti-girer.png",
+      "evidence": "Seansta Bench, Row ve OHP başlığında 'Isınma setleri ekle' düğmesi var; çalışma ağırlığı girilmeden soluk duruyor, 100 kg girilince etkinleşiyor. Düğmeye basılmadığı için eklenen ısınma setlerinin sırası bu koşuda görülmedi."
+    },
+    {
+      "id": "B23",
+      "status": "kapandı",
+      "step": 12,
+      "screenshot": "12-plaka-hesabi.png",
+      "evidence": "Plaka hesabı '61,25 kg' ve '1 × 1,25 kg' gösteriyor; ısınma tablosunda '15 + 2,5 + 1,25' yazıyor. e1RM grafiğinin ekseni de virgüllü (116,85). Eksen hâlâ dar (113,05–116,85) ve eğri yumuşatılmış, ama bu B23'ün kapsamında değil."
+    },
+    {
+      "id": "B24",
+      "status": "kapandı",
+      "step": 10,
+      "screenshot": "10-guc-gelisimine-bakar.png",
+      "evidence": "Antrenman başlığında 'Güç gelişimi ve rekorlar →' kısayolu, İlerleme başlığında 'Güç' düğmesi var. 'e1RM' yerine 'Tahmini en iyi tek tekrar' yazıyor ve altında açıklaması var. Bölüm sayfanın dibinde kalsa da iki kısayol öneriyi karşılıyor."
+    },
+    {
+      "id": "B35",
+      "status": "kısmen",
+      "step": 12,
+      "screenshot": "12-plaka-hesabi.png",
+      "evidence": "'Yerel-First Aktif' yerine 'Yerel çalışıyor' yazıyor; dosya seçiciler de Türkçe ('Fotoğraf seç / Dosya seçilmedi', adım 10). Ama Plaka & 1RM'de 'Tekrar Sayısı (Reps)' ve '60k / 80k / 100k' çipleri duruyor. Kardiyo'da 'Apple Health' yazıyor (başka yerlerde 'Apple Sağlık'), 'openGym' bağlantısı da hâlâ açıklamasız."
+    }
+  ],
+  "newIssues": [
+    {
+      "title": "Tamamlanan setin ağırlığı sonraki setlere taşınmıyor",
+      "severity": "orta",
+      "step": 6,
+      "screenshot": "06-ilk-seti-girer.png",
+      "observed": "Bench'in 1. seti 100 kg × 5 ile tamamlandıktan sonra 2.–4. setlerin ağırlık alanı hâlâ boş ('—'); tekrar alanı ise 8 ile dolu. 40 kg varsayılanını kaldırmak doğruydu, ama artık 16 setlik bir seansta ağırlığı her sete tek tek yazmak gerekiyor. Düz set çalışan biri için bu, her seansta tekrar eden bir sürtünme.",
+      "suggestion": "Bir set tamamlanınca aynı hareketin boş setlerine o ağırlığı soluk bir öneri olarak taşı ve tek dokunuşla kabul edilsin. Geçmiş varsa Strong'daki gibi 'önceki: 100×5' ipucu göster. Öneri yalnız set tamamlanınca kayda girsin; böylece B17'nin düzeltmesi korunur."
+    },
+    {
+      "title": "Hazır programlar penceresi en alttan, 5/3/1 1RM alanında açılıyor",
+      "severity": "düşük",
+      "step": 3,
+      "screenshot": "03-hazir-programlara-bakar.png",
+      "observed": "Pencere açılır açılmaz odak 5/3/1 kartındaki Overhead Press 1RM alanına gidiyor ve içerik en alta kayıyor. 'Hazır programlar' başlığı, kapatma (×) düğmesi ve ilk programlar görünmüyor; yeni başlayan biri pencereye ileri seviye programın formunda giriyor.",
+      "suggestion": "Açılışta odağı başlığa ya da kapatma düğmesine ver ve içeriği en üstten başlat. 1RM alanlarına otomatik odak verme."
+    },
+    {
+      "title": "Seans geçmişinde girilmemiş süreler gösteriliyor",
+      "severity": "düşük",
+      "step": 9,
+      "screenshot": "09-metinden-antrenman-ekler.png",
+      "observed": "Yeni Seans geçmişi Mert'in girmediği süreleri gösteriyor. 'Üst Gövde A · 60 dk' değeri, seans formundaki 'Gerçekleşen Süre' alanının hazır 60'ından geliyor; uygulama gerçek geçen süreyi ölçmüyor. Metinden eklenen antrenmanda da süre girilmediği hâlde '45 dk' yazıyor. Bu, B04'teki 'önceden dolu değer kayıt gibi saklanıyor' sorununun antrenman tarafı; B19'la birlikte görünür oldu.",
+      "suggestion": "Süreyi 'Başla' ile 'Bitir' arasındaki gerçek zamandan doldur. Metinden eklemede süre girilmediyse saklama ve geçmişte '—' göster."
+    }
+  ],
+  "summary": "Seans artık şablondaki set sayısıyla ve boş ağırlıklarla açılıyor. Yalnız tamamladığım set kaydediliyor, dünkü antrenman düne yazılıyor ve seans geçmişinden düzeltilebiliyor; bu yüzden hacim ve rekor sayılarına yeniden güvenebiliyorum. 5/3/1'in gelmesi, plakada 1,25'in doğru görünmesi ve panonun bugün ne yaptığımı doğru söylemesi uygulamayı ciddi bir kaldırıcı aracına yaklaştırıyor. Kalan sürtünmeler küçük: ağırlığı her sete tek tek yazmak, '60k' ve '(Reps)' gibi karışık etiketler, geçmişte girmediğim süreler."
+}

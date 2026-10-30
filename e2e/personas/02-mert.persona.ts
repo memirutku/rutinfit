@@ -20,7 +20,7 @@ test("Mert: deneyimli halterci, program ve rekor takibi", async ({ page, request
     await expect(page.getByRole("heading", { name: "Haftalık Antrenman Planı" })).toBeVisible();
   });
   await step("Hazır programlara bakar", "Kendi seviyesine uygun bir program arar (5x5, PPL, 5/3/1 gibi)", async () => {
-    await page.getByRole("button", { name: "Hazır program" }).click();
+    await page.getByRole("button", { name: "Hazır program", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "Hazır programlar" })).toBeVisible();
   });
   await step("Üst/alt programını seçer", "En yakın seçenek olan 'Üst / alt (4 gün)' programını plana ekler", async () => {

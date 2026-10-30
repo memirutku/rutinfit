@@ -1,0 +1,131 @@
+{
+  "persona": "elif",
+  "findings": [
+    {
+      "id": "B02",
+      "status": "kapandı",
+      "step": 3,
+      "screenshot": "03-simit-ekler.png",
+      "evidence": "Panoda 'iş çıkışı' bandı, 19:40 antrenman satırı ve 'Örn: 112,0' yok; kilo örneği Elif'in kendi kilosu ('Örn: 60'), takviye listesi boş başlıyor. 'Eve tahmini varış: 17:00' ancak sihirbazda Okul / 17:00 girildikten sonra çıkıyor; sihirbazdan önce (adım 1) bu satır hiç görünmüyor."
+    },
+    {
+      "id": "B03",
+      "status": "görülemedi",
+      "step": 13,
+      "screenshot": "13-koca-soru-dar-ekran.png",
+      "evidence": "Karşılama mesajının sayı içeren ilk satırları sohbet kutusunda yukarı kaymış, ekran görüntüsünde yalnız mesajın sonu ('…antrenman önerileri verebilirim…') görünüyor. Görünen hiçbir yerde 2.080 geçmiyor; kural tabanlı kart doğru kalan değeri ('Bugün kalan: 1.987 kcal') veriyor."
+    },
+    {
+      "id": "B05",
+      "status": "kapandı",
+      "step": 1,
+      "screenshot": "01-ilk-acilis-dar-ekran.png",
+      "evidence": "Sihirbazda Cinsiyet 'Seçin' ile başlıyor ve kullanıcı yazmadan kırmızı yaş hatası çıkmıyor; 'İleri' düğmesi etkin."
+    },
+    {
+      "id": "B06",
+      "status": "kısmen",
+      "step": 14,
+      "screenshot": "14-antrenman-sayfasi-dar-ekran.png",
+      "evidence": "Sihirbaz artık 5 adım. Gün düzeni (Okul) ve eve varış saati soruluyor, 'iş çıkışı' etiketleri tamamen kalktı. Ama Antrenman sayfası yeni başlayana yine birbirinin aynısı 7 'Dinlenme' kartı gösteriyor ve belirgin bir 'Başlangıç programı seç' çağrısı yok. Sihirbazdaki program seçimi ekran görüntülerinde görünmüyor; panodaki dinlenme günü kartında 'RutinFit'te Başla' ve 'openGym' hâlâ duruyor."
+    },
+    {
+      "id": "B12",
+      "status": "kapandı",
+      "step": 9,
+      "screenshot": "09-panoda-takviyeleri-isaretler.png",
+      "evidence": "Takviye formunda doz başına kalori/protein alanları var. Whey işaretlenince pano 303→423 kcal ve 9,9→33,9 g protein oldu, öğün listesine 'Whey Protein (30 g) · 120 kcal · P: 24g' satırı eklendi. Takviye kartında '+ Takviye / Düzenle' bağlantısı her zaman görünüyor."
+    },
+    {
+      "id": "B13",
+      "status": "kısmen",
+      "step": 3,
+      "screenshot": "03-simit-ekler.png",
+      "evidence": "Sabah yenen simit yine soru sorulmadan saate göre 'Akşam Yemeği' rozetiyle kaydedildi. Rozet düz bir etiket gibi görünüyor: ok ya da kalem gibi bir ipucu olmadığından dokununca öğünün değiştirilebildiği anlaşılmıyor, değiştirme menüsü de bu koşuda hiç görünmedi."
+    },
+    {
+      "id": "B23",
+      "status": "kısmen",
+      "step": 10,
+      "screenshot": "10-dongu-ve-uyku-girer.png",
+      "evidence": "Makro kartı ve öğün satırı artık virgüllü ('9,9g / 108g', 'Kalan: 98,1g', '302,5 kcal'). Ama Elif uykuyu '6,5' yazıp kaydedince alan '6.5' diye noktalı gösteriyor; hemen yanındaki yer tutucular ise virgüllü ('Örn: 7,5')."
+    },
+    {
+      "id": "B28",
+      "status": "kapandı",
+      "step": 13,
+      "screenshot": "13-koca-soru-dar-ekran.png",
+      "evidence": "Koç sayfası açılır açılmaz 'Koç kapalı' rozeti ve 'Koç kapalı: yerel model bulunamadı' kutusu çıkıyor; kutuda 3 kurulum adımı, 'Ayarlar'da test et' ve 'Yeniden dene' düğmeleri var. Hata balonu düz metin, Ayarlar'daki rozet de kırmızı 'Ulaşılamıyor' (adım 4)."
+    },
+    {
+      "id": "B32",
+      "status": "kapandı",
+      "step": 4,
+      "screenshot": "04-ayarlari-arar.png",
+      "evidence": "Alt menüye 'Daha fazla' sekmesi eklenmiş. Elif Ayarlar'a (adım 4) ve İlerleme'ye (adım 11) adres yazmadan ulaştı, iki sayfada da 'Daha fazla' sekmesi etkin görünüyor."
+    },
+    {
+      "id": "B33",
+      "status": "kapandı",
+      "step": 13,
+      "screenshot": "13-koca-soru-dar-ekran.png",
+      "evidence": "Dar ekranda yalnız simgeyle görünen gönder düğmesi artık 'Gönder' adıyla bulunuyor; 'Kreatin ne zaman alınmalı?' sorusu gönderildi ve sohbette görünüyor."
+    },
+    {
+      "id": "B34",
+      "status": "kapandı",
+      "step": 8,
+      "screenshot": "08-dongu-notunu-acar.png",
+      "evidence": "Ayarlar'ın üstünde yapışkan bölüm sekmeleri var (Profil, Takviyeler, Hatırlatmalar, Oruç…), teknik bölümler kapalı 'Gelişmiş' altında, sayfa 7.126 px'ten 5.281 px'e indi. Döngü notu dokununca kaydediliyor ve hemen yanında 'Kaydedildi ✓' çıkıyor. Oruç bölümünde ise hâlâ ayrı bir kaydet düğmesi var."
+    },
+    {
+      "id": "B35",
+      "status": "kısmen",
+      "step": 12,
+      "screenshot": "12-ilerleme-fotografi-ekler.png",
+      "evidence": "Dosya seçiciler Türkçe ('Fotoğraf seç / Dosya seçilmedi'), 'Yerel-First' ifadesi ve iki satıra kırılan 'İş Çıkışı' rozeti kalktı. Buna karşılık makro satırında '(Kalan: 98,1g)' hâlâ alt satıra kırılıyor, alt menü etiketleri hâlâ çok küçük ve iki satır, koçun hazır soru çipi yarıda kesiliyor. Şeffaflık tablosu 'Gelişmiş' altında kapalı kaldığı için görülemedi."
+    },
+    {
+      "id": "B41",
+      "status": "kapandı",
+      "step": 7,
+      "screenshot": "07-takviye-hatirlatmasi.png",
+      "evidence": "Hatırlatma eklenince 'Takvime aktar (.ics)' düğmesi etkinleşiyor. Açıklamada 'iCloud takvimine eklersen telefonunda da gelir' yazıyor, yani önerilen kısa vadeli yol uygulanmış. Dosya bu koşuda indirilmediği için içeriği doğrulanmadı."
+    }
+  ],
+  "newIssues": [
+    {
+      "title": "Tek girdiyle 'Hazır olma: Yüksek' skoru",
+      "severity": "orta",
+      "step": 10,
+      "screenshot": "10-dongu-ve-uyku-girer.png",
+      "observed": "Elif yalnız uykusunu (6,5 saat) ve 'Adet başladı'yı girdi; enerji, stres, kas ağrısı ve ruh hâli boş ('— / 5'). Kart yine de yeşil 'Hazır olma: 70 · Yüksek' gösteriyor. Oysa uygulama İlerleme'de '7+ saat uyku toparlanmayı destekler' diyor. Girilmeyen alanlar artık uydurulmadığı için (B04) skor tek bir girdiden hesaplanıyor.",
+      "suggestion": "Skoru ve bandı ancak en az 2–3 girdi varken göster; tek girdide '—' ya da 'Yalnız uykuya göre' notuyla bantsız bir değer göster. Uyku 7 saatin altındaysa 'Yüksek' bandı verme."
+    },
+    {
+      "title": "Ayarlar'daki takviye satırı dar ekranda sıkışıyor",
+      "severity": "düşük",
+      "step": 6,
+      "screenshot": "06-kreatin-ve-whey-ekler.png",
+      "observed": "Yeni 'Düzenle' düğmesiyle satırda üç denetim yan yana duruyor. 'Whey Protein · 30 g · 120 kcal · 24 g protein günlüğe yazılır' metni dar sütunda 4 satıra kırılıyor, '30' ile 'g' ayrı satırlara düşüyor; 'Kreatin Monohidrat' da iki satır oluyor.",
+      "suggestion": "390 px'te Düzenle / Pasifleştir / sil denetimlerini adın altına ayrı bir satıra al ya da tek bir '⋯' menüsünde topla. Sayı ile birimi bölünmez boşlukla bağla."
+    },
+    {
+      "title": "Antrenman sayfası başlığı üç düğmeyle sıkışıyor",
+      "severity": "düşük",
+      "step": 14,
+      "screenshot": "14-antrenman-sayfasi-dar-ekran.png",
+      "observed": "Eklenen '+ Yeni şablon' düğmesiyle 'Haftalık Antrenman Planı' başlığı üç satıra kırılıyor, üç düğmenin her biri de iki satır. Plan boşken en gerekli eylem olan 'Hazır program' en sağda, diğerleriyle aynı ağırlıkta duruyor.",
+      "suggestion": "Dar ekranda düğmeleri başlığın altında tam genişlikte bir satıra al (flex-wrap). Plan boşken 'Hazır program'ı birincil düğme yap."
+    },
+    {
+      "title": "Yedek klasörü notunda 'henüz' kelimesi ortadan bölünüyor",
+      "severity": "düşük",
+      "step": 4,
+      "screenshot": "04-ayarlari-arar.png",
+      "observed": "Otomatik yedek bölümündeki not 'Önerilen: /Users/…/RutinFit Yedekleri (he' / 'nüz seçilmedi)' diye kırılıyor. Uzun yolu sarmak için konan harf düzeyinde kırma kuralı Türkçe metni de bölüyor.",
+      "suggestion": "Harf düzeyinde kırmayı (break-all) yalnız yol metnine uygula ve '(henüz seçilmedi)' kısmını normal sarmayla yaz; yolu ayrı bir satırda göstermek de olur."
+    }
+  ],
+  "summary": "Artık dar pencerede 'Daha fazla'dan Ayarlar'a ve İlerleme'ye kendim gidebiliyorum; whey'i işaretleyince proteinim 24 g artıyor, hatırlatmayı takvimime aktarabiliyorum ve koç kapalı olduğunu ne yapmam gerektiğiyle birlikte söylüyor. Yine de sabah yediğim simit sormadan 'Akşam Yemeği'ne yazıldı ve rozete dokunup değiştirebileceğimi anlamadım. Uykum '6.5' diye noktalı görünüyor, 6,5 saat uykuyla 'Hazır olma: Yüksek' demesi inandırıcı değil ve antrenman sayfası bana hâlâ nereden başlayacağımı göstermiyor."
+}

@@ -318,3 +318,100 @@ Her madde: önem · boyut (S/M/L) · kimde görüldü · adımlar. Ekran görün
 ## Sonraki adım
 
 Bulgular seçim sayfasında Evet / Belki / Hayır ile işaretlenecek; seçilenler için ayrı bir düzeltme planı (dalga 6) yazılacak.
+
+
+## Dalga 6 sonrası yeniden test (30 Ekim 2026)
+
+Bulguların 43'ü de düzeltildi (`ozellik/dalga-6`). Aynı altı persona yeni paketlenmiş uygulamayla aynı yolculuğu
+yeniden yaptı. Her personanın önce/sonra ekran görüntüleri ayrı bir değerlendiriciyle karşılaştırıldı.
+
+| | Dalga 5 | Dalga 6 |
+|---|---|---|
+| Başarısız adım (82 adımda) | 9 | 1 |
+| Bulgu kontrolü (72 persona–bulgu çifti) | — | 57 kapandı · 12 kısmen · 0 açık · 3 görülemedi |
+
+- Kalan tek başarısız adım: Emre'nin koça iftar sorusu. Yerel modeli yok; koç artık "Koç kapalı" der, kurulum adımlarını
+  ve yapay zekâ olmayan bir öneri kartı gösterir. Adımın beklediği iftar yanıtı bu yüzden gelmez.
+- "Görülemedi": B25 (test tarihi Ramazan dışında; birim ve arayüz testleriyle doğrulandı), B10'un eşleşmeyen satır yolu
+  (bu koşuda her satır eşleşti) ve B03 (Elif'te karşılama mesajı ekranın dışında kaldı).
+- "Kısmen" çıkan maddeler değerlendirmeden sonra tamamlandı; yapılan iş tablonun son sütununda.
+
+Gösterim: ✓ kapandı · ◐ kısmen · — görülemedi.
+
+| Bulgu | Önem | Başlık | Yeniden test | Değerlendirmeden sonra |
+|---|---|---|---|---|
+| B01 | Kritik | İlk kurulumda besin kataloğu boş | Ayşe ✓ · Zeynep ✓ · Emre ✓ · Can ✓ |  |
+| B02 | Yüksek | Geliştiricinin kişisel varsayılanları herkese görünüyor | Ayşe ✓ · Mert ✓ · Zeynep ✓ · Can ✓ · Elif ✓ |  |
+| B03 | Yüksek | Koda yazılı '2.080 kcal' hedefi | Zeynep ✓ · Emre ✓ · Can ✓ · Elif — |  |
+| B04 | Yüksek | Veri yokken uydurma değerler gösteriliyor ve kaydediliyor | Ayşe ✓ · Mert ✓ · Zeynep ✓ · Can ✓ |  |
+| B05 | Orta | Sihirbaz: cinsiyet 'Erkek' ile başlıyor, hata erken çıkıyor | Ayşe ✓ · Elif ✓ |  |
+| B06 | Orta | Kurulumdan sonra yön gösterilmiyor | Emre ✓ · Elif ◐ | Boş haftada "Hazır program seç" çağrısı eklendi. |
+| B07 | Orta | Kilo hedefine ilerleme hiçbir yerde görünmüyor | Ayşe ✓ |  |
+| B08 | Kritik | Günlük plan, girilen menü yerine sabit örnek öğünleri gösteriyor | Zeynep ✓ |  |
+| B09 | Yüksek | Tarifsiz plan öğünü 'Yedim' ile kaydedilemiyor; alışveriş listesi boş | Zeynep ◐ | Alışveriş listesi plan değişince tazeleniyor; öğün bir kez ve kendi saatiyle yazılıyor ("Günlüğe yazıldı ✓"). |
+| B10 | Yüksek | Yazarak eklemede bulunamayan kalem çıkmaz | Ayşe ✓ · Emre — |  |
+| B11 | Yüksek | '1 kase' çorba iki yerde farklı kalori | Ayşe ✓ |  |
+| B12 | Yüksek | Takviye işareti protein ve kaloriye sayılmıyor; panodan takviye eklenemiyor | Elif ✓ |  |
+| B13 | Orta | Hızlı eklemede öğün saate göre yanlış seçiliyor | Elif ◐ | Öğün rozeti çerçeve ve okla dokunulabilir görünüyor. |
+| B14 | Orta | Yeni besin formu: 'Kasap & Balık' ve 'Yüksek' güven varsayılanı | Zeynep ✓ · Emre ✓ |  |
+| B15 | Orta | Kalori hedefi değişince makrolar güncellenmiyor | Zeynep ✓ |  |
+| B16 | Orta | Haftalık editör: metin kesiliyor, gün toplamı ve hafta gezinmesi yok | Zeynep ◐ | Çift "+" düzeldi. Tarifsiz öğünde gün kcal toplamı hâlâ yok (aşağıdaki listede). |
+| B17 | Kritik | Tamamlanmamış setler 40 kg ile gerçek set olarak kaydediliyor | Mert ✓ |  |
+| B18 | Yüksek | Şablondaki set sayısı seansa yansımıyor; set ekleme/silme yok | Mert ✓ |  |
+| B19 | Yüksek | Metinden eklemede tarih yok; seans geçmişi yok | Mert ✓ |  |
+| B20 | Yüksek | Pano yapılmayan seansı 'Tamamlandı' gösteriyor; bugün vurgulanmıyor | Mert ✓ |  |
+| B21 | Orta | İleri seviye kaldırıcı için program yok | Mert ✓ |  |
+| B22 | Orta | Isınma hesaplayıcısı seansa bağlı değil | Mert ✓ |  |
+| B23 | Orta | Ondalık gösterim tutarsız; plaka 1,25 → '1,3' | Ayşe ◐ · Mert ✓ · Elif ◐ | Kaydedilen kilo ve uyku alanı virgülle gösteriliyor. |
+| B24 | Düşük | Güç bölümü dipte; yeni başlayana jargon ve boş bölümler | Ayşe ◐ · Mert ✓ | "TDEE", "tavan" ve "deterministik" ifadeleri sadeleştirildi. |
+| B25 | Yüksek | Ramazan modunda pano hâlâ ara öğün ve iş çıkışı rutini öneriyor | Emre — |  |
+| B26 | Orta | Ramazan dışında bağlamsız sayaç; sahur/iftar hatırlatması ve sofra kalemleri yok | Emre ✓ |  |
+| B27 | Yüksek | Koç sayfası 1366 px'te yana taşıyor | Emre ✓ · Can ✓ |  |
+| B28 | Orta | Yerel model yokken koç ne olduğunu ve nasıl düzeleceğini söylemiyor | Emre ✓ · Elif ✓ |  |
+| B29 | Orta | Öneri kartı: metinde ham JSON, onay sonrası rozet değişmiyor, eksik malzemeyle 'Hesaplandı' | Can ✓ |  |
+| B30 | Orta | Yapay zekâ ayarının kaydedildiği belli değil | Can ✓ |  |
+| B31 | Orta | 'Kaç km koştum?' bütün kardiyoyu topluyor | Can ✓ |  |
+| B32 | Kritik | Dar pencerede Ayarlar ve İlerleme'ye ulaşılamıyor | Elif ✓ |  |
+| B33 | Orta | Koçun gönder düğmesinin erişilebilir adı yok | Elif ✓ |  |
+| B34 | Orta | Ayarlar sayfası çok uzun ve teknik | Zeynep ◐ · Emre ◐ · Elif ✓ | Oruç ayarları da dokununca kaydediyor; ayrı düğme kalmadı. |
+| B35 | Düşük | Dar ekranda taşmalar; İngilizce dosya seçici; karışık dil | Ayşe ✓ · Mert ◐ · Can ✓ · Elif ◐ | "Tekrar sayısı", "60 kg" çipleri, "Apple Sağlık"; alt menü etiketleri bölünmüyor. |
+| B36 | Orta | İndirilen dosyaların yeri belirsiz; ham yollar teknik | Ayşe ✓ · Zeynep ◐ · Can ✓ | Diyetisyen raporunun Excel mesajı İndirilenler'i adlandırıyor, Finder düğmesi var. |
+| B37 | Orta | Apple Sağlık'ta çift sayım önlemi görünmüyor | Can ✓ |  |
+| B38 | Orta | Tanılama bölümü eksik ve güncel değil | Can ✓ |  |
+| B39 | Düşük | Şeffaflık ayrıntıları: sunucu yokken yeşil onay, eksik satır, iCloud uyarısı | Can ✓ |  |
+| B40 | Düşük | Haftalık değerlendirmede öneri iki kez yazıyor | Ayşe ✓ |  |
+| B41 | Orta | Hatırlatmalar telefona ulaşmıyor | Elif ✓ |  |
+| B42 | Düşük | Yerel model yokken yapay zekâsız öğün önerisi yok | Emre ✓ |  |
+| B43 | Yüksek | Diyetisyen raporunda ölçüler, plana uyum ve sapmalar yok | Zeynep ✓ |  |
+
+### Yeniden testte görülen yeni sorunlar
+
+Düzeltilenler (son tur):
+
+- Besin kataloğu arama kutusu kategori çipleri arasında sıkışıyordu; kendi satırına alındı.
+- Kilo hedefi kartı tek tartı ile 7 günlük ortalamayı karıştırıyordu; ortalama etiketlendi, bugünkü tartı ayrıca yazıyor.
+- Otomatik yedek açılınca önerilen (iCloud'a gidebilen) klasör sorulmadan kaydediliyordu; artık onay isteniyor.
+- Seansta her sete ağırlık yeniden yazılmak zorundaydı; tamamlanan setin ağırlığı sonraki boş setlere geçiyor.
+- Seans geçmişinde girilmemiş süreler (60 ve 45 dk) görünüyordu; süre başla–bitir arası ölçülüyor, yoksa "süre girilmedi".
+- Program seçici listenin dibine kayarak açılıyordu; üstten açılıyor.
+- "Yakın karşılık" Ramazan kalemleri "Yüksek" güvenle işaretliydi; "Tahmini" oldu.
+- Alışveriş listesi plan girildikten sonra "planlı öğün yok" diyordu; plan değişince tazeleniyor.
+- Planlı öğün iki kez kaydedilebiliyor ve kayıt anının saatini alıyordu; bir kez ve öğünün saatiyle yazılıyor.
+- Diyetisyen raporu bugünün yarım gününü ortalamaya katıyordu; bitmiş günler esas alınıyor.
+- Hazır olma skoru yalnız uykudan "Yüksek" çıkıyordu; en az iki girdi gerekiyor.
+- Tanılamada tüm koç önerileri "onay bekleyen" yazıyordu; şeffaflık tablosunda ve yedek notlarında kelimeler ortadan
+  bölünüyordu; Apple Sağlık verisi silinince dosya adı kalıyordu; dar ekranda antrenman başlığı üç satıra bölünüyordu;
+  Ayarlar'da tahmini başlangıç değerleri gerçek ölçü gibi görünüyordu. Hepsi düzeltildi.
+
+Sonraki seçime kalanlar (yeni özellik ya da daha büyük değişiklik):
+
+1. Yalnız kalori girilerek kaydedilen öğünde karbonhidrat ve yağ 0 sayılıyor; rapor ortalamaları düşük çıkıyor.
+1. Tarifsiz plan öğününe planlanan kalori girilemiyor: raporda "Plan (kcal)" ve "Fark" boş, haftalık editörde gün toplamı yok.
+1. Yeni besin formu benzer bir kayıt olduğunu söylemiyor ("Hurma" ile "Hurma (kuru)").
+1. Model olmadan öneri kartı saat ve Ramazan bağlamını bilmiyor; koçun hata mesajı bu karta yönlendirmiyor.
+1. Koçun önerisinde katalogda olmayan malzeme atlanınca metinde yalnız "Öneri:" kalıyor.
+1. 390 px'te takviye satırında düğmeler metni sıkıştırıyor; koçun hazır soru çipi kesik görünüyor.
+1. e1RM grafiğinin dar ekseni ve yumuşatılmış eğrisi küçük farkları büyük gösteriyor.
+
+Önce/sonra ekran görüntüleri: `reports/personas-dalga5/<persona>/` ve `reports/personas/<persona>/`; değerlendirmeler
+`reports/personas/<persona>/recheck.json`.

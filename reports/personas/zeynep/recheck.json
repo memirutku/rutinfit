@@ -1,0 +1,140 @@
+{
+  "persona": "zeynep",
+  "findings": [
+    {
+      "id": "B01",
+      "status": "kapandı",
+      "step": 11,
+      "screenshot": "11-laktozsuz-yogurdu-kataloga-ekler.png",
+      "evidence": "İlk kurulumda Besin Kataloğu (44) ve Tarifler (16) dolu geliyor. Menüdeki yumurta, tam buğday ekmeği, zeytin, domates, tavuk göğsü, pilavlık bulgur ve taze fasulye katalogda hazır. Önceki koşuda katalog boştu."
+    },
+    {
+      "id": "B02",
+      "status": "kapandı",
+      "step": 1,
+      "screenshot": "01-ilk-acilis-ve-sihirbaz.png",
+      "evidence": "Pano artık 'İş Çıkışı & Antrenman Hazırlığı' ve kreatin göstermiyor. Sihirbazdaki 'Okul' gün düzenine göre 'Akşam Yemeği · 16:30–21:30' ve 'Eve tahmini varış: 16:30' yazıyor; takviye listesi boş, kilo yer tutucusu 'Örn: 78'. İlerleme'de kreatin notu ve kartı yok (adım 12), gün düzeni Ayarlar'da düzenlenebiliyor (adım 2). Sihirbazı atlama yolu bu koşuda denenmedi."
+    },
+    {
+      "id": "B03",
+      "status": "kapandı",
+      "step": 7,
+      "screenshot": "07-bugunun-plani.png",
+      "evidence": "Yemek Planı başlığı bütün sekmelerde 'Hedef: 1.500 kcal · 122 g protein · 131 g karbonhidrat · 42 g yağ' diyor; 2.080 kcal hiçbir ekranda yok. Koç ekranı Zeynep'in yolunda olmadığından orada denetlenemedi."
+    },
+    {
+      "id": "B04",
+      "status": "kapandı",
+      "step": 12,
+      "screenshot": "12-olculerini-girer.png",
+      "evidence": "Kayıt yokken İlerleme'deki 'Ortalama enerji' artık '— / 5' gösteriyor. Panodaki Günlük Ritim'de uyku ve enerji önceden dolu gelmiyor ('Örn: 7,5', '— / 5'), uydurma 'Hazır olma' skoru da kalkmış (adım 1)."
+    },
+    {
+      "id": "B08",
+      "status": "kapandı",
+      "step": 7,
+      "screenshot": "07-bugunun-plani.png",
+      "evidence": "Günlük Yemek Planı, haftalık editöre girilen üç öğünü kendi adıyla gösteriyor. Sabit 'Yulaflı Lorlu Fit Omlet', yoğurtlu örnek öğünler ve uydurma makrolar kalkmış; her kartta 'Tarife bağlı değil, besin değeri hesaplanamıyor' notu var."
+    },
+    {
+      "id": "B09",
+      "status": "kısmen",
+      "step": 10,
+      "screenshot": "10-alisveris-listesi.png",
+      "evidence": "'Yedim Olarak Kaydet' artık kalori sorup kaydediyor (adım 9: '… (380 kcal) günlüğe kaydedildi! ✓'), alışveriş listesine de elle kalem ekleme gelmiş. Ancak boş listenin gerekçesi yanlış: haftada üç planlı öğün varken 'Bu hafta planlı öğün yok' yazıyor ve öğünlerin tarifsiz olduğu için listeye girmediğini söylemiyor."
+    },
+    {
+      "id": "B14",
+      "status": "kapandı",
+      "step": 11,
+      "screenshot": "11-laktozsuz-yogurdu-kataloga-ekler.png",
+      "evidence": "Elle eklenen 'Laktozsuz yoğurt' artık 'Genel' kategorisinde ve 'Kullanıcı' güven rozetiyle kaydediliyor. Önceki 'Kasap & Balık' ve 'Yüksek' varsayılanları yok."
+    },
+    {
+      "id": "B15",
+      "status": "kapandı",
+      "step": 2,
+      "screenshot": "02-diyetisyenin-hedefini-girer.png",
+      "evidence": "Kalori 1.500'e çekilince Ayarlar, makroların toplam 1.390 kcal ettiğini ve 110 kcal eksik kaldığını söylüyor; 'Protein 132 g · Karbonhidrat 141 g · Yağ 45 g' önerisini 'Makroları oranla dağıt' düğmesiyle sunuyor. Zeynep düğmeye basmadığı için rapordaki 122/131/42 hâlâ 1.500 ile uyuşmuyor; bu onun tercihi."
+    },
+    {
+      "id": "B16",
+      "status": "kısmen",
+      "step": 6,
+      "screenshot": "06-plana-ekler-dinner.png",
+      "evidence": "Uzun öğün adları artık satıra sarılıyor, bugün 'Bugün' rozeti ve çerçeveyle vurgulanıyor, hafta okları (26.10 – 01.11) gelmiş. Ama gün kalori toplamı yerine yalnız '3 öğün tarifsiz' yazıyor ve gün düğmeleri hâlâ çift artıyla '+ + Öğün' görünüyor."
+    },
+    {
+      "id": "B34",
+      "status": "kısmen",
+      "step": 2,
+      "screenshot": "02-diyetisyenin-hedefini-girer.png",
+      "evidence": "Ayarlar'a bölüm sekmeleri (Profil, Takviyeler, Hatırlatmalar, Oruç, AI koçu, Yedek, Gelişmiş) gelmiş; şeffaflık ve tanılama katlı 'Gelişmiş' altında, iki profil anahtarı 'dokununca kaydedilir'. Ama Oruç anahtarları hâlâ ayrı 'Oruç ayarlarını kaydet' düğmesini bekliyor; Base URL, '127.0.0.1:11434' ve model adının yer aldığı Yerel Yapay Zekâ bölümü de Gelişmiş'in dışında, ana akışta duruyor."
+    },
+    {
+      "id": "B36",
+      "status": "kısmen",
+      "step": 14,
+      "screenshot": "14-raporu-excel-olarak-indirir.png",
+      "evidence": "Ayarlar'da kopya 'Gelişmiş › Yedek ayrıntıları'ndan kapatılabiliyor ve yedek klasörü 'Klasör seç…' ile seçiliyor; fotoğraflarda 'Finder'da göster' ve 'Yolu kopyala' var (adım 2, 12). Ancak Zeynep'in Excel indirdiği ekrandaki mesaj öncekiyle aynı: İndirilenler klasörünü söylemiyor, ham '/var/folders/…/exports/…xlsx' yolunu basıyor ve 'Finder'da göster' düğmesi yok."
+    },
+    {
+      "id": "B43",
+      "status": "kapandı",
+      "step": 13,
+      "screenshot": "13-diyetisyen-raporunu-acar.png",
+      "evidence": "Rapora şunlar eklenmiş: Vücut ölçüleri tablosu (Bel 93→91 cm, −2; Kalça 108→107 cm, −1; bel/kalça oranı), haftalık Plana uyum tablosu, 'Öğün bazında plan ve gerçekleşen' tablosu, renkli sapma kartları ('Ort. protein 71 g · Hedeften sapma · hedefin %42 altında') ve güne göre gruplu, gün toplamlı öğün günlüğü. Kalan pürüzler yeni sorunlarda: bugünün yarım günü ortalamalara giriyor, serbest metin planda 'Plan (kcal)' ve 'Fark' boş, kahvaltı 20:35'te görünüyor."
+    }
+  ],
+  "newIssues": [
+    {
+      "title": "Rapor ortalamaları bugünün yarım gününü de sayıyor",
+      "severity": "orta",
+      "step": 13,
+      "screenshot": "13-diyetisyen-raporunu-acar.png",
+      "observed": "Bitiş tarihi bugün (30.10) olunca yalnız kahvaltısı girilmiş gün (380 kcal) ortalamalara katılıyor. Önceki koşuda 13 tam günle 1.350 kcal / 75 g protein olan ortalama 1.281 kcal ('Dikkat · −219 kcal (hedefin %15 altında)') ve 71 g'a düşüyor; 30.10 da hedef aralığı dışında sayılıyor. Aynı raporda 'Plana uyum %100 · Hedefe uygun' kartı, 3 öğünden yalnız 1'i işaretliyken yeşil görünüyor.",
+      "suggestion": "Bitiş bugünse bugünü 'devam ediyor' diye ayrı göster; ortalamalara ve 'Hedef aralığında' sayısına katma, ya da 'bugünü hariç tut' seçeneği ver. İşaretli öğün oranı düşükken uyum kartını yeşil 'Hedefe uygun' yerine 'veri az' diye göster."
+    },
+    {
+      "title": "Yalnız kaloriyle kaydedilen öğünde karbonhidrat ve yağ '0 g' sayılıyor",
+      "severity": "orta",
+      "step": 13,
+      "screenshot": "13-diyetisyen-raporunu-acar.png",
+      "observed": "'Yedim' ile 380 kcal ve 22 g proteinle kaydedilen kahvaltı, raporun Günlük tablosunda 30.10 için 'Karb. 0 g · Yağ 0 g' olarak çıkıyor ve ortalamalara sıfır olarak giriyor (Ort. karbonhidrat 125 g, Ort. yağ 38 g). Yumurta, ekmek ve zeytinli bir kahvaltı için bu, diyetisyene yanlış bilgi veriyor. Menüsü tümüyle serbest metin olan Zeynep'te karbonhidrat ve yağ her gün eksik görünecek.",
+      "suggestion": "Girilmeyen makroyu '—' (bilinmiyor) olarak sakla ve göster. Ortalamaları yalnız makrosu bilinen kayıtlardan hesapla ve kaç öğünün makrosuz olduğunu yaz. 'Yedim' penceresine isteğe bağlı karbonhidrat ve yağ alanı ekle."
+    },
+    {
+      "title": "Akşam günlüğe yazılan kahvaltı raporda 20:35'te yenmiş görünüyor",
+      "severity": "orta",
+      "step": 14,
+      "screenshot": "14-raporu-excel-olarak-indirir.png",
+      "observed": "Plan öğününden 'Yedim' ile kaydedilen kahvaltı, öğün günlüğünde '30.10 Cuma · Kahvaltı · 20:35 2 yumurta, 1 dilim tam buğday ekmeği…' diye çıkıyor; öteki günlerde kahvaltı 08:00. Diyetisyen gece kahvaltı yapıldığını sanır ve öğün düzenini yanlış değerlendirir.",
+      "suggestion": "Plan öğününden kaydederken saati öğün diliminin saatiyle (ör. kahvaltı 08:00) önceden doldur ya da pencereye 'Ne zaman yedin?' alanı koy. Kayıt saati ile yeme saatini ayrı tut."
+    },
+    {
+      "title": "Günlüğe yazılan plan öğününün kartında 'günlükte' durumu yok",
+      "severity": "orta",
+      "step": 9,
+      "screenshot": "09-kahvaltiyi-gunluge-yazar.png",
+      "observed": "'… (380 kcal) günlüğe kaydedildi! ✓' bildirimi yalnız sayfanın üstünde görünüyor; kahvaltı kartı değişmiyor ve 'Yedim Olarak Kaydet' düğmesi yine etkin. Hangi plan öğününün günlüğe yazıldığı kartta görünmüyor. 'Uygulandı' işareti ile günlük kaydı ayrı tutuluyor; düğmeye yeniden basılırsa aynı öğün iki kez yazılabilir.",
+      "suggestion": "Kaydedilen öğünde düğmeyi 'Günlükte · 380 kcal · Düzenle / Geri al' durumuna çevir. 'Yedim' ile kaydedilince 'Uygulandı'yı da kendiliğinden işaretle. Aynı plan öğünü ikinci kez kaydedilirken uyar."
+    },
+    {
+      "title": "Serbest metin plan öğününe kalori yazılamıyor; 'Plan (kcal)' ve 'Fark' hep boş",
+      "severity": "orta",
+      "step": 13,
+      "screenshot": "13-diyetisyen-raporunu-acar.png",
+      "observed": "Rapordaki 'Öğün bazında plan ve gerçekleşen' tablosunda üç öğünün 'Plan (kcal)' ve 'Fark' sütunları '—'. Haftalık editörde de öğün başına kalori alanı ya da gün toplamı görünmüyor (adım 6: '3 öğün tarifsiz'). Diyetisyen kahvaltıya 380 kcal vermiş olsa da Zeynep bunu plana yazamıyor; plan ile gerçekleşen yalnız 'yedi / yemedi' düzeyinde karşılaştırılıyor.",
+      "suggestion": "Haftalık editörde tarifsiz öğüne isteğe bağlı kalori (ve protein) alanı ekle. Bu değeri 'Yedim' penceresine önceden doldur; gün toplamını ve rapordaki 'Fark' sütununu bununla hesapla."
+    },
+    {
+      "title": "Alışveriş listesi, planlı öğün varken 'Bu hafta planlı öğün yok' diyor",
+      "severity": "düşük",
+      "step": 10,
+      "screenshot": "10-alisveris-listesi.png",
+      "observed": "Haftada üç planlı (tarifsiz) öğün varken boş liste 'Bu hafta planlı öğün yok. Hafta sekmesinden öğün ekleyince tarif malzemeleri burada toplanır' diyor. Öğünlerini az önce giren Zeynep, kaydedilmediklerinden şüphelenir; asıl neden olan tarif bağlantısının olmaması söylenmiyor.",
+      "suggestion": "Planlı ama tarifsiz öğün varsa '3 planlı öğünün tarifi yok; yalnız tarifli öğünlerin malzemeleri toplanır' yaz. Serbest metin öğünleri listede tek satır olarak göster ya da 'listeye ekle' kısayolu ver."
+    }
+  ],
+  "summary": "Yemek Planı artık diyetisyenimin menüsünü ve 1.500 kcal hedefimi gösteriyor. 'Yedim' kalori sorarak kaydediyor, rapor da bel/kalça ölçülerimi, plana uyumu ve öğün bazında plan ile gerçekleşeni içeriyor; kontrole götürebileceğim bir rapor oldu. Yine de raporu gün içinde alınca bugünün yarım günü ortalamaları düşürüyor, akşam yazdığım kahvaltı 20:35'te yenmiş görünüyor, yalnız kalori girdiğim öğünde karbonhidrat ve yağ 0 g sayılıyor. Plan öğünlerime kalori yazamadığım için 'Fark' sütunu da boş kalıyor."
+}

@@ -1,0 +1,108 @@
+{
+  "persona": "ayse",
+  "findings": [
+    {
+      "id": "B01",
+      "status": "kapandı",
+      "step": 5,
+      "screenshot": "05-hizli-ogun-mercimek-corbasi-arar.png",
+      "evidence": "Katalog ilk açılışta dolu geliyor: Hızlı Öğün'de 'mercimek' araması 'Mercimek Çorbası (151 kcal / porsiyon)' buluyor, Besin Kataloğu (43) ve Tarifler (16) hazır (09). Yazarak ekle ilk denemede üç kalemi de eşliyor (07) ve paketi elle yüklemek gerekmiyor."
+    },
+    {
+      "id": "B02",
+      "status": "kapandı",
+      "step": 4,
+      "screenshot": "04-sihirbazi-kaydet.png",
+      "evidence": "'İş çıkışı & antrenman' bandı yerine 'Akşam Yemeği' adımı var, kreatin yok ('Takviye listen boş'), kilo örneği 'Örn: 90'. 'Eve tahmini varış 18:30' yalnız Ayşe sihirbazda bu saati girdikten sonra çıkıyor; sihirbaz öncesi varsayılan nötr (2.000 kcal, 'Örn: 70,5'). 'Profilini tamamla' şeridi bu akışta görülmedi, çünkü sihirbaz tamamlandı. Antrenman kartındaki 'openGym' düğmesi küçük bir kalıntı."
+    },
+    {
+      "id": "B04",
+      "status": "kapandı",
+      "step": 15,
+      "screenshot": "15-ilerleme-sayfasi.png",
+      "evidence": "Günlük Ritim'de uyku 'Örn: 7,5' yer tutucusuyla boş, enerji '— / 5'. Hazır olma skoru yok ve yalnız kilo kaydedilince stres seçili hâle gelmiyor (13). İlerleme'de 'Ortalama enerji — / 5' ve 'Grafik için henüz enerji ve uyku kaydı yok' yazıyor."
+    },
+    {
+      "id": "B05",
+      "status": "kapandı",
+      "step": 1,
+      "screenshot": "01-ilk-acilis.png",
+      "evidence": "Cinsiyet 'Seçin' ile başlıyor. Alanlar boşken kırmızı 'Yaş 13 ile 100 arasında olmalı' yazısı artık yok."
+    },
+    {
+      "id": "B07",
+      "status": "kapandı",
+      "step": 13,
+      "screenshot": "13-sabah-tartisi.png",
+      "evidence": "Panoda ayrı bir 'Kilo Hedefim' kartı var: güncel kilo, hedef 75 kg, başlangıç 90 kg, ilerleme çubuğu, '0,4 kg verdin · 14,6 kg kaldı' ve tahmini varış 28.05.2027. Tartıdan sonra 'Kilo kaydedildi. Hedefine 14,6 kg kaldı.' mesajı çıkıyor."
+    },
+    {
+      "id": "B10",
+      "status": "kapandı",
+      "step": 7,
+      "screenshot": "07-yazarak-ekle-ilk-deneme.png",
+      "evidence": "Aynı cümle ilk denemede çözülüyor: '2 dilim ekmek' Beyaz Ekmek 50 g / 133 kcal ile eşleşiyor ve '3 kalemi kaydet' etkin. Gün toplamında ekmek de var (11). Bulunamayan satır için 'yeni besin / yaklaşık kalori' seçeneği bu koşuda tetiklenmedi, bu yüzden doğrulanamadı."
+    },
+    {
+      "id": "B11",
+      "status": "kapandı",
+      "step": 10,
+      "screenshot": "10-turk-ev-yemeklerini-ekler.png",
+      "evidence": "Tarif kartı öne porsiyonu koyuyor: '151 kcal / 1 kase' ve küçük yazıyla 'tamamı 1.205 kcal'; makrolar da porsiyon başına. Hızlı ekleme (05) ve yazarak ekleme (07) de 1 kase = 248,8 g = 151 kcal gösteriyor."
+    },
+    {
+      "id": "B23",
+      "status": "kısmen",
+      "step": 13,
+      "screenshot": "13-sabah-tartisi.png",
+      "evidence": "Makrolar ('16,5g / 135g, Kalan: 118,5g'), öğün satırları, Kilo Hedefim kartı ('89,6 kg') ve İlerleme ('-0,5 kg', eksen '90,4') artık virgüllü. Ama Ayşe '89,6' yazıp kaydedince Sabah Kilosu alanı '89.6' gösteriyor (13–14), hemen üstteki kart ise '89,6 kg' diyor."
+    },
+    {
+      "id": "B24",
+      "status": "kısmen",
+      "step": 15,
+      "screenshot": "15-ilerleme-sayfasi.png",
+      "evidence": "İlerleme'de 'Haftalık set hacmi' gizlenmiş, başlığa 'Güç' kısayolu eklenmiş. 'Güç gelişimi' hâlâ en altta duruyor ama artık sade bir açıklama ve 'Antrenman'a git' düğmesi var. Ayşe'nin işaretlediği yeni başlayan jargonu başka yerlerde sürüyor: sihirbaz özetinde 'Günlük harcama (TDEE)' ve 'tavan 1.470' (03), kütüphane başlığında 'deterministik tarif hesapları' (09–10)."
+    },
+    {
+      "id": "B35",
+      "status": "kapandı",
+      "step": 15,
+      "screenshot": "15-ilerleme-sayfasi.png",
+      "evidence": "Dosya seçiciler 'Fotoğraf seç' / 'Dosya seç' ve 'Dosya seçilmedi' diye Türkçe. Kenar çubuğundaki 'Yerel-First Aktif' yerine 'Yerel çalışıyor' yazıyor."
+    },
+    {
+      "id": "B36",
+      "status": "kapandı",
+      "step": 15,
+      "screenshot": "15-ilerleme-sayfasi.png",
+      "evidence": "İlerleme fotoğraflarındaki ham '/var/folders/…' yolu kalkmış; yerine 'Finder'da göster' ve 'Yolu kopyala' düğmeleri var. Dışa aktarma ve yedek tarafı Ayşe'nin akışında yok."
+    },
+    {
+      "id": "B40",
+      "status": "kapandı",
+      "step": 16,
+      "screenshot": "16-gecen-haftayi-degerlendir.png",
+      "evidence": "Öneri yalnız 'Bu haftanın tek adımı' kutusunda. Özet artık hedefle karşılaştırıyor ('hedefin (1.370 kcal) ortalama 155 kcal altındaydın', protein '56 g altında') ve etiket 'Otomatik özet' oldu."
+    }
+  ],
+  "newIssues": [
+    {
+      "title": "Besin kataloğunda arama kutusu yalnız büyüteç simgesine daraldı",
+      "severity": "orta",
+      "step": 9,
+      "screenshot": "09-besin-tarif-sayfasini-kesfeder.png",
+      "observed": "Kategori çipleri yatay kaydırma çubuklu bir şeride dönüşmüş. Arama kutusu yaklaşık 50 px'e inmiş: içinde yer tutucu metin yok, yalnız büyüteç simgesi görünüyor. Dalga 5'te kutu 'Be' kadar daralmıştı, şimdi daha dar. Katalog artık 43 besin ve 16 tariften oluştuğu için aramaya ihtiyaç arttı; menüleri tahminle bulan Ayşe bunun bir arama alanı olduğunu fark etmeyebilir.",
+      "suggestion": "Arama kutusunu çiplerin üstüne kendi satırına al ya da ona en az 240 px genişlik ver. İçine 'Besin ara (ör. ekmek)' yer tutucusu yaz. Çipler alt satırda kaydırılsın ya da sarılsın."
+    },
+    {
+      "title": "Kilo Hedefim kartındaki sayı, az önce girilen tartıdan farklı görünüyor",
+      "severity": "düşük",
+      "step": 14,
+      "screenshot": "14-gun-sonu-panoya-bakar.png",
+      "observed": "Ayşe 89,6 girince kart '89,6 kg' ve 'Hedefine 14,6 kg kaldı' diyor (13). Aynı gün sayfa yenilenince kart '89,9 kg · 0,1 kg verdin · 14,9 kg kaldı' gösteriyor; hemen altındaki Sabah Kilosu alanında ise 89.6 yazıyor. Büyük sayının 7 günlük ortalama olduğu yalnız küçük gri dipnotta. Not: geçmiş tartılar test sırasında API ile eklendiği için fark bu koşuda büyüdü, ama ikinci tartı gününden itibaren her kullanıcı bunu görür.",
+      "suggestion": "Büyük sayının yanına '7 günlük ortalama' etiketini koy ve bugünkü tartıyı ayrıca göster (ör. 'Bugün 89,6 · Ortalama 89,9'). Kayıt mesajı ile kart aynı temeli kullansın."
+    }
+  ],
+  "summary": "Bu sefer ilk öğünümü hiç takılmadan kaydettim: mercimek çorbası, iki dilim ekmek ve ayran ilk denemede tanındı; tarif kartındaki bir kase ile kaydettiğim kase aynı 151 kcal'ı gösteriyor. Panoda artık kendi kilo hedefimi, kaç kilo verdiğimi ve tahmini varış tarihimi görüyorum; iş çıkışı antrenmanı ve kreatin gibi bana ait olmayan şeyler kalkmış. Yalnız besin listesinde arama kutusunu zor fark ettim, tartıya yazdığım 89,6 kaydedince 89.6'ya dönüyor ve kilo kartındaki sayının tartımdan neden farklı olduğunu küçük yazıdan çıkarmam gerekti."
+}
