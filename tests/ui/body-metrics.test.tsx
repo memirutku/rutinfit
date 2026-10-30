@@ -64,7 +64,10 @@ describe("F16: ölçüler ve fotoğraflar", () => {
     const imgs = (await within(compare).findAllByRole("img")) as HTMLImageElement[];
     expect(imgs.map((i) => i.getAttribute("src"))).toEqual(["/api/progress-photos/file?id=p1", "/api/progress-photos/file?id=p3"]);
     expect(within(compare).getByText(/01.09.2026/)).toBeTruthy();
-    expect(screen.getByText(/progress-photos/)).toBeTruthy();
+    // B36: ham sistem yolu yerine Finder ve yolu kopyala düğmeleri.
+    expect(screen.queryByText(/progress-photos/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Fotoğraf klasörünü Finder'da göster" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Fotoğraf klasörünün yolunu kopyala" })).toBeTruthy();
     expect(screen.getByText(/yedek dosyasına girmez/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Karşılaştırılacak poz"), { target: { value: "side" } });
     expect(within(screen.getByRole("group", { name: "Karşılaştırma" })).getByText(/Karşılaştırmak için bu pozda en az iki fotoğraf gerekir/)).toBeTruthy();

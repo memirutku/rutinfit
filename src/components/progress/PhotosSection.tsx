@@ -7,6 +7,7 @@ import { apiFetch, errorMessage } from "@/lib/client/api";
 import { queryKeys } from "@/lib/client/queries/keys";
 import { getLocalDateString } from "@/lib/date-utils";
 import { formatDateTr } from "@/lib/format";
+import { PathActions } from "@/components/ui/PathActions";
 
 type Pose = "front" | "side" | "back";
 const POSES: Array<{ value: Pose; label: string }> = [
@@ -67,8 +68,14 @@ export function PhotosSection() {
       </div>
       <p className="text-xs text-slate-500">
         Fotoğraflar yalnız bu bilgisayarda saklanır, hiçbir yere gönderilmez ve yedek dosyasına girmez; klasörü ayrıca yedekle.
-        {data?.folder && <span className="block font-mono text-[11px] text-slate-400 break-all">{data.folder}</span>}
       </p>
+      {data?.folder && (
+        <PathActions
+          target={{ path: data.folder }}
+          revealLabel="Fotoğraf klasörünü Finder'da göster"
+          copy={{ text: data.folder, label: "Fotoğraf klasörünün yolunu kopyala" }}
+        />
+      )}
 
       <div className="space-y-2">
         <div className="max-w-xs">

@@ -7,6 +7,8 @@ import { useImportBackup } from "@/lib/client/queries/system";
 import type { ConfirmOptions } from "@/components/ui/ConfirmDialog";
 import { AutoBackupPanel } from "./AutoBackupPanel";
 import { downloadFile } from "@/lib/client/download";
+import { useAutoBackup } from "@/lib/client/queries/auto-backup";
+import { PathActions } from "@/components/ui/PathActions";
 
 interface ImportResult {
   ok: boolean;
@@ -25,9 +27,12 @@ function importErrorText(error: unknown): string {
   return errorMessage(error, IMPORT_FALLBACK);
 }
 
-async function downloadBackup(): Promise<string> {
+/** B36: indirilen dosyanın adı ve (ayar açıksa) uygulama klasöründeki kopyanın yolu. */
+type ExportResult = { ok: true; what: string; name: string; savedPath: string | null } | { ok: false; message: string };
+
+async function downloadBackup(): Promise<ExportResult> {
   const { name, savedPath } = await downloadFile("/api/backup/export", "rutinfit-backup.json", "X-RutinFit-Backup-Path");
-  return `Yedek indirildi: ${name}.` + (savedPath ? ` Bir kopyası uygulama klasörüne de kaydedildi: ${savedPath}` : "");
+  return { ok: true, what: "Yedek", name, savedPath };
 }
 
 /** F60: diğer uygulamalarda ve tablolama programlarında açılabilen CSV dosyaları. */
@@ -37,32 +42,62 @@ const CSV_EXPORTS = [
   { type: "body", label: "Kilo ve bel ölçüsü (CSV)" },
 ] as const;
 
-async function downloadCsv(type: string): Promise<string> {
+async function downloadCsv(type: string): Promise<ExportResult> {
   const { name, savedPath } = await downloadFile(`/api/export/csv?type=${type}`, `rutinfit-${type}.csv`, "X-RutinFit-Export-Path");
-  return `CSV indirildi: ${name}.` + (savedPath ? ` Bir kopyası uygulama klasörüne de kaydedildi: ${savedPath}` : "");
+  return { ok: true, what: "CSV", name, savedPath };
+}
+
+/** B36: dosyanın nereye indiği; Finder'da göster ve kopyanın yolunu kopyala. */
+function ExportResultView({ result }: { result: ExportResult }) {
+  if (!result.ok) {
+    return (
+      <p role="alert" className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 break-all">
+        {result.message}
+      </p>
+    );
+  }
+  return (
+    <div role="status" className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="font-semibold break-all">{`${result.what} indirildi: ${result.name} (İndirilenler klasörü)`}</p>
+        <PathActions target={{ download: result.name }} revealLabel="İndirilen dosyayı Finder'da göster" />
+      </div>
+      {result.savedPath && (
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="break-all text-slate-600">{`Uygulama klasöründeki kopya: ${result.savedPath}`}</p>
+          <PathActions
+            target={{ path: result.savedPath }}
+            revealLabel="Uygulama klasöründeki kopyayı Finder'da göster"
+            copy={{ text: result.savedPath, label: "Uygulama klasöründeki kopyanın yolunu kopyala" }}
+          />
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** Tam veritabanı yedeği: JSON indirme ve onaylı geri yükleme (akıllı birleştirme). */
 export function BackupSection({ confirm }: { confirm: (options: ConfirmOptions) => Promise<boolean> }) {
-  const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [exportResult, setExportResult] = useState<ExportResult | null>(null);
+  const exportCopies = useAutoBackup().data?.exportCopies ?? true;
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const importBackup = useImportBackup();
 
   async function handleExport() {
-    setExportMessage(null);
+    setExportResult(null);
     try {
-      setExportMessage(await downloadBackup());
+      setExportResult(await downloadBackup());
     } catch (err) {
-      setExportMessage(`Hata: ${errorMessage(err, "Yedek dışa aktarılamadı")}`);
+      setExportResult({ ok: false, message: `Hata: ${errorMessage(err, "Yedek dışa aktarılamadı")}` });
     }
   }
 
   async function handleCsv(type: string) {
-    setExportMessage(null);
+    setExportResult(null);
     try {
-      setExportMessage(await downloadCsv(type));
+      setExportResult(await downloadCsv(type));
     } catch (err) {
-      setExportMessage(`Hata: ${errorMessage(err, "CSV dışa aktarılamadı")}`);
+      setExportResult({ ok: false, message: `Hata: ${errorMessage(err, "CSV dışa aktarılamadı")}` });
     }
   }
 
@@ -126,14 +161,13 @@ export function BackupSection({ confirm }: { confirm: (options: ConfirmOptions) 
         silinmez; yedekteki aynı kimliğe sahip kayıtlar güncellenir, yeni kayıtlar eklenir.
       </p>
 
-      {exportMessage && (
-        <p
-          role={exportMessage.startsWith("Hata") ? "alert" : "status"}
-          className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 break-all"
-        >
-          {exportMessage}
-        </p>
-      )}
+      <p className="text-[11px] text-slate-500">
+        {exportCopies
+          ? "İndirilen her dosyanın bir kopyası uygulama klasörüne de kaydedilir; indirme engellenirse dosya kaybolmaz. Bunu Gelişmiş › Yedek ayrıntıları bölümünden kapatabilirsin."
+          : "Uygulama klasörüne kopya kaydı kapalı; dosyalar yalnız İndirilenler klasörüne iner. Gelişmiş › Yedek ayrıntıları bölümünden açabilirsin."}
+      </p>
+
+      {exportResult && <ExportResultView result={exportResult} />}
 
       {importResult && (
         <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
@@ -161,6 +195,8 @@ export function BackupSection({ confirm }: { confirm: (options: ConfirmOptions) 
 
       <div className="flex flex-wrap gap-3 pt-2">
         <button
+          id="backup-export"
+          type="button"
           onClick={handleExport}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 shadow-xs"
         >

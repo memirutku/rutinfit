@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { getLocalDateString } from "@/lib/date-utils";
 import { exportAllData } from "@/lib/services/backup";
+import { exportCopiesEnabled, localFileStamp, uniqueFilePath } from "@/lib/services/export-files";
 import { getStoragePaths } from "@/lib/storage-paths";
 
 export const dynamic = "force-dynamic";
@@ -11,15 +11,17 @@ export const dynamic = "force-dynamic";
 const KEEP_EXPORT_COPIES = 20;
 
 /**
- * Her dışa aktarmada bir kopya uygulamanın backups/ klasörüne de yazılır: masaüstü
- * görünümünde indirme engellense bile yedek kaybolmaz.
+ * Dışa aktarmanın bir kopyası uygulamanın backups/ klasörüne de yazılır: masaüstü görünümünde
+ * indirme engellense bile yedek kaybolmaz. B36: ayar kapalıysa yazılmaz; kopya indirilen dosyayla
+ * aynı (yerel saatli) adı taşır.
  */
-function saveLocalCopy(json: string, stamp: string): string | null {
+async function saveLocalCopy(json: string, fileName: string): Promise<string | null> {
+  if (!(await exportCopiesEnabled())) return null;
   try {
     // turbopackIgnore: kullanıcı veri klasörü; derleyici bu yolu izleyip yedekleri pakete katmasın.
     const dir = getStoragePaths().backupsDir;
-    const file = path.join(/*turbopackIgnore: true*/ dir, `rutinfit-backup-${stamp}.json`);
-    fs.writeFileSync(file, json, "utf8");
+    const file = uniqueFilePath(dir, fileName);
+    fs.writeFileSync(/*turbopackIgnore: true*/ file, json, "utf8");
     const copies = fs
       .readdirSync(/*turbopackIgnore: true*/ dir)
       .filter((f) => /^rutinfit-backup-.*\.json$/.test(f))
@@ -38,12 +40,12 @@ export async function GET() {
   try {
     const backup = await exportAllData();
     const json = JSON.stringify(backup, null, 2);
-    const stamp = `${getLocalDateString()}_${new Date().toISOString().slice(11, 19).replace(/:/g, "")}`;
-    const savedPath = saveLocalCopy(json, stamp);
+    const fileName = `rutinfit-backup-${localFileStamp()}.json`;
+    const savedPath = await saveLocalCopy(json, fileName);
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "Content-Disposition": `attachment; filename="rutinfit-backup-${getLocalDateString()}.json"`,
+      "Content-Disposition": `attachment; filename="${fileName}"`,
       "Cache-Control": "no-store",
     };
     if (savedPath) headers["X-RutinFit-Backup-Path"] = encodeURIComponent(savedPath);
