@@ -60,7 +60,9 @@ export function WeekPlanEditor({ selectedDate, onDateChange, today = getLocalDat
   const recipes = useRecipes();
   const [editing, setEditing] = useState<Editing | null>(null);
   const [form, setForm] = useState({ date: "", mealType: "lunch" as MealType, recipeId: "", customName: "", servings: 1 });
-  const invalidate = () => qc.invalidateQueries({ queryKey: queryKeys.mealPlans.all });
+  // Plan değişince alışveriş listesi de tazelenir (sayfa açılışında yüklenen boş liste kalmasın).
+  const invalidate = () =>
+    Promise.all([qc.invalidateQueries({ queryKey: queryKeys.mealPlans.all }), qc.invalidateQueries({ queryKey: queryKeys.shopping.all })]);
   const action = useMutation({
     mutationFn: ({ url, method, body }: { url: string; method: string; body?: unknown }) => apiFetch(url, { method, json: body }),
     onSuccess: () => {
@@ -142,9 +144,10 @@ export function WeekPlanEditor({ selectedDate, onDateChange, today = getLocalDat
                 <button
                   type="button"
                   onClick={() => open({ mode: "add", date })}
+                  aria-label="+ Öğün"
                   className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-slate-200 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
                 >
-                  <Plus className="w-3 h-3" aria-hidden />+ Öğün
+                  <Plus className="w-3 h-3" aria-hidden />Öğün
                 </button>
               </div>
               {(total.unlinked > 0 || (total.kcal !== null && !hideNumbers)) && (

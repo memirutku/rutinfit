@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WeekPlanEditor } from "@/components/nutrition/WeekPlanEditor";
-import { renderWithQuery } from "../helpers/query";
+import { makeTestQueryClient, renderWithQuery } from "../helpers/query";
 import { jsonResponse, stubFetch } from "../helpers/fetch";
 
 let restore: (() => void) | undefined;
@@ -16,7 +16,7 @@ const PLANS = [
   },
 ];
 
-function setup() {
+function setup(client?: ReturnType<typeof makeTestQueryClient>) {
   const s = stubFetch([
     ["/api/meal-plans/meals/copy", () => jsonResponse({ id: "m3" }, 201)],
     ["/api/meal-plans/meals", (_u, init) => jsonResponse({ id: "m2" }, init?.method === "POST" ? 201 : 200)],
@@ -24,7 +24,7 @@ function setup() {
     ["/api/recipes", () => jsonResponse([{ id: "r1", name: "Bulgur Pilavı", servings: 4, prepMinutes: 30, ingredients: [], calculatedMacros: null }])],
   ]);
   restore = s.restore;
-  renderWithQuery(<WeekPlanEditor selectedDate="2026-11-04" />);
+  renderWithQuery(<WeekPlanEditor selectedDate="2026-11-04" />, { client });
   return s;
 }
 const bodyOf = (s: ReturnType<typeof setup>, url: string, method: string) =>
@@ -50,6 +50,19 @@ describe("F30: haftalık plan editörü", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Kaydet" }));
     await waitFor(() => expect(s.calls.some((c) => c.url.endsWith("/api/meal-plans/meals") && c.init?.method === "POST")).toBe(true));
     expect(bodyOf(s, "/api/meal-plans/meals", "POST")).toEqual({ date: "2026-11-03", mealType: "dinner", customName: "Diyetisyen: Izgara köfte", servings: 2 });
+  });
+
+  it("recheck: öğün eklenince haftanın alışveriş listesi de tazelenir (önceden sayfa açılışındaki boş liste kalıyordu)", async () => {
+    const client = makeTestQueryClient();
+    client.setQueryData(["shopping", "2026-11-04"], { plannedMeals: 0 });
+    const s = setup(client);
+    const tuesday = await screen.findByRole("region", { name: /Salı 03\.11/ });
+    fireEvent.click(within(tuesday).getByRole("button", { name: "+ Öğün" }));
+    const dialog = screen.getByRole("dialog", { name: "Öğün ekle" });
+    fireEvent.change(within(dialog).getByLabelText("Öğün adı"), { target: { value: "Mercimek" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Kaydet" }));
+    await waitFor(() => expect(s.calls.some((c) => c.init?.method === "POST")).toBe(true));
+    await waitFor(() => expect(client.getQueryState(["shopping", "2026-11-04"])?.isInvalidated).toBe(true));
   });
 
   it("öğünü taşır, kopyalar ve siler", async () => {
