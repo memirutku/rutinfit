@@ -113,4 +113,21 @@ test.describe("Dalga 6 · besin", () => {
     await expect(page.getByText(`${name} (30 g)`)).toBeHidden();
     expect(await protein()).toBeCloseTo(before, 1);
   });
+
+  test("B13: öğün rozetine dokunarak kaydın öğünü değiştirilir", async ({ page, api }) => {
+    const name = uniq("E2E Simit");
+    const created = await (
+      await api.post("/api/food-logs", {
+        data: { date: todayStr(), time: "17:10", mealType: "workSnack", name, grams: 110, caloriesSnapshot: 300, proteinSnapshot: 9, carbsSnapshot: 57, fatSnapshot: 4 },
+      })
+    ).json();
+    await page.goto("/");
+    await page.getByRole("button", { name: `${name} öğünü: İş Çıkışı. Değiştir` }).click();
+    const saved = page.waitForResponse((r) => r.url().includes("/api/food-logs?id=") && r.request().method() === "PATCH");
+    await page.getByRole("menu", { name: "Hangi öğün?" }).getByRole("menuitemradio", { name: "Kahvaltı" }).click();
+    expect((await saved).ok()).toBe(true);
+    await expect(page.getByRole("button", { name: `${name} öğünü: Kahvaltı. Değiştir` })).toBeVisible();
+    const logs = await logsToday(api);
+    expect(logs.find((l) => l.id === created.id)?.mealType).toBe("breakfast");
+  });
 });

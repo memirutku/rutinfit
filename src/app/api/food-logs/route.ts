@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { apiError } from "@/lib/api-error";
+import { apiError, HttpError } from "@/lib/api-error";
 import { targetsFromProfile } from "@/lib/constants";
 import {
   calculateDailySummary,
@@ -10,7 +10,7 @@ import {
   scaleMacros,
 } from "@/lib/nutrition-calculator";
 import { getLocalDateString, isDateString } from "@/lib/date-utils";
-import { FoodLogCreateSchema } from "@/lib/schemas/food";
+import { FoodLogCreateSchema, FoodLogPatchSchema } from "@/lib/schemas/food";
 
 export async function GET(req: Request) {
   try {
@@ -126,6 +126,20 @@ export async function POST(req: Request) {
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     return apiError(error, "Öğün kaydedilemedi", "FoodLog POST");
+  }
+}
+
+/** B13: kaydın öğününü değiştirir (ör. sabah yenen simit "İş Çıkışı"na düştüyse). */
+export async function PATCH(req: Request) {
+  try {
+    const id = new URL(req.url).searchParams.get("id");
+    if (!id) throw new HttpError("id zorunludur", 400);
+    const { mealType } = FoodLogPatchSchema.parse(await req.json());
+    const existing = await prisma.foodLog.findUnique({ where: { id }, select: { id: true } });
+    if (!existing) throw new HttpError("Kayıt bulunamadı.", 404);
+    return NextResponse.json(await prisma.foodLog.update({ where: { id }, data: { mealType } }));
+  } catch (error) {
+    return apiError(error, "Öğün değiştirilemedi", "FoodLog PATCH");
   }
 }
 

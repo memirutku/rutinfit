@@ -216,8 +216,8 @@ export default function DashboardPage() {
         hideNumbers={hideNumbers}
         onOpenSavedMeals={() => setSavedMealsOpen(true)}
         onOpenNaturalLog={() => setNaturalLogOpen(true)}
-        onQuickFood={(item, count) =>
-          quickFood.mutate({ item, count, date: todayStr }, { onError: (e) => showError(e, "Eklenemedi.") })
+        onQuickFood={(item, count, mealType) =>
+          quickFood.mutate({ item, count, date: todayStr, mealType }, { onError: (e) => showError(e, "Eklenemedi.") })
         }
       />
 

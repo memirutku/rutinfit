@@ -66,6 +66,10 @@ export const FoodLogCreateSchema = z
   });
 export type FoodLogCreateInput = z.input<typeof FoodLogCreateSchema>;
 
+/** PATCH /api/food-logs?id= (B13: kaydın öğünü sonradan değiştirilir). */
+export const FoodLogPatchSchema = z.object({ mealType: MealTypeSchema });
+export type FoodLogPatchInput = z.input<typeof FoodLogPatchSchema>;
+
 /** POST /api/foods/barcode: Open Food Facts ürününü yerel kataloğa kaydeder. */
 export const PackagedProductSaveSchema = z.object({
   barcode: barcodeDigits

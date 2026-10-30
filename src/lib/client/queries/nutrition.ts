@@ -8,6 +8,7 @@ import type {
   FoodItemInput,
   FoodLog,
   FoodLogCreateInput,
+  FoodLogPatchInput,
   FoodLogsResponse,
   PackagedProductSaveInput,
   ProductSearchResponse,
@@ -16,6 +17,7 @@ import type {
 } from "@/lib/schemas/food";
 import type { MealPlan } from "@/lib/schemas/meal-plan";
 import type { QuickFoodId } from "@/lib/quick-foods";
+import type { MealType } from "@/lib/schemas/enums";
 import type { Adherence, AdherenceSummary } from "@/lib/adherence";
 
 /* ----------------------------- Sorgular ----------------------------- */
@@ -71,6 +73,16 @@ export function useCreateFoodLog() {
   });
 }
 
+/** B13: kaydın öğününü değiştirir. */
+export function useUpdateFoodLogMeal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...input }: FoodLogPatchInput & { id: string }) =>
+      apiFetch<FoodLog>(`/api/food-logs?id=${encodeURIComponent(id)}`, { method: "PATCH", json: input }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.foodLogs.all }),
+  });
+}
+
 export function useDeleteFoodLog() {
   const qc = useQueryClient();
   return useMutation({
@@ -115,7 +127,7 @@ export function useSavePackagedProduct() {
 export function useQuickAddFood() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { item: QuickFoodId; count: number; date: string }) =>
+    mutationFn: (input: { item: QuickFoodId; count: number; date: string; mealType?: MealType }) =>
       apiFetch<FoodLog>("/api/quick-add", { method: "POST", json: input }),
     onSuccess: () =>
       Promise.all([
