@@ -119,7 +119,8 @@ export const TemplateInputSchema = z.object({
   name: z.string().trim().min(1, "Şablon adı boş olamaz.").max(80),
   type: z.enum(["strength", "easy_run", "rest"]),
   dayOfWeek: z.number().int().min(1).max(7),
-  targetDurationMinutes: z.number().int().min(5).max(240),
+  // Dinlenme günü şablonlarının süresi 0 olabilir.
+  targetDurationMinutes: z.number().int().min(0).max(240),
   notes: z.string().trim().max(300).optional().nullable(),
   exercises: z.array(TemplateExerciseInputSchema).max(20).default([]),
 });

@@ -45,6 +45,17 @@ describe("/api/workouts/templates", () => {
     expect((await callRoute(PUT, { method: "PUT", query: { id: "yok" }, body: base })).status).toBe(404);
   });
 
+  it("F17: süresi 0 olan dinlenme günü şablonu düzenlenebilir", async () => {
+    const rest = await prisma.workoutTemplate.create({ data: { name: "Dinlenme", type: "rest", dayOfWeek: 7, targetDurationMinutes: 0 } });
+    const res = await callRoute(PUT, {
+      method: "PUT",
+      query: { id: rest.id },
+      body: { name: "Dinlenme", type: "rest", dayOfWeek: 7, targetDurationMinutes: 0, notes: "Yürüyüş", exercises: [] },
+    });
+    expect(res.status).toBe(200);
+    expect(res.json.notes).toBe("Yürüyüş");
+  });
+
   it("F17: şablon silinince geçmiş seanslar korunur (şablon bağı kalkar)", async () => {
     const created = await callRoute(POST, { body: base });
     await prisma.workoutSession.create({ data: { date: "2026-10-28", name: "Üst Gövde", templateId: created.json.id } });
