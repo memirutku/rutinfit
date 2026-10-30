@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { prisma } from '../prisma';
 import { getLocalDateString } from '../date-utils';
+import { toSetRpe } from '../rpe';
 import { DraftType, validateDraftChanges } from '../ai-schema';
 
 export interface CreateDraftParams {
@@ -311,6 +312,7 @@ export async function verifyAndApplyActionDraft(
                 setNumber: s.setNumber || i + 1,
                 weightKg: Number(s.weightKg) || 0,
                 reps: Number(s.reps) || 10,
+                rpe: toSetRpe(s.rpe),
                 isTargetMet: false,
               },
             });

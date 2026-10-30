@@ -29,6 +29,23 @@ describe("POST /api/workouts", () => {
     expect(res.json.progressionFeedbacks["Bench Press"]).toBeDefined();
   });
 
+  it("F20: set başına RPE (yarım puanlı) kaydedilir ve döner; aralık dışı RPE 400", async () => {
+    const res = await callRoute(POST, {
+      body: session([
+        { exerciseName: "Squat", setNumber: 1, weightKg: 100, reps: 5, rpe: 8.5 },
+        { exerciseName: "Squat", setNumber: 2, weightKg: 100, reps: 5 },
+      ]),
+    });
+    expect(res.status).toBe(201);
+    const sets = await prisma.setLog.findMany({ orderBy: { setNumber: "asc" } });
+    expect(sets.map((s) => s.rpe)).toEqual([8.5, null]);
+
+    const bad = await callRoute(POST, {
+      body: session([{ exerciseName: "Squat", setNumber: 1, weightKg: 100, reps: 5, rpe: 11 }]),
+    });
+    expect(bad.status).toBe(400);
+  });
+
   it("negatif ağırlığı 400 ile reddeder ve hiçbir şey yazmaz", async () => {
     const res = await callRoute(POST, {
       body: session([{ exerciseName: "Squat", setNumber: 1, weightKg: -10, reps: 5 }]),

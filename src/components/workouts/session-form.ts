@@ -25,6 +25,8 @@ export interface SessionSet {
   targetRepMin: number;
   targetRepMax: number;
   completed?: boolean;
+  /** F20: set başına RPE (boş = girilmedi). */
+  rpe?: number | null;
 }
 
 export interface SessionForm {
@@ -119,6 +121,7 @@ export function toWorkoutPayload(form: SessionForm, date: string): WorkoutSessio
       targetRepMin: s.targetRepMin,
       targetRepMax: s.targetRepMax,
       isTargetMet: s.completed ?? s.reps >= s.targetRepMin,
+      rpe: s.rpe ?? null,
     })),
   };
 }

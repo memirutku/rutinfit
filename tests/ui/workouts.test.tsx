@@ -190,6 +190,21 @@ describe("ActiveSessionForm", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
+  it("F20: her sette RPE seçilir; seçim API gövdesine gider, boş seçim null olur", () => {
+    const { onChange } = renderForm();
+    const rpes = screen.getAllByLabelText("RPE:");
+    expect(rpes).toHaveLength(6);
+    fireEvent.change(rpes[0], { target: { value: "8.5" } });
+    const changed: SessionForm = onChange.mock.calls[0][0];
+    expect(changed.setLogs[0].rpe).toBe(8.5);
+    const payload = toWorkoutPayload(changed, "2026-10-20");
+    expect(payload.setLogs?.[0].rpe).toBe(8.5);
+    expect(payload.setLogs?.[1].rpe).toBeNull();
+
+    fireEvent.change(rpes[0], { target: { value: "" } });
+    expect((onChange.mock.calls[1][0] as SessionForm).setLogs[0].rpe).toBeNull();
+  });
+
   it("RPE ve süre alanları etiketlidir", () => {
     const { onChange } = renderForm();
     fireEvent.change(screen.getByLabelText("Gerçekleşen Süre (Dakika)"), { target: { value: "33" } });

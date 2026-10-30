@@ -128,7 +128,7 @@ describe("Taslak düzenleme ve diğer türler", () => {
   it("düzenleme yalnız değiştirilen alanı günceller, setler korunur", async () => {
     const d = await createActionDraft({
       draftType: "workout_session",
-      proposedChanges: { name: "Eski Ad", durationMinutes: 30, sets: [{ exerciseName: "Bench", reps: 8, weightKg: 60 }] },
+      proposedChanges: { name: "Eski Ad", durationMinutes: 30, sets: [{ exerciseName: "Bench", reps: 8, weightKg: 60, rpe: 7.5 }] },
       impactSummary: "x",
     });
     await approve(d.draftId, d.approvalToken, { name: "Yeni Ad" });
@@ -136,6 +136,7 @@ describe("Taslak düzenleme ve diğer türler", () => {
     expect(session.name).toBe("Yeni Ad");
     expect(session.setLogs).toHaveLength(1);
     expect(session.setLogs[0].weightKg).toBe(60);
+    expect(session.setLogs[0].rpe).toBe(7.5);
   });
 
   it("yalnız not içeren meal_plan taslağı günün öğünlerini silmez", async () => {

@@ -187,6 +187,7 @@ model SetLog {
   setNumber        Int
   weightKg         Float
   reps             Int
+  rpe              Float? // set başına algılanan zorluk, 1–10, yarım puanlı (RIR = 10 - RPE)
   isTargetMet      Boolean @default(false)
 
   session WorkoutSession @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
