@@ -6,7 +6,7 @@ import { Modal } from "@/components/ui/Modal";
 import { DecimalInput } from "@/components/ui/DecimalInput";
 import { errorMessage } from "@/lib/client/api";
 import { useApplyProgram, usePrograms, useStrengthExercises, type ProgramSummary } from "@/lib/client/queries/workouts";
-import { formatNumberTr } from "@/lib/format";
+import { formatDecimalTr } from "@/lib/format";
 import { trainingMaxFrom1Rm } from "@/lib/programs";
 import { normalizeName } from "@/lib/text";
 import { DAYS_OF_WEEK } from "./WeeklyPlanGrid";
@@ -123,7 +123,7 @@ export function ProgramPicker({ open, onClose, onBuildOwn }: ProgramPickerProps)
                                 aria-label={`${lift} 1RM (kg)`}
                                 value={oneRepMaxes[lift] ?? null}
                                 emptyValue={Number.NaN}
-                                placeholder={e1rm ? `e1RM ${formatNumberTr(e1rm)}` : "kg"}
+                                placeholder={e1rm ? `e1RM ${formatDecimalTr(e1rm)}` : "kg"}
                                 onValueChange={(v) =>
                                   setOneRepMaxes((m) => {
                                     const next = { ...m };
@@ -135,7 +135,7 @@ export function ProgramPicker({ open, onClose, onBuildOwn }: ProgramPickerProps)
                                 className="mt-0.5 w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
                               />
                             </label>
-                            <p className="text-[10px] text-slate-500">{tm ? `${lift}: TM ${formatNumberTr(tm)} kg` : "TM: seansta"}</p>
+                            <p className="text-[10px] text-slate-500">{tm ? `${lift}: TM ${formatDecimalTr(tm)} kg` : "TM: seansta"}</p>
                           </div>
                         );
                       })}

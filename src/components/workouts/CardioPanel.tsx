@@ -7,7 +7,7 @@ import { errorMessage } from "@/lib/client/api";
 import { useAddCardio, useCardio, useDeleteCardio, type CardioInput } from "@/lib/client/queries/cardio";
 import { CARDIO_KINDS, CARDIO_KIND_KEYS, type CardioKind } from "@/lib/cardio";
 import { addDaysToDateString, startOfWeek } from "@/lib/date-utils";
-import { formatDateTr, formatNumberTr } from "@/lib/format";
+import { formatDateTr, formatDecimalTr } from "@/lib/format";
 
 const LABEL = "block text-xs font-semibold text-slate-600 mb-1";
 const INPUT = "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm";
@@ -44,7 +44,7 @@ export function CardioPanel({ today }: { today: string }) {
       </div>
       {s && (
         <p className="text-sm font-semibold text-slate-700">
-          Bu hafta: {s.sessions} seans · {formatNumberTr(s.minutes)} dk · {formatNumberTr(s.distanceKm)} km
+          Bu hafta: {s.sessions} seans · {formatDecimalTr(s.minutes)} dk · {formatDecimalTr(s.distanceKm)} km
         </p>
       )}
 
@@ -110,8 +110,8 @@ export function CardioPanel({ today }: { today: string }) {
               <span>
                 <span className="font-semibold text-slate-900">{CARDIO_KINDS[l.kind as CardioKind] ?? l.kind}</span>{" "}
                 <span className="text-slate-500">
-                  {formatDateTr(l.date)} · {formatNumberTr(l.durationMin)} dk
-                  {l.distanceKm ? ` · ${formatNumberTr(l.distanceKm)} km` : ""}
+                  {formatDateTr(l.date)} · {formatDecimalTr(l.durationMin)} dk
+                  {l.distanceKm ? ` · ${formatDecimalTr(l.distanceKm)} km` : ""}
                   {l.pace ? ` · ${l.pace}` : ""}
                   {l.avgHr ? ` · ${l.avgHr} nabız` : ""}
                   {l.kcal ? ` · ${l.kcalEstimated ? "~" : ""}${Math.round(l.kcal)} kcal` : ""}

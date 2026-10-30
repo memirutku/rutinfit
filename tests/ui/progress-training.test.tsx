@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { StrengthSection } from "@/components/progress/StrengthSection";
+import { formatAxisTick, StrengthSection } from "@/components/progress/StrengthSection";
 import { VolumeSection } from "@/components/progress/VolumeSection";
 import { renderWithQuery } from "../helpers/query";
 import { jsonResponse, stubFetch } from "../helpers/fetch";
@@ -42,6 +42,28 @@ describe("F23: güç gelişimi bölümü", () => {
 
     fireEvent.change(screen.getByLabelText("Egzersiz"), { target: { value: "Squat" } });
     await waitFor(() => expect(s.calls.some((c) => c.url.includes("exercise=Squat"))).toBe(true));
+  });
+
+  it("B23: grafik ekseni ve ağırlıklar virgüllü, iki ondalığa kadar", async () => {
+    expect(formatAxisTick(116.85)).toBe("116,85");
+    expect(formatAxisTick(115.9)).toBe("115,9");
+    expect(formatAxisTick(114)).toBe("114");
+    const s = stubFetch([
+      [
+        "/api/progress/strength",
+        (u) =>
+          u.includes("exercise=")
+            ? jsonResponse({
+                ...detail("Bench Press"),
+                prs: { ...detail("Bench Press").prs, heaviest: { weightKg: 101.25, reps: 3, date: "2026-10-01" } },
+              })
+            : jsonResponse({ exercises: [{ name: "Bench Press", sessions: 2, lastDate: "2026-10-08", bestE1rm: 106.7 }] }),
+      ],
+    ]);
+    restore = s.restore;
+    const { container } = renderWithQuery(<StrengthSection />);
+    expect(await screen.findByText(/101,25 kg × 3/)).toBeTruthy();
+    expect(container.textContent).not.toMatch(/\d\.\d{1,2}\b(?!\.)/);
   });
 
   it("antrenman yoksa açıklama gösterir", async () => {

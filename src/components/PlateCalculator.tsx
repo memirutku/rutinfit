@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { DecimalInput } from "@/components/ui/DecimalInput";
-import { formatNumberTr } from "@/lib/format";
+import { formatDecimalTr, formatKg } from "@/lib/format";
 import { platesPerSide } from "@/lib/plates";
 import { warmupSets } from "@/lib/warmup";
 
@@ -143,8 +143,8 @@ export function PlateCalculator() {
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               <option value="0">Klips Yok / Hafif Plastik (0 kg)</option>
-              <option value="0.5">Yaylı Metal Klips (0.5 kg)</option>
-              <option value="2.5">Olimpik Yarışma Kilidi (2.5 kg)</option>
+              <option value="0.5">Yaylı Metal Klips ({formatKg(0.5)})</option>
+              <option value="2.5">Olimpik Yarışma Kilidi ({formatKg(2.5)})</option>
             </select>
           </div>
         </div>
@@ -158,10 +158,10 @@ export function PlateCalculator() {
               </span>
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-extrabold text-emerald-400">
-                  {formatNumberTr(result.perSideWeight)} kg
+                  {formatKg(result.perSideWeight)}
                 </span>
                 <span className="text-xs text-slate-400">
-                  (Toplam: Bar {formatNumberTr(barWeight)} kg + 2 × {formatNumberTr(result.perSideWeight)} kg)
+                  (Toplam: Bar {formatKg(barWeight)} + 2 × {formatKg(result.perSideWeight)})
                 </span>
               </div>
             </div>
@@ -170,7 +170,7 @@ export function PlateCalculator() {
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-900/60 border border-amber-700 rounded-xl text-amber-300 text-xs">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>
-                  {result.remainder * 2} kg eksik (mevcut en küçük plaka 1.25 kg)
+                  {formatKg(result.remainder * 2)} eksik (mevcut en küçük plaka {formatKg(1.25)})
                 </span>
               </div>
             )}
@@ -182,7 +182,7 @@ export function PlateCalculator() {
               {/* Halter Barı (Merkez) */}
               <div className="w-24 h-5 bg-gradient-to-r from-slate-400 via-slate-200 to-slate-400 rounded-l shadow-inner border border-slate-500 relative flex items-center justify-center">
                 <span className="text-[10px] font-bold text-slate-800">
-                  BAR {formatNumberTr(barWeight)}kg
+                  BAR {formatDecimalTr(barWeight)} kg
                 </span>
               </div>
 
@@ -202,12 +202,12 @@ export function PlateCalculator() {
                         key={`${plate.weight}-${idx}`}
                         style={{ height: `${plate.heightPx}px` }}
                         className={`w-7 rounded-sm border ${plate.colorBg} ${plate.colorBorder} shadow-lg flex flex-col items-center justify-center select-none transform transition-transform hover:scale-105`}
-                        title={`${plate.weight} kg`}
+                        title={formatKg(plate.weight)}
                       >
                         <span
                           className={`text-[10px] font-extrabold ${plate.textColor} transform -rotate-90`}
                         >
-                          {plate.weight}
+                          {formatDecimalTr(plate.weight)}
                         </span>
                       </div>
                     ))
@@ -235,7 +235,9 @@ export function PlateCalculator() {
                   key={plate.weight}
                   className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border ${plate.colorBg} ${plate.colorBorder} ${plate.textColor}`}
                 >
-                  <span>{count} × {plate.weight} kg</span>
+                  <span>
+                    {count} × {formatKg(plate.weight)}
+                  </span>
                 </span>
               ))
             )}
@@ -248,7 +250,7 @@ export function PlateCalculator() {
         <div>
           <h3 className="font-bold text-slate-900 text-lg">Isınma setleri</h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            Çalışma ağırlığı {formatNumberTr(targetWeight)} kg için. Hedef ağırlığı yukarıdan değiştirebilirsin.
+            Çalışma ağırlığı {formatKg(targetWeight)} için. Hedef ağırlığı yukarıdan değiştirebilirsin.
           </p>
         </div>
         {warmups.length === 0 ? (
@@ -268,11 +270,11 @@ export function PlateCalculator() {
                 <tr key={w.weightKg} className="border-b border-slate-100">
                   <td className="py-2 text-slate-500">{i + 1}</td>
                   <td className="py-2 font-bold text-slate-900">
-                    {formatNumberTr(w.weightKg)} kg × {w.reps}
+                    {formatKg(w.weightKg)} × {w.reps}
                     {w.percent === 0 && <span className="ml-1 text-xs font-normal text-slate-500">(boş bar)</span>}
                   </td>
                   <td className="py-2 text-slate-600">
-                    {w.plates.length ? w.plates.map((p) => `${p.count > 1 ? `${p.count} × ` : ""}${formatNumberTr(p.weight)}`).join(" + ") : "—"}
+                    {w.plates.length ? w.plates.map((p) => `${p.count > 1 ? `${p.count} × ` : ""}${formatDecimalTr(p.weight)}`).join(" + ") : "—"}
                   </td>
                 </tr>
               ))}
@@ -329,7 +331,7 @@ export function PlateCalculator() {
               Ortalama 1RM
             </span>
             <span className="text-2xl font-extrabold text-brand-900">
-              {avg1Rm} kg
+              {formatKg(avg1Rm)}
             </span>
           </div>
 
@@ -338,7 +340,7 @@ export function PlateCalculator() {
               Epley Formülü
             </span>
             <span className="text-xl font-extrabold text-slate-800">
-              {epley1Rm} kg
+              {formatKg(epley1Rm)}
             </span>
           </div>
 
@@ -347,7 +349,7 @@ export function PlateCalculator() {
               Brzycki Formülü
             </span>
             <span className="text-xl font-extrabold text-slate-800">
-              {brzycki1Rm} kg
+              {formatKg(brzycki1Rm)}
             </span>
           </div>
         </div>
@@ -369,7 +371,7 @@ export function PlateCalculator() {
                     %{pct}
                   </span>
                   <span className="text-sm font-extrabold text-slate-900 block my-0.5">
-                    {weightAtPct} kg
+                    {formatKg(weightAtPct)}
                   </span>
                   <span className="text-[10px] text-slate-400">
                     ~{reps} tekrar

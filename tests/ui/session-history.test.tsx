@@ -43,7 +43,7 @@ const sessions: WorkoutSession[] = [
     rpe: 7,
     notes: null,
     completed: true,
-    setLogs: [set("d", "Bench Press", 1, 102.5, 5)],
+    setLogs: [set("d", "Bench Press", 1, 102.5, 5), set("e", "Bench Press", 2, 61.25, 8)],
   },
 ];
 
@@ -78,7 +78,8 @@ describe("B19: seans geçmişi", () => {
   it("Gör, setleri egzersize göre gösterir; ondalık virgülle", async () => {
     setup();
     fireEvent.click(await screen.findByRole("button", { name: "Üst Gövde A · 27.10.2026 setlerini gör" }));
-    expect(screen.getByText(/Bench Press/).closest("li")?.textContent).toMatch(/102,5 kg × 5/);
+    // B23: iki ondalığa kadar, virgülle
+    expect(screen.getByText(/Bench Press/).closest("li")?.textContent).toMatch(/102,5 kg × 5, 61,25 kg × 8/);
   });
 
   it("Sil önce onay ister; onaylanınca DELETE gönderilir", async () => {

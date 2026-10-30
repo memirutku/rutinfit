@@ -6,7 +6,7 @@ import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { errorMessage } from "@/lib/client/api";
 import { useDeleteWorkout, useWorkoutHistory } from "@/lib/client/queries/workouts";
 import { addDaysToDateString } from "@/lib/date-utils";
-import { formatDateTr, formatNumberTr } from "@/lib/format";
+import { formatDateTr, formatDecimalTr } from "@/lib/format";
 import type { WorkoutSession } from "@/lib/schemas/workout";
 import { isWorkingSet } from "@/lib/set-types";
 import { EditSessionModal } from "./EditSessionModal";
@@ -85,7 +85,7 @@ export function SessionHistory({ today }: { today: string }) {
                     </p>
                     <p className="font-bold text-slate-900 text-sm truncate">{s.name}</p>
                     <p className="text-xs text-slate-500">
-                      {s.setLogs.length} set · {formatNumberTr(sessionVolume(s))} kg · {s.durationMinutes} dk
+                      {s.setLogs.length} set · {formatDecimalTr(sessionVolume(s))} kg · {s.durationMinutes} dk
                     </p>
                   </div>
                   <div className="flex gap-1.5 shrink-0">
@@ -123,7 +123,7 @@ export function SessionHistory({ today }: { today: string }) {
                       <li key={g.exerciseName}>
                         <span className="font-semibold text-slate-800">{g.exerciseName}</span>:{" "}
                         {g.sets
-                          .map((x) => `${formatNumberTr(x.weightKg)} kg × ${x.reps}${isWorkingSet(x.setType) ? "" : " (ısınma)"}`)
+                          .map((x) => `${formatDecimalTr(x.weightKg)} kg × ${x.reps}${isWorkingSet(x.setType) ? "" : " (ısınma)"}`)
                           .join(", ")}
                       </li>
                     ))}

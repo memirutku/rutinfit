@@ -4,7 +4,10 @@ import { useState } from "react";
 import { TrendingUp } from "lucide-react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useStrengthDetail, useStrengthExercises } from "@/lib/client/queries/workouts";
-import { formatDateTr, formatNumberTr } from "@/lib/format";
+import { formatDateTr, formatDecimalTr, formatKg } from "@/lib/format";
+
+/** B23: grafik ekseni Türkçe ondalıkla (116.85 → "116,85"). */
+export const formatAxisTick = (value: number) => formatDecimalTr(Number(value));
 
 function RecordCard({ title, value, detail }: { title: string; value: string; detail?: string }) {
   return (
@@ -64,8 +67,8 @@ export function StrengthSection() {
             {d.prs.bestE1rm ? (
               <RecordCard
                 title="En iyi e1RM"
-                value={`${formatNumberTr(d.prs.bestE1rm.value)} kg`}
-                detail={`${formatNumberTr(d.prs.bestE1rm.weightKg)} kg × ${d.prs.bestE1rm.reps} · ${formatDateTr(d.prs.bestE1rm.date)}`}
+                value={formatKg(d.prs.bestE1rm.value)}
+                detail={`${formatKg(d.prs.bestE1rm.weightKg)} × ${d.prs.bestE1rm.reps} · ${formatDateTr(d.prs.bestE1rm.date)}`}
               />
             ) : (
               d.prs.mostReps && (
@@ -75,12 +78,12 @@ export function StrengthSection() {
             {d.prs.heaviest && (
               <RecordCard
                 title="En ağır set"
-                value={`${formatNumberTr(d.prs.heaviest.weightKg)} kg × ${d.prs.heaviest.reps}`}
+                value={`${formatKg(d.prs.heaviest.weightKg)} × ${d.prs.heaviest.reps}`}
                 detail={formatDateTr(d.prs.heaviest.date)}
               />
             )}
             {d.prs.bestVolume && (
-              <RecordCard title="En yüksek hacim" value={`${formatNumberTr(d.prs.bestVolume.volumeKg)} kg`} detail={formatDateTr(d.prs.bestVolume.date)} />
+              <RecordCard title="En yüksek hacim" value={formatKg(d.prs.bestVolume.volumeKg)} detail={formatDateTr(d.prs.bestVolume.date)} />
             )}
           </div>
 
@@ -96,8 +99,8 @@ export function StrengthSection() {
                 <LineChart data={chart}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} />
-                  <YAxis stroke="#94a3b8" fontSize={12} domain={["auto", "auto"]} />
-                  <Tooltip formatter={(v) => [`${formatNumberTr(Number(v))} kg`, "e1RM"]} />
+                  <YAxis stroke="#94a3b8" fontSize={12} domain={["auto", "auto"]} tickFormatter={formatAxisTick} />
+                  <Tooltip formatter={(v) => [formatKg(Number(v)), "e1RM"]} />
                   <Line type="monotone" dataKey="e1rm" stroke="#0f766e" strokeWidth={2} dot />
                 </LineChart>
               </ResponsiveContainer>
@@ -122,10 +125,10 @@ export function StrengthSection() {
                   <tr key={h.date} className="border-b border-slate-100">
                     <td className="py-1.5">{formatDateTr(h.date)}</td>
                     <td className="py-1.5">
-                      {formatNumberTr(h.topSet.weightKg)} kg × {h.topSet.reps}
+                      {formatKg(h.topSet.weightKg)} × {h.topSet.reps}
                     </td>
-                    <td className="py-1.5">{h.e1rm ? `${formatNumberTr(h.e1rm)} kg` : "—"}</td>
-                    <td className="py-1.5">{formatNumberTr(h.volumeKg)} kg</td>
+                    <td className="py-1.5">{h.e1rm ? formatKg(h.e1rm) : "—"}</td>
+                    <td className="py-1.5">{formatKg(h.volumeKg)}</td>
                   </tr>
                 ))}
             </tbody>

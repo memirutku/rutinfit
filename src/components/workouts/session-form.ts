@@ -1,5 +1,5 @@
 import { clientId } from "@/lib/client/keys";
-import { formatNumberTr } from "@/lib/format";
+import { formatDecimalTr } from "@/lib/format";
 import { cycleTrainingMax, wendlerPlan, wendlerSets, WENDLER_WEEKS } from "@/lib/programs";
 import { warmupSets } from "@/lib/warmup";
 import type { LastSetsResponse, WorkoutSessionInput } from "@/lib/schemas/workout";
@@ -110,7 +110,7 @@ export function buildSessionForm(template: SessionTemplate, shortened: boolean, 
   for (const ex of exercises) {
     if (ex.loadingScheme === "531" && ex.trainingMaxKg && ex.trainingMaxKg > 0) {
       const tm = cycleTrainingMax(ex.trainingMaxKg, plan.cycle, ex.incrementKg ?? 2.5);
-      tmNotes.push(`${ex.exerciseName} TM ${formatNumberTr(tm)} kg`);
+      tmNotes.push(`${ex.exerciseName} TM ${formatDecimalTr(tm)} kg`);
       wendlerSets(tm, plan.week).forEach((w, i) =>
         setLogs.push({
           key: newSetKey(),

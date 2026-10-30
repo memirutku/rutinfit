@@ -2,7 +2,7 @@
  * F18: Hazır programlar. Egzersiz adları kütüphanedekilerle aynıdır. Plank gibi süreli
  * hareketlerde tekrar = saniye. B21: ileri seviye için %1RM'e bağlı 5/3/1 (Wendler).
  */
-import { formatNumberTr } from "./format";
+import { formatDecimalTr } from "./format";
 import type { ProgressionResult } from "./progression";
 import type { TemplateInput } from "./schemas/workout";
 
@@ -90,7 +90,7 @@ export function wendlerFeedback(
   const last = ordered[ordered.length - 1];
   const currentMaxWeight = Math.max(...sets.map((s) => s.weightKg));
   const met = last.reps >= last.targetRepMin;
-  const inc = formatNumberTr(incrementKg);
+  const inc = formatDecimalTr(incrementKg);
   return {
     isTargetMetAllSets: met,
     currentMaxWeight,
