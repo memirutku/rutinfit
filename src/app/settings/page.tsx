@@ -29,6 +29,13 @@ const ADVANCED_IDS = ["gelismis", "seffaflik", "yedek-ayrintilari", "opengym", "
 
 const hashTargetsAdvanced = () => typeof window !== "undefined" && ADVANCED_IDS.includes(window.location.hash.slice(1));
 
+/** Adresteki bölüme kaydırır (sayfa profil yüklenince çizildiği için tarayıcının kendi kaydırması erken kalır). */
+function scrollToHash() {
+  const id = decodeURIComponent(window.location.hash.slice(1));
+  if (!id) return;
+  setTimeout(() => document.getElementById(id)?.scrollIntoView?.({ block: "start" }), 0);
+}
+
 /** Ekranda en üstte görünen bölüm (içindekilerde vurgulanır). IntersectionObserver yoksa ilk bölüm. */
 function useActiveSection(ready: boolean): string {
   const [active, setActive] = useState<string>(SECTIONS[0].id);
@@ -59,14 +66,24 @@ export default function SettingsPage() {
   const [advancedOpen, setAdvancedOpen] = useState(hashTargetsAdvanced);
   const active = useActiveSection(!profile.isPending);
 
-  // Adres bir gelişmiş bölümü gösterirse (#tanilama gibi) katlanmış bölüm açılır.
+  // Adres bir gelişmiş bölümü gösterirse (#tanilama gibi) katlanmış bölüm açılır ve bölüme kaydırılır.
   useEffect(() => {
     const onHash = () => {
-      if (hashTargetsAdvanced()) setAdvancedOpen(true);
+      if (hashTargetsAdvanced()) {
+        setAdvancedOpen(true);
+        scrollToHash();
+      }
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
+
+  // Panodaki "+ Takviye / Düzenle" (#takviyeler) ya da koçtaki "Ayarlar'da test et" (#yapay-zeka)
+  // gibi bağlantılar: sayfa çizilince adresteki bölüme gidilir.
+  const ready = !profile.isPending;
+  useEffect(() => {
+    if (ready) scrollToHash();
+  }, [ready]);
 
   if (profile.isPending) {
     return (

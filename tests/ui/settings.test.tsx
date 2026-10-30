@@ -528,6 +528,26 @@ describe("Ayarlar — B34 içindekiler, Gelişmiş ve anında kaydeden anahtarla
     expect((document.getElementById("gelismis") as HTMLDetailsElement).open).toBe(true);
   });
 
+  it("adresteki bölüm (#takviyeler, #tanilama) sayfa yüklendikten sonra ekrana kaydırılır", async () => {
+    const scrolled: string[] = [];
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: function (this: HTMLElement) {
+        scrolled.push(this.id);
+      },
+    });
+    window.location.hash = "#takviyeler";
+    setup();
+    await waitFor(() => expect(scrolled).toEqual(["takviyeler"]));
+
+    // Sayfa açıkken Gelişmiş içindeki bir bölüme gidilince bölüm açılır ve kaydırılır.
+    window.location.hash = "#tanilama";
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+    await waitFor(() => expect(scrolled).toContain("tanilama"));
+    expect((document.getElementById("gelismis") as HTMLDetailsElement).open).toBe(true);
+    delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+  });
+
   it("döngü notu anahtarı dokununca kaydeder; formdaki kaydedilmemiş düzenleme gönderilmez ve korunur", async () => {
     const puts: Array<Record<string, unknown>> = [];
     setup([profileRoute(puts)]);

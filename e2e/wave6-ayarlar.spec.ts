@@ -41,6 +41,14 @@ test.describe("Dalga 6 · Ayarlar", () => {
     }
   });
 
+  test("B34: dışarıdan gelen bağlantı (#takviyeler, #tanilama) sayfa yüklenince o bölümü gösterir", async ({ page }) => {
+    for (const id of ["takviyeler", "hatirlatmalar", "tanilama"]) {
+      await page.goto(`/settings#${id}`);
+      await expect(page.locator(`#${id}`)).toBeInViewport();
+    }
+    await expect(page.locator("#gelismis")).toHaveAttribute("open", "");
+  });
+
   test("B36: yedek yerel saatli adla iner; Finder'da göster ve yolu kopyala çalışır; klasör seçici seçilen klasörü kaydeder", async ({ page, api }, testInfo) => {
     // Gerçek Finder ve klasör penceresi açılmasın: iki yerel işlem isteği sayfada yakalanır.
     const reveals: unknown[] = [];
