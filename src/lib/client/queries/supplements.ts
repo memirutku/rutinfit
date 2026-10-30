@@ -17,7 +17,12 @@ export function useSupplements(date: string) {
 function useInvalidate() {
   const qc = useQueryClient();
   // Kreatin ilerleme ekranında da görünür.
-  return () => Promise.all([qc.invalidateQueries({ queryKey: queryKeys.supplements }), qc.invalidateQueries({ queryKey: queryKeys.progress })]);
+  return () =>
+    Promise.all([
+      qc.invalidateQueries({ queryKey: queryKeys.supplements }),
+      qc.invalidateQueries({ queryKey: queryKeys.progress }),
+      qc.invalidateQueries({ queryKey: queryKeys.reminders }),
+    ]);
 }
 
 /** İyimser güncelleme: düğme anında değişir; sunucu hata verirse eski hâline döner. */

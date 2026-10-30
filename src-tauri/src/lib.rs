@@ -277,6 +277,8 @@ pub fn run() {
         ])
         .build(),
     )
+    // F83: hatırlatma bildirimleri (uygulama açıkken)
+    .plugin(tauri_plugin_notification::init())
     .manage(ServerProcess(Mutex::new(None)))
     .setup(|app| {
       let handle = app.handle().clone();

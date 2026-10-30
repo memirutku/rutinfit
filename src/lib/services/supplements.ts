@@ -47,7 +47,11 @@ export async function updateSupplement(id: string, patch: Partial<SupplementInpu
 }
 
 export async function deleteSupplement(id: string) {
-  const res = await prisma.supplement.deleteMany({ where: { id } });
+  const [res] = await prisma.$transaction([
+    prisma.supplement.deleteMany({ where: { id } }),
+    // F83: takviyenin hatırlatmaları da gider.
+    prisma.reminder.deleteMany({ where: { supplementId: id } }),
+  ]);
   if (res.count === 0) throw new HttpError("Takviye bulunamadı.", 404);
 }
 

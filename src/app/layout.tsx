@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Navigation } from "@/components/Navigation";
 import { Providers } from "@/components/Providers";
+import { ReminderRunner } from "@/components/ReminderRunner";
 
 export const metadata: Metadata = {
   title: "RutinFit — Kişisel Beslenme ve Antrenman Takibi",
@@ -26,6 +27,8 @@ export default function RootLayout({
               </div>
             </main>
           </div>
+          {/* F83: uygulama açıkken hatırlatmalar */}
+          <ReminderRunner />
         </Providers>
       </body>
     </html>

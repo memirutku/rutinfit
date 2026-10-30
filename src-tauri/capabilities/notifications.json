@@ -1,0 +1,19 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "notifications",
+  "description": "F83: Yerel sunucudan (127.0.0.1) yüklenen sayfa yalnız bildirim izni sorabilir ve bildirim gösterebilir; başka hiçbir yerel API'ye erişemez.",
+  "windows": [
+    "main"
+  ],
+  "remote": {
+    "urls": [
+      "http://127.0.0.1:*"
+    ]
+  },
+  "permissions": [
+    "notification:allow-is-permission-granted",
+    "notification:allow-request-permission",
+    "notification:allow-permission-state",
+    "notification:allow-notify"
+  ]
+}

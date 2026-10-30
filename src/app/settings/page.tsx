@@ -9,6 +9,7 @@ import { BackupSection } from "@/components/settings/BackupSection";
 import { DiagnosticsSection } from "@/components/settings/DiagnosticsSection";
 import { TransparencySection } from "@/components/settings/TransparencySection";
 import { SupplementsSection } from "@/components/settings/SupplementsSection";
+import { RemindersSection } from "@/components/settings/RemindersSection";
 
 export default function SettingsPage() {
   const profile = useProfile();
@@ -39,6 +40,9 @@ export default function SettingsPage() {
 
       {/* F15: TAKVİYELER */}
       <SupplementsSection />
+
+      {/* F83: HATIRLATMALAR */}
+      <RemindersSection />
 
       {/* 2. YEREL YAPAY ZEKÂ YAPILANDIRMASI */}
       <AIProviderSection />

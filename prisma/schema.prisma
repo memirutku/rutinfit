@@ -347,6 +347,21 @@ model Supplement {
   updatedAt  DateTime @updatedAt
 }
 
+/// F83: Uygulama açıkken gösterilen hatırlatmalar (öğün, su, tartı, takviye, antrenman, serbest).
+model Reminder {
+  id           String   @id @default(cuid())
+  kind         String // meal, water, weigh, supplement, workout, custom
+  title        String
+  time         String // HH:MM
+  days         String   @default("1234567") // ISO hafta günleri (1 = Pazartesi)
+  enabled      Boolean  @default(true)
+  mealType     String?
+  supplementId String?
+  lastFiredOn  String? // YYYY-MM-DD: aynı gün ikinci kez gösterilmez
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 model SupplementLog {
   id        String   @id @default(cuid())
   date      String // YYYY-MM-DD
