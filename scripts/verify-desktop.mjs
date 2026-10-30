@@ -144,13 +144,23 @@ const server = process.argv[1];
   const wasm = new Uint8Array([0,97,115,109,1,0,0,0,1,7,1,96,2,127,127,1,127,3,2,1,0,7,7,1,3,97,100,100,0,0,10,9,1,7,0,32,0,32,1,106,11]);
   const { instance } = await WebAssembly.instantiate(wasm);
   if (instance.exports.add(2, 3) !== 5) throw new Error("WebAssembly");
-  const { PrismaClient } = require(path.join(server, "node_modules/@prisma/client"));
-  const db = new PrismaClient({ datasourceUrl: "file:" + path.join(process.env.PROBE_DIR, "probe.db") });
-  await db.$queryRawUnsafe("SELECT 1");
-  await db.$disconnect();
-  const sharp = require(path.join(server, "node_modules/sharp"));
-  await sharp({ create: { width: 2, height: 2, channels: 3, background: "#000" } }).png().toBuffer();
-  console.log("PROBE_OK " + process.arch);
+  // Prisma 7: Rust sorgu motoru yok; veritabanı better-sqlite3 yerel eklentisiyle açılır.
+  const Database = require(path.join(server, "node_modules/better-sqlite3"));
+  const db = new Database(path.join(process.env.PROBE_DIR, "probe.db"));
+  db.prepare("SELECT 1").get();
+  db.close();
+  const loaded = ["SQLite"];
+  // pdf-parse'ın çalışma anında yüklediği yerel eklenti (PDF'den metin çıkarma).
+  require(path.join(server, "node_modules/@napi-rs/canvas"));
+  loaded.push("canvas");
+  // sharp, Next'in isteğe bağlı bağımlılığı: pakette varsa o da yüklenebilmeli.
+  const sharpDir = path.join(server, "node_modules/sharp");
+  if (require("node:fs").existsSync(sharpDir)) {
+    const sharp = require(sharpDir);
+    await sharp({ create: { width: 2, height: 2, channels: 3, background: "#000" } }).png().toBuffer();
+    loaded.push("sharp");
+  }
+  console.log("PROBE_OK " + process.arch + " " + loaded.join(","));
 })().catch((e) => { console.log("PROBE_FAIL " + e.message); process.exit(2); });
 `;
 
@@ -180,7 +190,7 @@ async function smokeTest(app) {
     const probeOut = `${probe.stdout || ""}${probe.stderr || ""}`.trim();
     check(
       probe.status === 0 && probeOut.includes("PROBE_OK"),
-      `JIT · WebAssembly · Prisma motoru · sharp çalışıyor (${probeOut.match(/PROBE_OK (\w+)/)?.[1] ?? "?"}, hardened runtime ${hardened ? "açık" : "kapalı"})`,
+      `JIT · WebAssembly · yerel eklentiler (${probeOut.match(/PROBE_OK \w+ (\S+)/)?.[1] ?? "?"}) çalışıyor (${probeOut.match(/PROBE_OK (\w+)/)?.[1] ?? "?"}, hardened runtime ${hardened ? "açık" : "kapalı"})`,
       `Node yoklaması başarısız (çıkış ${probe.status ?? probe.signal}): ${probeOut.slice(0, 500) || "çıktı yok (büyük olasılıkla entitlement eksik)"}`
     );
 

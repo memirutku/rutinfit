@@ -12,7 +12,7 @@ notarize edilir. Böylece indirilen `.dmg` Gatekeeper uyarısı çıkmadan açı
 | --- | --- | --- |
 | `MacOS/rutinfit` (Tauri kabuğu) | Tauri | hardened runtime + `src-tauri/entitlements.plist` |
 | `MacOS/node` (gömülü Node 22) | Tauri (`externalBin`) | aynı entitlements dosyası |
-| `Resources/server/**` içindeki native modüller (Prisma motoru, sharp, libvips) | `scripts/prepare-desktop.mjs` | Tauri `Resources` altını **imzalamaz**; bu adım olmazsa notarization reddeder ve Node bu kütüphaneleri yükleyemez |
+| `Resources/server/**` içindeki native modüller (better-sqlite3, @napi-rs/canvas, varsa sharp/libvips) | `scripts/prepare-desktop.mjs` | Tauri `Resources` altını **imzalamaz**; bu adım olmazsa notarization reddeder ve Node bu kütüphaneleri yükleyemez |
 | `RutinFit.app` (paket mührü) | Tauri | |
 | `RutinFit_<sürüm>_<mimari>.dmg` | Tauri imzalar, `scripts/notarize-macos.mjs` notarize edip bileti zımbalar | |
 
@@ -23,7 +23,7 @@ Node'un V8 motoru JIT için `MAP_JIT` bellek ister. arm64'te (Node 22.23.3) öl�
 | Entitlements | Sonuç |
 | --- | --- |
 | hiçbiri | Node açılışta çöküyor (SIGTRAP, çıkış 133) |
-| `allow-jit` | JIT, WebAssembly, Prisma motoru ve sharp çalışıyor |
+| `allow-jit` | JIT, WebAssembly ve yerel eklentiler (SQLite, canvas, sharp) çalışıyor |
 | ad-hoc imza + hardened runtime | Prisma yüklenmiyor: `mapping process and mapped file (non-platform) have different Team IDs` |
 
 `allow-unsigned-executable-memory`, `disable-library-validation` ve `get-task-allow` bilerek yok:
@@ -142,7 +142,7 @@ xcrun stapler validate "$DMG"
 
 | Belirti | Neden / çözüm |
 | --- | --- |
-| `different Team IDs` (Prisma veya sharp yüklenmiyor) | Native modül imzasız ya da başka kimlikle imzalı. `prepare-desktop` çıktısında "native modül imzalandı" satırı olmalı. |
+| `different Team IDs` (SQLite, canvas veya sharp yüklenmiyor) | Native modül imzasız ya da başka kimlikle imzalı. `prepare-desktop` çıktısında "native modül imzalandı" satırı olmalı. |
 | Node çıkış 133 / SIGTRAP | Hardened runtime var ama `allow-jit` yok. |
 | `spctl`: `rejected · source=Unnotarized Developer ID` | İmza doğru, notarization yapılmamış. `scripts/notarize-macos.mjs` çalıştırın. |
 | Notarization `Invalid` | Betik `xcrun notarytool log <id>` çıktısını basar; çoğunlukla imzasız/zaman damgasız bir Mach-O dosyasıdır. |

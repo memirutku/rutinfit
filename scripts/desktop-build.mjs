@@ -8,7 +8,7 @@
  *    (APPLE_API_KEY + APPLE_API_ISSUER [+ APPLE_API_KEY_PATH] ya da APPLE_ID + APPLE_PASSWORD + APPLE_TEAM_ID)
  *    Tauri .app'i notarize edip bileti zımbalar. .dmg'nin kendisi için: node scripts/notarize-macos.mjs
  *  - Yerel: kimlik yoksa ad-hoc imza ve hardened runtime KAPALI. Paket yalnız derlendiği Mac'te açılır,
- *    Gatekeeper'dan geçmez. (Ad-hoc imza + hardened runtime altında kütüphane doğrulaması Prisma motorunu
+ *    Gatekeeper'dan geçmez. (Ad-hoc imza + hardened runtime altında kütüphane doğrulaması yerel eklentileri
  *    yükletmez: "mapping process and mapped file (non-platform) have different Team IDs" — ölçüldü.)
  *
  * Ek argümanlar `tauri build`e aktarılır, ör. `pnpm desktop:build --bundles app`.

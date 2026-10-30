@@ -78,7 +78,7 @@ jobs:
           [ "$HAS_NOTARY" = "true" ] || { echo "::error::Notarization sırları yok: notarize edilmemiş sürüm yayınlanmaz."; exit 1; }
 
       # Sertifika Tauri'den ÖNCE anahtar zincirinde olmalı: Resources altındaki native modülleri
-      # (Prisma motoru, sharp) scripts/prepare-desktop.mjs imzalar (Tauri bunları imzalamaz).
+      # (better-sqlite3, @napi-rs/canvas, varsa sharp) scripts/prepare-desktop.mjs imzalar (Tauri bunları imzalamaz).
       - name: Import signing certificate
         if: env.HAS_CERTIFICATE == 'true'
         env:

@@ -6,7 +6,7 @@
 
   Yalnız allow-jit: Node'un V8 motoru JIT için MAP_JIT bellek ister. Ölçüldü (arm64, Node 22.23.3):
     - istisnasız          → Node açılışta çöküyor (SIGTRAP, çıkış 133)
-    - yalnız allow-jit    → JIT, WebAssembly, Prisma motoru ve sharp çalışıyor
+    - yalnız allow-jit    → JIT, WebAssembly ve yerel eklentiler (SQLite, canvas, sharp) çalışıyor
   allow-unsigned-executable-memory, disable-library-validation ve get-task-allow BİLEREK yok:
   paketteki tüm native modüller aynı Developer ID ile imzalanır (scripts/prepare-desktop.mjs),
   get-task-allow ise notarization'ı reddettirir. x64 aynı kontrolü release iş akışındaki
