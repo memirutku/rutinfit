@@ -54,7 +54,7 @@ async function downloadCsv(type: string): Promise<ExportResult> {
 function ExportResultView({ result }: { result: ExportResult }) {
   if (!result.ok) {
     return (
-      <p role="alert" className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 break-all">
+      <p role="alert" className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 [overflow-wrap:anywhere]">
         {result.message}
       </p>
     );
@@ -62,12 +62,12 @@ function ExportResultView({ result }: { result: ExportResult }) {
   return (
     <div role="status" className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 space-y-2">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="font-semibold break-all">{`${result.what} indirildi: ${result.name} (İndirilenler klasörü)`}</p>
+        <p className="font-semibold [overflow-wrap:anywhere]">{`${result.what} indirildi: ${result.name} (İndirilenler klasörü)`}</p>
         <PathActions target={{ download: result.name }} revealLabel="İndirilen dosyayı Finder'da göster" />
       </div>
       {result.savedPath && (
         <div className="flex flex-wrap items-center gap-2">
-          <p className="break-all text-slate-600">{`Uygulama klasöründeki kopya: ${result.savedPath}`}</p>
+          <p className="[overflow-wrap:anywhere] text-slate-600">{`Uygulama klasöründeki kopya: ${result.savedPath}`}</p>
           <PathActions
             target={{ path: result.savedPath }}
             revealLabel="Uygulama klasöründeki kopyayı Finder'da göster"

@@ -160,12 +160,12 @@ export function Navigation() {
                 key={item.href}
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}
-                className={`flex flex-col items-center py-1.5 px-2 rounded-lg text-xs font-medium transition-colors ${
+                className={`flex flex-col items-center py-1.5 px-1 rounded-lg text-xs font-medium transition-colors ${
                   isActive ? "text-brand-600 font-semibold" : "text-slate-500 hover:text-slate-900"
                 }`}
               >
                 <Icon className="w-5 h-5 mb-0.5" />
-                <span className="text-[10px]">{item.label}</span>
+                <span className="text-[10px] whitespace-nowrap">{item.label}</span>
               </Link>
             );
           })}
@@ -176,12 +176,12 @@ export function Navigation() {
             aria-haspopup="dialog"
             data-active={moreActive ? "true" : "false"}
             onClick={() => setMoreOpen((v) => !v)}
-            className={`flex flex-col items-center py-1.5 px-2 rounded-lg text-xs font-medium transition-colors ${
+            className={`flex flex-col items-center py-1.5 px-1 rounded-lg text-xs font-medium transition-colors ${
               moreActive || moreOpen ? "text-brand-600 font-semibold" : "text-slate-500 hover:text-slate-900"
             }`}
           >
             <MoreHorizontal className="w-5 h-5 mb-0.5" />
-            <span className="text-[10px]">Daha fazla</span>
+            <span className="text-[10px] whitespace-nowrap">Daha fazla</span>
           </button>
         </div>
       </nav>

@@ -151,7 +151,7 @@ export function DiagnosticsSection() {
             {pathRows(diagnostics).map((row) => (
               <li key={row.key} className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1 min-w-0">
                 <span className="text-slate-500 font-semibold block text-[11px]">{row.label}</span>
-                {row.path ? <span className="font-mono text-slate-800 block break-all">{row.path}</span> : null}
+                {row.path ? <span className="font-mono text-slate-800 block [overflow-wrap:anywhere]">{row.path}</span> : null}
                 {row.detail && <span className="text-[11px] text-slate-600 block">{row.detail}</span>}
                 {row.path && <PathActions target={{ path: row.path }} revealLabel={row.reveal} copy={{ text: row.path, label: row.copy }} />}
               </li>

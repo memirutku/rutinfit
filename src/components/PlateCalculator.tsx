@@ -110,7 +110,7 @@ export function PlateCalculator() {
                       : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                   }`}
                 >
-                  {w}k
+                  {w} kg
                 </button>
               ))}
             </div>
@@ -311,7 +311,7 @@ export function PlateCalculator() {
 
           <div>
             <label className="text-xs font-bold text-slate-700 block mb-1">
-              Tekrar Sayısı (Reps)
+              Tekrar sayısı
             </label>
             <input
               type="number"

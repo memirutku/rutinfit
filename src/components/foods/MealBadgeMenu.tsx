@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { errorMessage } from "@/lib/client/api";
 import { useUpdateFoodLogMeal } from "@/lib/client/queries/nutrition";
 import { MEAL_TYPES, mealTypeLabel, type MealType } from "@/lib/schemas/enums";
@@ -48,9 +49,11 @@ export function MealBadgeMenu({ log, label, ramadan = false }: MealBadgeMenuProp
         aria-label={`${log.name} öğünü: ${label}. Değiştir`}
         disabled={update.isPending}
         onClick={() => setOpen((o) => !o)}
-        className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-60"
+        className="inline-flex items-center gap-0.5 text-[11px] font-bold px-2 py-0.5 rounded-md border border-slate-300 bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-60"
       >
         {label}
+        {/* Recheck (Elif): rozetin dokunulabilir olduğu görünsün. */}
+        <ChevronDown className="w-3 h-3" aria-hidden />
       </button>
       {open && (
         <span

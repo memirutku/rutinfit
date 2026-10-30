@@ -124,7 +124,7 @@ export function CardioPanel({ today }: { today: string }) {
           ))}
         </ul>
       )}
-      <p className="text-[11px] text-slate-400">Kalori girilmezse süre, tür ve kilondan tahmin edilir (~ işaretli). Saat verisi Apple Health içe aktarımıyla gelir.</p>
+      <p className="text-[11px] text-slate-400">Kalori girilmezse süre, tür ve kilondan tahmin edilir (~ işaretli). Saat verisi Apple Sağlık içe aktarımıyla gelir.</p>
     </section>
   );
 }

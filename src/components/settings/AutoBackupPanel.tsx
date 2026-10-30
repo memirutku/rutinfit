@@ -124,7 +124,7 @@ export function AutoBackupPanel() {
             </button>
           </div>
           {!data?.folderPath && data?.suggestedFolder && (
-            <p className="mt-1 text-[11px] text-slate-500 break-all">Önerilen: {data.suggestedFolder} (henüz seçilmedi)</p>
+            <p className="mt-1 text-[11px] text-slate-500 [overflow-wrap:anywhere]">Önerilen: {data.suggestedFolder} (henüz seçilmedi)</p>
           )}
           {data?.folderPath && (
             <div className="mt-1">
@@ -167,7 +167,7 @@ export function AutoBackupPanel() {
         </button>
       </div>
       {run.data && (
-        <p role={run.data.ok ? "status" : "alert"} className={`text-xs ${run.data.ok ? "text-emerald-800" : "text-rose-700"} break-all`}>
+        <p role={run.data.ok ? "status" : "alert"} className={`text-xs ${run.data.ok ? "text-emerald-800" : "text-rose-700"} [overflow-wrap:anywhere]`}>
           {run.data.message} {run.data.file}
         </p>
       )}
@@ -178,7 +178,7 @@ export function AutoBackupPanel() {
       )}
       {last && (
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-[11px] text-slate-500 break-all">
+          <p className="text-[11px] text-slate-500 [overflow-wrap:anywhere]">
             Son yedek: {last} · {data?.lastStatus === "ok" ? data.lastFile : `Hata: ${data?.lastMessage}`}
           </p>
           {data?.lastStatus === "ok" && data.lastFile && (

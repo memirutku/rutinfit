@@ -79,7 +79,7 @@ export function TransparencySection() {
               <td data-label="Ne gider" className={`${CELL} text-slate-600`}>
                 {row.what}
               </td>
-              <td data-label="Nereye" className={`${CELL} text-slate-800 font-mono break-all`}>
+              <td data-label="Nereye" className={`${CELL} text-slate-800 font-mono [overflow-wrap:anywhere]`}>
                 {row.where}
               </td>
             </tr>

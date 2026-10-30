@@ -76,7 +76,7 @@ function CalendarExport({ hasActive }: { hasActive: boolean }) {
       {result?.ok && (
         <div role="status" className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="font-semibold break-all">{`Takvim dosyası indirildi: ${result.name} (İndirilenler klasörü)`}</p>
+            <p className="font-semibold [overflow-wrap:anywhere]">{`Takvim dosyası indirildi: ${result.name} (İndirilenler klasörü)`}</p>
             <PathActions target={{ download: result.name }} revealLabel="İndirilen takvim dosyasını Finder'da göster" />
           </div>
           <p>

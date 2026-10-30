@@ -41,7 +41,7 @@ export const TABLE_LABELS: Record<string, string> = {
   AIConversation: "Koç sohbetleri",
   UploadedFile: "Yüklenen dosyalar",
   ExtractedArtifact: "Dosyalardan çıkarılanlar",
-  ActionDraft: "Koç önerileri (onay bekleyen)",
+  ActionDraft: "Koç önerileri (tümü)",
   AIMessage: "Koç mesajları",
   AuditEvent: "İşlem günlüğü",
   WeeklyCheckin: "Haftalık değerlendirmeler",
