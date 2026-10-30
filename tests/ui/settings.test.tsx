@@ -259,6 +259,47 @@ describe("Ayarlar — F67 şeffaflık", () => {
   });
 });
 
+describe("Ayarlar — B39 şeffaflık ayrıntıları", () => {
+  const local = { providerType: "ollama", baseUrl: "http://127.0.0.1:11434/v1", modelName: "llama3.2", coachEnabled: true, tone: "supportive", endpointKind: "local" };
+
+  it("yerel model sunucusu yanıt vermiyorsa yeşil onay yerine 'kontrol yapılmadı' yazar", async () => {
+    let reachable = false;
+    setup([
+      ["/api/ai/settings", () => jsonResponse(local)],
+      ["/api/ai/exposure", () => jsonResponse({ applicable: true, localReachable: reachable, exposed: false, port: 11434, lanAddresses: ["192.168.1.20"] })],
+    ]);
+    expect(await screen.findByText(/sunucusu yanıt vermiyor.*kontrol yapılmadı/)).toBeTruthy();
+    expect(screen.queryByText(/yalnız bu bilgisayardan erişilebilir/)).toBeNull();
+    reachable = true;
+    fireEvent.click(screen.getByRole("button", { name: "Yeniden kontrol et" }));
+    expect(await screen.findByText(/yalnız bu bilgisayardan erişilebilir \(port 11434\)/)).toBeTruthy();
+  });
+
+  it("yerel ve bulut koç satırları aynı veri listesini yazar; fark yalnız 'Nereye' sütununda", async () => {
+    setup([["/api/ai/settings", () => jsonResponse(local)]]);
+    const table = (await screen.findByRole("table", { name: "Cihazdan ne çıkar?" })) as HTMLTableElement;
+    const rows = Array.from(table.tBodies[0].rows);
+    const what = (feature: RegExp) => rows.find((r) => feature.test(r.cells[0].textContent ?? ""))!.cells[1].textContent;
+    const where = (feature: RegExp) => rows.find((r) => feature.test(r.cells[0].textContent ?? ""))!.cells[2].textContent;
+    expect(what(/yerel model/)).toBe(what(/OpenAI/));
+    for (const item of ["koça notların", "eklediğin dosyaların içeriği", "geçmiş sorularına kayıtlarından hesaplanan sonuçlar", "bugünkü öğün"]) {
+      expect(what(/yerel model/)).toContain(item);
+    }
+    expect(where(/yerel model/)).toContain("127.0.0.1");
+    expect(where(/OpenAI/)).toBe("api.openai.com");
+    // Yedek satırı iCloud'u anar.
+    expect(what(/Yedekler/)).toMatch(/iCloud/);
+  });
+
+  it("otomatik yedek iCloud önerisinde ve iCloud klasörü seçiliyken yedeğin şifrelenmediği yazar", async () => {
+    const state = { enabled: true, folderPath: "/Users/ben/Library/Mobile Documents/com~apple~CloudDocs/RutinFit", frequency: "daily", keepCount: 10, lastRunAt: null, lastStatus: null, lastMessage: null, lastFile: null, suggestedFolder: "/x", exportCopies: true };
+    setup([["/api/backup/auto", () => jsonResponse(state)]]);
+    expect(await screen.findByText(/Yedek dosyası şifrelenmez/)).toBeTruthy();
+    const note = await screen.findByRole("note", { name: "iCloud uyarısı" });
+    expect(note.textContent).toMatch(/iCloud Drive klasörü seçili.*Apple sunucularına/);
+  });
+});
+
 describe("Ayarlar — yapay zekâ ve openGym bağlantı testi", () => {
   it("AI testi başarılıysa mesajı ve algılanan modelleri gösterir", async () => {
     const { calls } = setup([

@@ -87,6 +87,8 @@ export type BackupImportResult = z.infer<typeof BackupImportResultSchema>;
 /** F67: GET /api/ai/exposure yanıtı. */
 export const ExposureSchema = z.object({
   applicable: z.boolean(),
+  /** B39: kayıtlı adresteki sunucu yanıt verdi mi? false: ağ kontrolü yapılmadı. */
+  localReachable: z.boolean().optional(),
   exposed: z.boolean(),
   port: z.number().nullable(),
   lanAddresses: z.array(z.string()),

@@ -11,6 +11,9 @@ import { PathActions } from "@/components/ui/PathActions";
 const LABEL = "block text-xs font-semibold text-slate-600 mb-1";
 const INPUT = "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm";
 
+/** B39: macOS iCloud Drive klasörü (~/Library/Mobile Documents/...). */
+export const isICloudFolder = (folder: string | null | undefined) => !!folder && /\/Library\/Mobile Documents\/|iCloud Drive|CloudDocs/i.test(folder);
+
 /** Kaydedilen değer bekleyen istekte iyimser gösterilir; hata olursa sorgudaki değere döner. */
 function useAutoBackupSaver() {
   const saved = useAutoBackup();
@@ -74,9 +77,16 @@ export function AutoBackupPanel() {
         <p className="text-xs font-bold text-slate-700">Otomatik yedek</p>
         <p className="text-[11px] text-slate-500">
           Uygulama açıkken seçtiğin klasöre düzenli yedek alır. iCloud Drive ya da Syncthing klasörü seçersen yedeklerin diğer
-          cihazlarına da ulaşır.
+          cihazlarına da ulaşır. Yedek dosyası şifrelenmez: sağlık ve kilo kayıtların düz JSON olarak durur. Mac'inde Masaüstü ve
+          Belgeler iCloud ile eşitleniyorsa önerilen Belgeler klasörü de iCloud'a gider.
         </p>
       </div>
+      {isICloudFolder(data?.folderPath) && (
+        <p role="note" aria-label="iCloud uyarısı" className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900">
+          iCloud Drive klasörü seçili: yedekler RutinFit tarafından şifrelenmeden Apple sunucularına yüklenir. iCloud'da Gelişmiş Veri
+          Koruması açık değilse Apple bu dosyaları okuyabilir. İstemiyorsan iCloud dışında bir klasör seç.
+        </p>
+      )}
       <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
         <input id="auto-backup-enabled" type="checkbox" checked={enabled} disabled={save.isPending} onChange={(e) => toggle(e.target.checked)} />
         Otomatik yedek açık
