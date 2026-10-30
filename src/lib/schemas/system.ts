@@ -66,6 +66,6 @@ export type Diagnostics = z.infer<typeof DiagnosticsSchema>;
 export const BackupImportResultSchema = z.object({
   success: z.boolean(),
   message: z.string(),
-  counts: z.record(z.number()).optional(),
+  counts: z.record(z.string(), z.number()).optional(),
 });
 export type BackupImportResult = z.infer<typeof BackupImportResultSchema>;

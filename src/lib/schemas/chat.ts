@@ -21,7 +21,7 @@ export const ActionRequestSchema = z.object({
   draftId: z.string().min(1, "draftId parametresi zorunludur."),
   action: z.enum(["approve", "reject", "reissue"]).default("approve"),
   approvalToken: z.string().optional(),
-  editedChanges: z.record(z.unknown()).optional(),
+  editedChanges: z.record(z.string(), z.unknown()).optional(),
   reason: z.string().max(500).optional(),
 });
 export type ActionRequest = z.input<typeof ActionRequestSchema>;

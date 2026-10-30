@@ -11,7 +11,7 @@ export const BackupEnvelopeSchema = z.object({
     message: `Desteklenmeyen yedek sürümü. Desteklenen sürümler: ${SUPPORTED_BACKUP_VERSIONS.join(", ")}`,
   }),
   exportedAt: z.string().optional(),
-  data: z.record(z.unknown()),
+  data: z.record(z.string(), z.unknown()),
 });
 
 export type BackupEnvelope = z.infer<typeof BackupEnvelopeSchema>;

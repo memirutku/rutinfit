@@ -26,7 +26,7 @@ export type ShoppingListItem = z.infer<typeof ShoppingListItemSchema>;
 export const ShoppingListSchema = z.object({
   weekStart: z.string(),
   items: z.array(ShoppingListItemSchema),
-  grouped: z.record(z.array(ShoppingListItemSchema)),
+  grouped: z.record(z.string(), z.array(ShoppingListItemSchema)),
   /** Yalnız GET: bu hafta için liste kurulmuş mu */
   generated: z.boolean().optional(),
   /** Yalnız POST: kiler düşümü özeti */

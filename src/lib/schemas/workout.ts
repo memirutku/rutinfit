@@ -87,6 +87,6 @@ export type ProgressionFeedback = z.infer<typeof ProgressionFeedbackSchema>;
 /** POST /api/workouts yanıtı */
 export const FinishWorkoutResponseSchema = z.object({
   session: WorkoutSessionSchema,
-  progressionFeedbacks: z.record(ProgressionFeedbackSchema),
+  progressionFeedbacks: z.record(z.string(), ProgressionFeedbackSchema),
 });
 export type FinishWorkoutResponse = z.infer<typeof FinishWorkoutResponseSchema>;

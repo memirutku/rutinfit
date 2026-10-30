@@ -152,7 +152,7 @@ export const WeightWellbeingDraftSchema = z.object({
 export const BulkImportDraftSchema = z.object({
   importSource: z.string().optional(),
   itemsCount: z.number().int().nonnegative().optional(),
-  records: z.array(z.record(z.any())).optional(),
+  records: z.array(z.record(z.string(), z.any())).optional(),
 });
 
 export const DraftSchemas = {
