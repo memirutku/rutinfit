@@ -6,14 +6,17 @@ import { RestTimer } from "./RestTimer";
 import { SetRow } from "./SetRow";
 import { ExerciseSwap } from "./ExerciseSwap";
 import { Plus } from "lucide-react";
+import { findExercise } from "@/lib/exercise-library";
 import {
   addSet,
+  addWarmupSets,
   exerciseGroups,
   incompleteSetCount,
   markAllCompleted,
   removeSet,
   replaceExercise,
   updateSet,
+  workingWeight,
   type SessionForm,
 } from "./session-form";
 
@@ -95,42 +98,65 @@ export function ActiveSessionForm({
 
         {/* Egzersiz başına setler. F25: benzeriyle değiştir; B18: set ekle / sil. */}
         <div className="space-y-5">
-          {exerciseGroups(form).map(({ exerciseName, sets }) => (
-            <section
-              key={exerciseName}
-              role="group"
-              aria-label={exerciseName}
-              className="space-y-2.5 p-3 rounded-2xl border border-slate-200 bg-white"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <h4 className="font-bold text-slate-900 text-sm">{exerciseName}</h4>
-                  <ExerciseSwap exerciseName={exerciseName} onSwap={(to) => onChange(replaceExercise(form, exerciseName, to))} />
-                </div>
-                <span className="text-xs text-slate-500">
-                  {sets.filter((s) => s.completed).length} / {sets.length} set
-                </span>
-              </div>
-              {sets.map((set) => (
-                <SetRow
-                  key={set.key}
-                  set={set}
-                  onChange={(patch) => onChange(updateSet(form, set.key, patch))}
-                  onToggle={() => toggleSet(set.key, !!set.completed)}
-                  onRemove={() => onChange(removeSet(form, set.key))}
-                />
-              ))}
-              <button
-                type="button"
-                aria-label={`${exerciseName} için set ekle`}
-                onClick={() => onChange(addSet(form, exerciseName))}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-dashed border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-50"
+          {exerciseGroups(form).map(({ exerciseName, sets }, groupIndex) => {
+            // B22: ana harekette (ilk egzersiz) ve halter hareketlerinde ısınma setleri eklenebilir.
+            const isMain = groupIndex === 0;
+            const canWarmUp = isMain || findExercise(exerciseName)?.equipment === "barbell";
+            const hasWorkingWeight = workingWeight(form, exerciseName) !== null;
+            return (
+              <section
+                key={exerciseName}
+                role="group"
+                aria-label={exerciseName}
+                className="space-y-2.5 p-3 rounded-2xl border border-slate-200 bg-white"
               >
-                <Plus className="w-3.5 h-3.5" />
-                Set
-              </button>
-            </section>
-          ))}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-bold text-slate-900 text-sm">{exerciseName}</h4>
+                    <ExerciseSwap exerciseName={exerciseName} onSwap={(to) => onChange(replaceExercise(form, exerciseName, to))} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {canWarmUp && (
+                      <button
+                        type="button"
+                        aria-label={`${exerciseName} için ısınma setleri ekle`}
+                        title={hasWorkingWeight ? "Boş bar, %40, %60, %80 (ve ağırsa %90)" : "Önce çalışma ağırlığını gir"}
+                        disabled={!hasWorkingWeight}
+                        onClick={() => onChange(addWarmupSets(form, exerciseName))}
+                        className="px-2.5 py-1 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 text-[11px] font-bold hover:bg-amber-100 disabled:opacity-50"
+                      >
+                        Isınma setleri ekle
+                      </button>
+                    )}
+                    <span className="text-xs text-slate-500">
+                      {sets.filter((s) => s.completed).length} / {sets.length} set
+                    </span>
+                  </div>
+                </div>
+                {isMain && !hasWorkingWeight && (
+                  <p className="text-[11px] text-slate-500">Isınma için önce çalışma ağırlığını gir; setler buna göre hesaplanır.</p>
+                )}
+                {sets.map((set) => (
+                  <SetRow
+                    key={set.key}
+                    set={set}
+                    onChange={(patch) => onChange(updateSet(form, set.key, patch))}
+                    onToggle={() => toggleSet(set.key, !!set.completed)}
+                    onRemove={() => onChange(removeSet(form, set.key))}
+                  />
+                ))}
+                <button
+                  type="button"
+                  aria-label={`${exerciseName} için set ekle`}
+                  onClick={() => onChange(addSet(form, exerciseName))}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-dashed border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Set
+                </button>
+              </section>
+            );
+          })}
         </div>
 
         {/* Seans Notları ve Zorluk Derecesi (RPE) */}

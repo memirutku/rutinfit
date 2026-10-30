@@ -1,6 +1,7 @@
 import { clientId } from "@/lib/client/keys";
 import { formatNumberTr } from "@/lib/format";
 import { cycleTrainingMax, wendlerPlan, wendlerSets, WENDLER_WEEKS } from "@/lib/programs";
+import { warmupSets } from "@/lib/warmup";
 import type { LastSetsResponse, WorkoutSessionInput } from "@/lib/schemas/workout";
 import type { SetType } from "@/lib/set-types";
 
@@ -196,6 +197,40 @@ export function addSet(form: SessionForm, exerciseName: string): SessionForm {
   };
   const setLogs = [...form.setLogs.slice(0, lastIndex + 1), added, ...form.setLogs.slice(lastIndex + 1)];
   return { ...form, setLogs: renumber(setLogs, exerciseName) };
+}
+
+/** B22: Egzersizin ilk çalışma setinin ağırlığı (ısınma setleri hariç); yoksa null. */
+export function workingWeight(form: SessionForm, exerciseName: string): number | null {
+  const first = form.setLogs.find((s) => s.exerciseName === exerciseName && s.setType !== "warmup" && (s.weightKg ?? 0) > 0);
+  return first?.weightKg ?? null;
+}
+
+/**
+ * B22: Plaka sayfasındaki ısınma hesabıyla (boş bar, %40, %60, %80, %90) egzersizin başına
+ * "ısınma" tipinde setler ekler. Çalışma ağırlığı ilk çalışma setinden alınır. Önceki ısınma
+ * setleri yenisiyle değiştirilir. Çalışma ağırlığı yoksa ya da bara eşitse form aynen döner.
+ */
+export function addWarmupSets(form: SessionForm, exerciseName: string, barKg = 20): SessionForm {
+  const working = workingWeight(form, exerciseName);
+  if (working === null) return form;
+  const warmups = warmupSets(working, barKg);
+  if (warmups.length === 0) return form;
+  const rest = form.setLogs.filter((s) => !(s.exerciseName === exerciseName && s.setType === "warmup"));
+  const at = rest.findIndex((s) => s.exerciseName === exerciseName);
+  const added: SessionSet[] = warmups.map((w) => ({
+    key: newSetKey(),
+    exerciseName,
+    setNumber: 0,
+    weightKg: w.weightKg,
+    reps: w.reps,
+    targetRepMin: w.reps,
+    targetRepMax: w.reps,
+    completed: false,
+    rpe: null,
+    setType: "warmup",
+    prescription: w.percent === 0 ? "Isınma · boş bar" : `Isınma · %${w.percent}`,
+  }));
+  return { ...form, setLogs: renumber([...rest.slice(0, at), ...added, ...rest.slice(at)], exerciseName) };
 }
 
 /** B18: Seti siler; o egzersizin kalan setleri yeniden numaralanır. */

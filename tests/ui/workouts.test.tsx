@@ -1,4 +1,4 @@
-import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import { hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -10,6 +10,7 @@ import { WeeklyPlanGrid } from "@/components/workouts/WeeklyPlanGrid";
 import { useWorkoutDraft } from "@/components/workouts/useWorkoutDraft";
 import {
   addSet,
+  addWarmupSets,
   buildSessionForm,
   exerciseGroups,
   incompleteSetCount,
@@ -165,6 +166,37 @@ describe("seans formu (saf fonksiyonlar)", () => {
     const noTm = buildSessionForm({ ...tpl, exercises: [{ ...tpl.exercises[0], trainingMaxKg: null }] }, false);
     expect(noTm.setLogs.map((s) => s.weightKg)).toEqual([null, null, null]);
     expect(noTm.setLogs[0].prescription).toMatch(/antrenman maksimumu yok/);
+  });
+
+  it("B22: ısınma setleri çalışma ağırlığından hesaplanıp egzersizin başına 'ısınma' tipinde eklenir", () => {
+    const base = buildSessionForm(strength, false);
+    const squatKeys = base.setLogs.filter((s) => s.exerciseName === "Squat").map((s) => s.key);
+    const withWeight = squatKeys.reduce((f, k) => updateSet(f, k, { weightKg: 100 }), base);
+    const form = addWarmupSets(withWeight, "Squat");
+    const squat = form.setLogs.filter((s) => s.exerciseName === "Squat");
+    expect(squat.map((s) => [s.setNumber, s.weightKg, s.reps, s.setType ?? "normal"])).toEqual([
+      [1, 20, 10, "warmup"],
+      [2, 40, 5, "warmup"],
+      [3, 60, 3, "warmup"],
+      [4, 80, 2, "warmup"],
+      [5, 90, 1, "warmup"],
+      [6, 100, 12, "normal"],
+      [7, 100, 12, "normal"],
+      [8, 100, 12, "normal"],
+    ]);
+    expect(squat[0].prescription).toMatch(/boş bar/);
+    expect(squat[1].prescription).toMatch(/%40/);
+    expect(squat.every((s) => !s.completed)).toBe(true);
+    expect(form.setLogs.slice(0, 8).every((s) => s.exerciseName === "Squat")).toBe(true);
+
+    // Tekrar basılınca eskileri yenilenir (çift ısınma olmaz); çalışma ağırlığı değişirse yeni hesap.
+    const again = addWarmupSets(updateSet(form, squat[5].key, { weightKg: 60 }), "Squat");
+    expect(again.setLogs.filter((s) => s.exerciseName === "Squat" && s.setType === "warmup").map((s) => s.weightKg)).toEqual([20, 25, 35, 47.5]);
+
+    // Çalışma ağırlığı yoksa ya da bar ağırlığındaysa form değişmez.
+    expect(addWarmupSets(base, "Squat")).toBe(base);
+    const light = updateSet(base, squatKeys[0], { weightKg: 20 });
+    expect(addWarmupSets(light, "Squat")).toBe(light);
   });
 
   it("B17: ağırlık alanı boş başlar; hiçbir sette sihirli 40 kg yoktur", () => {
@@ -358,6 +390,22 @@ describe("ActiveSessionForm", () => {
     const removed: SessionForm = onChange.mock.calls[1][0];
     expect(removed.setLogs.filter((s) => s.exerciseName === "Squat")).toHaveLength(1);
     expect(screen.getAllByRole("group", { name: /^Squat|^Bench Press|^Barbell Row/ })).toHaveLength(3);
+  });
+
+  it("B22: ana harekette 'Isınma setleri ekle' çalışma ağırlığı girilince açılır ve ısınma setlerini ekler", () => {
+    const base = buildSessionForm(strength, true);
+    const first = renderForm({ form: base });
+    const button = screen.getByRole("button", { name: "Squat için ısınma setleri ekle" }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(screen.getByText(/Isınma için önce çalışma ağırlığını gir/)).toBeTruthy();
+    first.onChange.mockClear();
+    cleanup();
+
+    const withWeight = updateSet(base, base.setLogs[0].key, { weightKg: 80 });
+    const { onChange } = renderForm({ form: withWeight });
+    fireEvent.click(screen.getByRole("button", { name: "Squat için ısınma setleri ekle" }));
+    const changed: SessionForm = onChange.mock.calls[0][0];
+    expect(changed.setLogs.filter((s) => s.setType === "warmup").map((s) => s.weightKg)).toEqual([20, 32.5, 47.5, 65]);
   });
 
   it("F20: her sette RPE seçilir; seçim API gövdesine gider, boş seçim null olur", () => {

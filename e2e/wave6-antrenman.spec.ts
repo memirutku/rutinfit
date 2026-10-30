@@ -207,4 +207,21 @@ test.describe("Dalga 6 · Antrenman", () => {
       await api.delete(`/api/workouts/templates?id=${templateId}`);
     }
   });
+
+  test("B22: seansta ana harekete 'Isınma setleri ekle' ısınma tipinde setler ekler", async ({ page }) => {
+    await openWorkouts(page);
+    await page.getByRole("button", { name: /^Başla \(/ }).first().click();
+    const swapLabel = await page.getByRole("button", { name: / egzersizini değiştir$/ }).first().getAttribute("aria-label");
+    const main = swapLabel!.replace(/ egzersizini değiştir$/, "");
+    const group = page.getByRole("group", { name: main });
+    const warmup = group.getByRole("button", { name: `${main} için ısınma setleri ekle` });
+    // Çalışma ağırlığı ilk çalışma setinden alınır (boşken düğme kapalı; birim testte).
+    await group.getByLabel("Ağırlık:").first().fill("100");
+    await warmup.click();
+    // 100 kg için: boş bar, %40, %60, %80, %90
+    await expect(group.locator("select[id]").filter({ has: page.locator('option[value="warmup"]:checked') })).toHaveCount(5);
+    await expect(group.getByLabel("Ağırlık:").first()).toHaveValue("20");
+    await expect(group.getByText("Isınma · %90")).toBeVisible();
+    await page.getByRole("button", { name: "Vazgeç" }).first().click();
+  });
 });
