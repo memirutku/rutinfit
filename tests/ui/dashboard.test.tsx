@@ -198,7 +198,7 @@ describe("dashboard kartları", () => {
   });
 
   it("öğün etiketleri ana panelin kısa adlarını kullanır", () => {
-    expect(["breakfast", "lunch", "workSnack", "dinner", "extra", "snack"].map(dashboardMealLabel)).toEqual([
+    expect(["breakfast", "lunch", "workSnack", "dinner", "extra", "snack"].map((t) => dashboardMealLabel(t))).toEqual([
       "Kahvaltı",
       "Öğle Yemeği",
       "İş Çıkışı",

@@ -42,6 +42,12 @@ model UserProfile {
   waterTargetMl     Int    @default(2500) // F13: günlük sıvı hedefi
   householdSize     Int    @default(1) // F31: alışveriş listesi kaç kişilik
   coachNotes        String? // F52: alerji, sakatlık, ekipman, çalışma düzeni (koça bilgi)
+  // F76: Ramazan modu (il bazlı, internetsiz imsak/iftar) · F14: aralıklı oruç hedefi
+  ramadanMode        Boolean @default(false)
+  ramadanProvince    String  @default("İstanbul")
+  ramadanImsakAdjust Int     @default(0) // dakika
+  ramadanIftarAdjust Int     @default(0) // dakika
+  fastingTargetHours Int? // null: zamanlayıcı kapalı
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -345,6 +351,15 @@ model Supplement {
   notes      String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+/// F14: Aralıklı oruç kayıtları.
+model FastingSession {
+  id          String    @id @default(cuid())
+  startedAt   DateTime
+  endedAt     DateTime?
+  targetHours Int
+  createdAt   DateTime  @default(now())
 }
 
 /// F83: Uygulama açıkken gösterilen hatırlatmalar (öğün, su, tartı, takviye, antrenman, serbest).

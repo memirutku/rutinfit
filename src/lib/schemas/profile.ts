@@ -49,5 +49,11 @@ export const ProfileSchema = UpdateProfileSchema.omit({ acknowledgeLowCalorie: t
   id: z.string(),
   isOnboarded: z.boolean(),
   hideNumbers: z.boolean().optional(),
+  /** F76 + F14: oruç ayarları (ayrı uçtan kaydedilir). */
+  ramadanMode: z.boolean().optional(),
+  ramadanProvince: z.string().optional(),
+  ramadanImsakAdjust: z.number().int().optional(),
+  ramadanIftarAdjust: z.number().int().optional(),
+  fastingTargetHours: z.number().int().nullable().optional(),
 });
 export type Profile = z.output<typeof ProfileSchema>;

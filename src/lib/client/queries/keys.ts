@@ -9,6 +9,7 @@ export const queryKeys = {
   progress: ["progress"] as const,
   supplements: ["supplements"] as const,
   reminders: ["reminders"] as const,
+  fasting: ["fasting"] as const,
   foodLogs: {
     all: ["food-logs"] as const,
     byDate: (date: string) => ["food-logs", date] as const,

@@ -16,3 +16,10 @@ export const MEAL_TYPE_LABELS: Record<MealType, string> = {
   dinner: "Akşam Yemeği",
   extra: "Ekstra / Ara Öğün",
 };
+
+/** F76: Ramazan modunda kahvaltı "Sahur", akşam yemeği "İftar" olarak gösterilir (kayıt türü aynı kalır). */
+export function mealTypeLabel(type: MealType, ramadan = false): string {
+  if (ramadan && type === "breakfast") return "Sahur";
+  if (ramadan && type === "dinner") return "İftar";
+  return MEAL_TYPE_LABELS[type];
+}

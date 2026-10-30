@@ -49,6 +49,7 @@ export const BACKUP_TABLES = [
   'WeeklyCheckin',
   'Supplement',
   'Reminder',
+  'FastingSession',
 ] as const;
 
 /** Yeniden üretilebilir önbellekler ve makineye özgü ayarlar (otomatik yedek klasörü) yedeğe alınmaz. */

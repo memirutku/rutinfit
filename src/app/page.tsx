@@ -32,6 +32,7 @@ import { computeReadiness } from "@/lib/readiness";
 import { useAllCustomMeasures } from "@/lib/client/queries/measures";
 import { NaturalLogModal } from "@/components/dashboard/NaturalLogModal";
 import { SupplementsCard } from "@/components/dashboard/SupplementsCard";
+import { FastingCard } from "@/components/dashboard/FastingCard";
 import { mealTypeForHour } from "@/lib/meal-time";
 
 interface UndoState {
@@ -45,6 +46,8 @@ export default function DashboardPage() {
   const todayStr = useToday();
   const profile = useProfile();
   const hideNumbers = profile.data?.hideNumbers ?? false;
+  // F76: Ramazan modunda öğün adları sahur/iftar olur.
+  const ramadan = profile.data?.ramadanMode ?? false;
   // F09: kurulmamış profilde sihirbaz açılır; "Şimdilik geç" bu oturum için kapatır.
   const [wizardDismissed, setWizardDismissed] = useState(false);
   const [savedMealsOpen, setSavedMealsOpen] = useState(false);
@@ -201,7 +204,11 @@ export default function DashboardPage() {
         <SupplementsCard date={todayStr} />
       </div>
 
+      {/* F76 + F14: Ramazan vakitleri ve aralıklı oruç (açıksa) */}
+      <FastingCard />
+
       <TodayMealsList
+        ramadan={ramadan}
         logs={foodLogs.data?.logs ?? []}
         onAdd={() => handleOpenQuickAdd()}
         onDelete={handleDeleteFoodLog}
@@ -237,6 +244,7 @@ export default function DashboardPage() {
         initialMealType={quickAddMealType}
         onSubmit={handleQuickAddSubmit}
         customMeasures={customMeasures.data}
+        ramadan={ramadan}
       />
 
       <UndoToast toast={undo?.toast ?? null} onUndo={handleUndo} onDismiss={() => setUndo(null)} />

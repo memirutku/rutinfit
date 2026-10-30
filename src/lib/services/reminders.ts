@@ -11,6 +11,7 @@ import { summarizeDrinks } from "../drinks";
 import { formatNumberTr } from "../format";
 import { MEAL_TYPE_LABELS, type MealType } from "../schemas/enums";
 import type { DueReminder, Reminder, ReminderInput, ReminderKind } from "../schemas/reminder";
+import { isRamadanFastingNow } from "./fasting";
 
 /** Vakti geçen bir hatırlatma bu kadar dakika gösterilmeye devam eder. */
 export const REMINDER_GRACE_MINUTES = 60;
@@ -92,11 +93,16 @@ export async function dueReminders(now = new Date()): Promise<DueReminder[]> {
   const today = getLocalDateString(now);
   const weekday = String(getLocalWeekday(now));
   const nowMin = minutes(getLocalTimeString(now));
-  const candidates = (await prisma.reminder.findMany({ where: { enabled: true } })).filter((r) => {
+  let candidates = (await prisma.reminder.findMany({ where: { enabled: true } })).filter((r) => {
     const age = nowMin - minutes(r.time);
     return r.days.includes(weekday) && r.lastFiredOn !== today && age >= 0 && age <= REMINDER_GRACE_MINUTES;
   });
   if (!candidates.length) return [];
+  // F76: Ramazan modunda oruç saatlerinde su ve öğün hatırlatması gelmez.
+  if (await isRamadanFastingNow(now)) {
+    candidates = candidates.filter((r) => r.kind !== "water" && r.kind !== "meal");
+    if (!candidates.length) return [];
+  }
 
   const kinds = new Set(candidates.map((r) => r.kind));
   const [profile, drinks, weighed, meals, supplements, taken, workoutDone] = await Promise.all([
