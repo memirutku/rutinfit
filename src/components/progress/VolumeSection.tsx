@@ -27,8 +27,8 @@ export function VolumeSection({ weeks = 4 }: { weeks?: number }) {
           <h3 className="font-bold text-slate-900 text-base">Haftalık set hacmi</h3>
         </div>
         <p className="text-xs text-slate-500 mt-0.5">
-          Kas grubu başına haftalık set. Kas gelişimi için yaygın hedef aralığı haftada {data.target.min}–{data.target.max} set. Bir
-          set, çalıştırdığı her kas grubuna sayılır.
+          Her kas grubunun haftada kaç çalışma seti aldığı (ısınma setleri sayılmaz). Kas gelişimi için yaygın hedef haftada{" "}
+          {data.target.min}–{data.target.max} set. Bir set, çalıştırdığı her kas grubuna sayılır.
         </p>
       </div>
 

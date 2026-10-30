@@ -233,4 +233,19 @@ test.describe("Dalga 6 · Antrenman", () => {
     await expect(page.getByText("1 × 1,25 kg")).toBeVisible();
     await expect(page.getByText("61,3 kg")).toHaveCount(0);
   });
+
+  test("B24: Antrenman'dan güç gelişimine kısayol; terimler sade", async ({ page, api }) => {
+    await api.post("/api/workouts", {
+      data: { date: todayStr(), name: uniq("E2E Güç"), durationMinutes: 20, setLogs: [{ exerciseName: "Bench Press", setNumber: 1, weightKg: 60, reps: 5 }] },
+    });
+    await openWorkouts(page);
+    await page.getByRole("link", { name: /Güç gelişimi ve rekorlar/ }).click();
+    await expect(page).toHaveURL(/\/progress#guc$/);
+    const section = page.locator("section#guc");
+    await expect(section.getByRole("heading", { name: "Güç gelişimi" })).toBeVisible();
+    await expect(section.getByRole("heading", { name: "Güç gelişimi" })).toBeInViewport();
+    await page.locator("#strength-exercise").selectOption({ label: "Bench Press" });
+    await expect(section.getByText("Tahmini en iyi tek tekrar")).toBeVisible();
+    await expect(section.getByText("En iyi e1RM")).toHaveCount(0);
+  });
 });

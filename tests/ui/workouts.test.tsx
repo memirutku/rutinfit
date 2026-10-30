@@ -7,6 +7,7 @@ import { ActiveSessionForm } from "@/components/workouts/ActiveSessionForm";
 import { DraftResumeBanner } from "@/components/workouts/DraftResumeBanner";
 import { ProgressionFeedbackPanel } from "@/components/workouts/ProgressionFeedbackPanel";
 import { WeeklyPlanGrid } from "@/components/workouts/WeeklyPlanGrid";
+import { WorkoutTabs } from "@/components/workouts/WorkoutTabs";
 import { useWorkoutDraft } from "@/components/workouts/useWorkoutDraft";
 import {
   addSet,
@@ -555,6 +556,11 @@ describe("küçük bileşenler", () => {
     expect(within(upperCard).getByText("Bu hafta yapıldı ✓")).toBeTruthy();
     expect(screen.getByRole("article", { name: /Kolay Koşu/ }).textContent).toMatch(/30 dk kolay tempo/);
     expect(screen.getAllByRole("article", { name: "Dinlenme" })[0].textContent).toMatch(/Dinlenme ve toparlanma/);
+  });
+
+  it("B24: Antrenman başlığında güç gelişimine kısayol vardır", () => {
+    render(<WorkoutTabs tab="workouts" onChange={vi.fn()} />);
+    expect(screen.getByRole("link", { name: /Güç gelişimi/ }).getAttribute("href")).toBe("/progress#guc");
   });
 
   it("WeeklyPlanGrid yüklenirken durum mesajı gösterir", () => {
