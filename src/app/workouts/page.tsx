@@ -8,6 +8,7 @@ import { useFinishWorkout, useWorkouts } from "@/lib/client/queries/workouts";
 import type { ProgressionFeedback, WorkoutSession } from "@/lib/schemas/workout";
 import { MuscleHeatmap } from "@/components/MuscleHeatmap";
 import { PlateCalculator } from "@/components/PlateCalculator";
+import { ExerciseLibraryPanel } from "@/components/workouts/ExerciseLibraryPanel";
 import { WorkoutTabs, type WorkoutSubTab } from "@/components/workouts/WorkoutTabs";
 import { ProgressionFeedbackPanel } from "@/components/workouts/ProgressionFeedbackPanel";
 import { DraftResumeBanner } from "@/components/workouts/DraftResumeBanner";
@@ -85,6 +86,8 @@ export default function WorkoutsPage() {
       {tab === "heatmap" && <MuscleHeatmap workoutSessions={workouts.data?.sessions ?? NO_SESSIONS} />}
 
       {tab === "plates" && <PlateCalculator />}
+
+      {tab === "library" && <ExerciseLibraryPanel />}
 
       {tab === "workouts" && (
         <>

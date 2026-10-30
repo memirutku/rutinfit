@@ -26,6 +26,7 @@ export const BACKUP_TABLES = [
   'DrinkLog',
   'SavedMeal',
   'SavedMealItem',
+  'CustomExercise',
   'WorkoutTemplate',
   'WorkoutExercise',
   'WorkoutSession',

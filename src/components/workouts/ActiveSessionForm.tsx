@@ -4,7 +4,8 @@ import { useId, type FormEvent } from "react";
 import type { Countdown } from "@/hooks/useCountdown";
 import { RestTimer } from "./RestTimer";
 import { SetRow } from "./SetRow";
-import { updateSet, type SessionForm } from "./session-form";
+import { ExerciseSwap } from "./ExerciseSwap";
+import { replaceExercise, updateSet, type SessionForm } from "./session-form";
 
 interface ActiveSessionFormProps {
   form: SessionForm;
@@ -59,6 +60,16 @@ export function ActiveSessionForm({
       <form onSubmit={onSubmit} className="space-y-6">
         {/* Canlı Dinlenme Zamanlayıcısı */}
         <RestTimer countdown={restTimer} />
+
+        {/* F25: Egzersizler ve "benzeriyle değiştir" */}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {[...new Set(form.setLogs.map((s) => s.exerciseName))].map((name) => (
+            <span key={name} className="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-xl bg-slate-50 border border-slate-200">
+              <span className="font-semibold text-slate-700">{name}</span>
+              <ExerciseSwap exerciseName={name} onSwap={(to) => onChange(replaceExercise(form, name, to))} />
+            </span>
+          ))}
+        </div>
 
         {/* Set Girişleri */}
         <div className="space-y-4">

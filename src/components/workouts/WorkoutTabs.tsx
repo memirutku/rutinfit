@@ -1,11 +1,12 @@
 "use client";
 
-import { Calculator, Dumbbell, Layers, type LucideIcon } from "lucide-react";
+import { BookOpen, Calculator, Dumbbell, Layers, type LucideIcon } from "lucide-react";
 
-export type WorkoutSubTab = "workouts" | "heatmap" | "plates";
+export type WorkoutSubTab = "workouts" | "library" | "heatmap" | "plates";
 
 const TABS: Array<{ id: WorkoutSubTab; label: string; icon: LucideIcon; iconClass: string }> = [
   { id: "workouts", label: "Şablonlar & Seans", icon: Dumbbell, iconClass: "text-brand-600" },
+  { id: "library", label: "Egzersizler", icon: BookOpen, iconClass: "text-amber-600" },
   { id: "heatmap", label: "Kas Haritası", icon: Layers, iconClass: "text-indigo-600" },
   { id: "plates", label: "Plaka & 1RM", icon: Calculator, iconClass: "text-emerald-600" },
 ];

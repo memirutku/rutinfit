@@ -199,6 +199,18 @@ model DrinkLog {
   @@index([date])
 }
 
+/// F25: Kullanıcının eklediği egzersiz (yerleşik kütüphane kodda: src/lib/exercise-library.ts).
+model CustomExercise {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  nameTr    String?
+  primary   String // kas kimliği (src/lib/muscles.ts)
+  secondary String   @default("[]") // JSON dizi
+  equipment String
+  cues      String   @default("[]") // JSON dizi
+  createdAt DateTime @default(now())
+}
+
 model WorkoutTemplate {
   id                    String  @id @default(cuid())
   name                  String // Ağırlık A, Kolay Koşu, vb.
