@@ -63,6 +63,19 @@ model FoodItem {
   recipeIngredients RecipeIngredient[]
   foodLogs          FoodLog[]
   savedMealItems    SavedMealItem[]
+  measures          FoodMeasure[]
+}
+
+/// F73: Kullanıcının kendi tartımıyla eklediği ev ölçüsü (yerleşik ölçüler kodda: src/lib/measures.ts).
+model FoodMeasure {
+  id         String @id @default(cuid())
+  foodItemId String
+  name       String // yemek kaşığı, su bardağı, kase, dilim, adet...
+  grams      Float
+
+  foodItem FoodItem @relation(fields: [foodItemId], references: [id], onDelete: Cascade)
+
+  @@unique([foodItemId, name])
 }
 
 model Recipe {

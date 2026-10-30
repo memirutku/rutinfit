@@ -7,6 +7,7 @@ import type { RecentFood } from "@/lib/recent-foods";
 import { errorMessage } from "@/lib/client/api";
 import { formatNumberTr, parseDecimalTr } from "@/lib/format";
 import { rankFoods } from "@/lib/food-search";
+import { builtinMeasuresFor, mergeMeasures } from "@/lib/measures";
 
 export interface QuickAddFood {
   id: string;
@@ -31,6 +32,8 @@ interface QuickAddModalProps {
   initialMealType?: MealType;
   /** Hata fırlatırsa modal açık kalır ve mesaj gösterilir. */
   onSubmit: (values: QuickAddValues) => Promise<void>;
+  /** F73: kullanıcının besin başına ölçüleri (besin kimliği → ölçüler). */
+  customMeasures?: Record<string, Array<{ id: string; name: string; grams: number }>>;
 }
 
 /** Hızlı öğün kaydı. Makrolar sunucuda katalog değerlerinden hesaplanır; burada yalnız seçim yapılır. */
@@ -42,8 +45,9 @@ export function QuickAddModal({
   recentFoods,
   initialMealType = "lunch",
   onSubmit,
+  customMeasures,
 }: QuickAddModalProps) {
-  const ids = { meal: useId(), search: useId(), food: useId(), grams: useId() };
+  const ids = { meal: useId(), search: useId(), food: useId(), grams: useId(), unit: useId() };
   const [mealType, setMealType] = useState<MealType>(initialMealType);
   const [foodId, setFoodId] = useState("");
   const [grams, setGrams] = useState("100");
@@ -72,7 +76,13 @@ export function QuickAddModal({
   // Son kullanılan bir besin 50'lik listede olmasa da seçilebilir (ad yerelden gelir).
   const recentOutsideList = recentFoods.filter((r) => !foods.some((f) => f.id === r.id));
   const selectedName = foods.find((f) => f.id === foodId)?.name ?? recentFoods.find((r) => r.id === foodId)?.name;
-  const gramsNum = parseDecimalTr(grams) ?? NaN;
+  // F73: miktar gram ya da besinin ev ölçüsüyle girilir.
+  const [unit, setUnit] = useState("gram");
+  const measures = selectedName ? mergeMeasures(builtinMeasuresFor(selectedName), customMeasures?.[foodId] ?? []) : [];
+  const measure = unit === "gram" ? undefined : measures.find((x) => x.name === unit);
+  if (unit !== "gram" && !measure) setUnit("gram");
+  const amountNum = parseDecimalTr(grams) ?? NaN;
+  const gramsNum = measure ? Math.round(amountNum * measure.grams * 10) / 10 : amountNum;
   const canSubmit = !!foodId && !!selectedName && gramsNum > 0 && !submitting;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -102,6 +112,7 @@ export function QuickAddModal({
                 aria-pressed={foodId === rf.id}
                 onClick={() => {
                   setFoodId(rf.id);
+                  setUnit("gram");
                   setGrams(String(rf.defaultGrams));
                 }}
                 className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${
@@ -181,19 +192,46 @@ export function QuickAddModal({
           </select>
         </div>
 
-        <div>
-          <label htmlFor={ids.grams} className="block text-xs font-semibold text-slate-700 mb-1">
-            Miktar (Gram)
-          </label>
-          <input
-            id={ids.grams}
-            type="text"
-            inputMode="decimal"
-            value={grams}
-            onChange={(e) => setGrams(e.target.value)}
-            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            required
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor={ids.grams} className="block text-xs font-semibold text-slate-700 mb-1">
+              {unit === "gram" ? "Miktar (Gram)" : "Miktar"}
+            </label>
+            <input
+              id={ids.grams}
+              type="text"
+              inputMode="decimal"
+              value={grams}
+              onChange={(e) => setGrams(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              required
+            />
+            {measure && Number.isFinite(gramsNum) && gramsNum > 0 && (
+              <span className="block mt-1 text-[11px] text-slate-500">≈ {formatNumberTr(gramsNum)} g</span>
+            )}
+          </div>
+          <div>
+            <label htmlFor={ids.unit} className="block text-xs font-semibold text-slate-700 mb-1">
+              Birim
+            </label>
+            <select
+              id={ids.unit}
+              value={unit}
+              onChange={(e) => {
+                setUnit(e.target.value);
+                // Ölçüye geçince 1 ölçüyle başla (gramdaki 150 "150 kaşık" olmasın).
+                if (e.target.value !== "gram" && unit === "gram") setGrams("1");
+              }}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              <option value="gram">gram</option>
+              {measures.map((x) => (
+                <option key={x.name} value={x.name}>
+                  {x.name} ({formatNumberTr(x.grams)} g)
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {error && (

@@ -62,6 +62,33 @@ describe("QuickAddModal — F02 arama", () => {
   });
 });
 
+describe("QuickAddModal — F73 ev ölçüleri", () => {
+  it("seçilen besinin ölçüsüyle miktar girilir; gram karşılığı gösterilir ve kaydedilir; kullanıcı ölçüsü öncelikli", async () => {
+    const foods = [{ id: "f1", name: "Yulaf Ezmesi", calories: 370, basisGrams: 100 }] as any;
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    render(
+      <QuickAddModal
+        open
+        onClose={() => {}}
+        foods={foods}
+        isLoadingFoods={false}
+        recentFoods={[]}
+        initialMealType="breakfast"
+        onSubmit={onSubmit}
+        customMeasures={{ f1: [{ id: "m1", name: "kase", grams: 45 }] }}
+      />
+    );
+    const unit = screen.getByLabelText("Birim") as HTMLSelectElement;
+    expect(Array.from(unit.options).map((o) => o.textContent)).toEqual(["gram", "yemek kaşığı (8 g)", "su bardağı (80 g)", "kase (45 g)"]);
+    fireEvent.change(unit, { target: { value: "yemek kaşığı" } });
+    fireEvent.change(screen.getByLabelText("Miktar"), { target: { value: "3" } });
+    expect(screen.getByText("≈ 24 g")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Ekle" }));
+    await act(async () => {});
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ foodItemId: "f1", grams: 24, mealType: "breakfast" }));
+  });
+});
+
 describe("QuickAddModal", () => {
   const foods = [
     { id: "f1", name: "Tavuk Göğsü", calories: 165, basisGrams: 100 },

@@ -18,6 +18,7 @@ export const BACKUP_VERSION = '2.0';
 export const BACKUP_TABLES = [
   'UserProfile',
   'FoodItem',
+  'FoodMeasure',
   'Recipe',
   'RecipeIngredient',
   'MealPlan',
@@ -60,6 +61,7 @@ const OWNED_CHILDREN: Partial<Record<string, string>> = {
   WorkoutExercise: 'templateId',
   SetLog: 'workoutSessionId',
   SavedMealItem: 'savedMealId',
+  FoodMeasure: 'foodItemId',
   ExtractedArtifact: 'fileId',
   AIMessage: 'conversationId',
 };

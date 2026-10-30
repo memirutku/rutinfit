@@ -29,6 +29,7 @@ import { SetupWizard } from "@/components/onboarding/SetupWizard";
 import { DrinksCard } from "@/components/dashboard/DrinksCard";
 import { SavedMealsModal } from "@/components/dashboard/SavedMealsModal";
 import { computeReadiness } from "@/lib/readiness";
+import { useAllCustomMeasures } from "@/lib/client/queries/measures";
 
 interface UndoState {
   toast: UndoToastData;
@@ -56,6 +57,8 @@ export default function DashboardPage() {
   const [quickAddMealType, setQuickAddMealType] = useState<MealType>("lunch");
   // F02: hızlı eklemede sık ve yakın zamanda kullanılanlar önce gelir.
   const foods = useFoods(200, { enabled: quickAddRequested, sort: "usage" });
+  // F73: kullanıcının ev ölçüleri
+  const customMeasures = useAllCustomMeasures(quickAddRequested);
 
   // Son kullanılan besinler ve Geri Alma (Undo) state'i
   const [recentFoods, setRecentFoods] = useLocalStorage<RecentFood[]>(RECENT_FOODS_KEY, [], parseRecentFoods);
@@ -218,6 +221,7 @@ export default function DashboardPage() {
         recentFoods={recentFoods}
         initialMealType={quickAddMealType}
         onSubmit={handleQuickAddSubmit}
+        customMeasures={customMeasures.data}
       />
 
       <UndoToast toast={undo?.toast ?? null} onUndo={handleUndo} onDismiss={() => setUndo(null)} />
