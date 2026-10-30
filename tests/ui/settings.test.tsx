@@ -104,6 +104,27 @@ describe("Ayarlar — profil ve hedefler", () => {
     expect(screen.queryByText(/başarıyla güncellendi/)).toBeNull();
   });
 
+  it("F56: taban altı kalori hedefinde uyarı ve onay kutusu çıkar; onay ve gizleme tercihi gönderilir", async () => {
+    const { calls } = setup([
+      ["/api/profile", (_u, init) => (method(init) === "PUT" ? jsonResponse({ ...PROFILE, ...body(init) }) : jsonResponse(PROFILE))],
+    ]);
+    const calories = await screen.findByLabelText("Kalori Hedefi (kcal)");
+    expect(screen.queryByRole("checkbox", { name: /doktor ya da diyetisyenle/ })).toBeNull();
+
+    fireEvent.change(calories, { target: { value: "1400" } });
+    expect(screen.getByText(/1\.500 kcal altında/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("checkbox", { name: /doktor ya da diyetisyenle/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Kalori ve makro sayılarını gizle/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Hedefleri Güncelle" }));
+
+    await screen.findByText("Profil ve hedefler başarıyla güncellendi! ✓");
+    expect(body(callsTo(calls, "/api/profile", "PUT")[0].init)).toMatchObject({
+      calorieTarget: 1400,
+      acknowledgeLowCalorie: true,
+      hideNumbers: true,
+    });
+  });
+
   it("yerel düzenleme korunur; profil verisi değişince (ör. geri yükleme) form yeniden kurulur", async () => {
     const { client } = setup();
     const protein = await screen.findByLabelText<HTMLInputElement>("Protein Hedefi (g)");

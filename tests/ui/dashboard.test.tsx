@@ -131,6 +131,24 @@ describe("dashboard kartları", () => {
     expect(screen.getByRole("link", { name: /Detaylı Plan/ }).getAttribute("href")).toBe("/nutrition");
   });
 
+  it("F56: sayıları gizleme modunda kalori, makro ve öğün sayıları görünmez; ilerleme sözle anlatılır", () => {
+    const { container: cal } = render(<CalorieCard summary={summary()} targets={targets} hideNumbers />);
+    expect(cal.textContent).not.toMatch(/\d+\s*kcal/);
+    expect(cal.textContent).toMatch(/Güne başladın|Hedefe yaklaşıyorsun|Hedefe ulaştın|Tavanın üzerindesin/);
+
+    const { container: macros } = render(<MacroBalanceCard summary={summary()} targets={targets} hideNumbers />);
+    expect(macros.textContent).not.toMatch(/\d+g/);
+    expect(macros.textContent).toContain("Protein");
+
+    const { container: meals } = render(<TodayMealsList logs={[log()]} onAdd={vi.fn()} onDelete={vi.fn()} hideNumbers />);
+    expect(meals.textContent).not.toMatch(/kcal/);
+
+    const { container: alert } = render(
+      <CeilingAlert alert={{ isApproaching: true, isExceeded: true, diffFromCeiling: -50, message: "Tavanı 50 kcal aştın" }} hideNumbers />
+    );
+    expect(alert.textContent).not.toMatch(/\d/);
+  });
+
   it("TodayWorkoutCard bekleyen ve tamamlanan seansı ayırır; şablon yoksa dinlenme günüdür", () => {
     const { rerender } = render(<TodayWorkoutCard template={template} isCompleted={false} />);
     expect(screen.getByText("Ağırlık A")).toBeTruthy();

@@ -92,6 +92,8 @@ export interface CoachMessage {
   proposal?: CardProposal;
   isError?: boolean;
   fileIds?: string[];
+  /** F56: profesyonel desteğe yönlendirme notu. */
+  safetyNotice?: string;
 }
 
 export interface AttachedFile {

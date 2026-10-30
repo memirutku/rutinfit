@@ -7,6 +7,8 @@ import { useSaveProfile } from "@/lib/client/queries/system";
 import { useTimedMessage } from "@/hooks/useTimedMessage";
 import type { Profile, ProfileInput } from "@/lib/schemas/profile";
 import { DecimalInput } from "@/components/ui/DecimalInput";
+import { calorieFloor } from "@/lib/safety";
+import { formatNumberTr } from "@/lib/format";
 
 /** Formdaki yerel taslak: profil yüklenemediyse alanlar boş başlar (varsayılanlar gösterilir). */
 type ProfileDraft = Partial<Profile>;
@@ -36,6 +38,7 @@ interface NumberFieldDef {
 const LABEL = "block text-xs font-semibold text-slate-600 mb-1";
 const INPUT = "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm";
 const int = (raw: string) => parseInt(raw, 10);
+const CALORIE_FALLBACK = 2080;
 
 const HEIGHT: NumberFieldDef = { id: "settings-field-1", label: "Boy (cm)", key: "heightCm", fallback: 181, parse: parseFloat, decimal: true };
 const AGE: NumberFieldDef = { id: "settings-field-2", label: "Yaş", key: "age", fallback: 25, parse: int };
@@ -107,6 +110,10 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
     setDraft(profile ?? {});
   }
 
+  const [acknowledgeLow, setAcknowledgeLow] = useState(false);
+  const floor = calorieFloor(draft.sex ?? "male");
+  const isLowCalorie = (draft.calorieTarget || CALORIE_FALLBACK) < floor;
+
   const save = useSaveProfile();
   const success = useTimedMessage<string>(3000);
   const set = <K extends keyof ProfileDraft>(key: K, value: ProfileDraft[K]) => setDraft((d) => ({ ...d, [key]: value }));
@@ -115,7 +122,8 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
     e.preventDefault();
     success.clear();
     // Doğrulama sunucudadır: eksik/geçersiz alan 400 döner ve hata aşağıda gösterilir.
-    save.mutate(draft as ProfileInput, {
+    const payload: ProfileInput = { ...(draft as ProfileInput), acknowledgeLowCalorie: isLowCalorie ? acknowledgeLow : undefined };
+    save.mutate(payload, {
       onSuccess: () => success.show("Profil ve hedefler başarıyla güncellendi! ✓"),
     });
   }
@@ -166,11 +174,37 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
           ))}
         </div>
 
+        {isLowCalorie && (
+          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
+            <p>
+              Bu hedef {formatNumberTr(floor)} kcal altında. Güvenli taban bu; daha düşük bir hedef yalnız bir doktor ya da
+              diyetisyen gözetiminde uygulanmalı.
+            </p>
+            <label className="flex items-center gap-2 font-semibold">
+              <input type="checkbox" checked={acknowledgeLow} onChange={(e) => setAcknowledgeLow(e.target.checked)} />
+              Bu hedefi bir doktor ya da diyetisyenle birlikte belirledim
+            </label>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-slate-100">
           <NumberField field={FAT} draft={draft} onChange={set} />
           <TimeField id="settings-field-10" label="Hedef Uyanış Saati" field="wakeTime" fallback="06:00" draft={draft} onChange={set} />
           <TimeField id="settings-field-11" label="İşten Eve Varış Saati" field="workdayHomeTime" fallback="19:30" draft={draft} onChange={set} />
         </div>
+
+        <label className="flex items-start gap-2 pt-3 border-t border-slate-100 text-xs text-slate-700">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={draft.hideNumbers ?? false}
+            onChange={(e) => set("hideNumbers", e.target.checked)}
+          />
+          <span>
+            <span className="font-bold">Kalori ve makro sayılarını gizle</span>
+            <span className="block text-slate-500">Pano ilerlemeyi sayı yerine sözle gösterir. Sayılar hesaplanmaya devam eder.</span>
+          </span>
+        </label>
 
         <div className="flex justify-end pt-2">
           <button

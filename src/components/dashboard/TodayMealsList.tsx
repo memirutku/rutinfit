@@ -23,11 +23,13 @@ export function dashboardMealLabel(mealType: string): string {
 interface TodayMealsListProps {
   logs: FoodLog[];
   onAdd: () => void;
+  /** F56: kalori ve makroları gizle. */
+  hideNumbers?: boolean;
   onDelete: (log: FoodLog) => void;
 }
 
 /** Bugün Kaydedilen Öğünler ve Hızlı Yönetim */
-export function TodayMealsList({ logs, onAdd, onDelete }: TodayMealsListProps) {
+export function TodayMealsList({ logs, onAdd, onDelete, hideNumbers = false }: TodayMealsListProps) {
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
       <div className="flex items-center justify-between mb-4">
@@ -73,8 +75,14 @@ export function TodayMealsList({ logs, onAdd, onDelete }: TodayMealsListProps) {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-800 truncate">{log.name}</p>
                   <p className="text-xs text-slate-400">
-                    {formatNumberTr(log.grams)}g · {formatNumberTr(log.caloriesSnapshot)} kcal · P: {formatNumberTr(log.proteinSnapshot)}g · K: {formatNumberTr(log.carbsSnapshot)}g · Y:{" "}
-                    {formatNumberTr(log.fatSnapshot)}g
+                    {hideNumbers ? (
+                      `${formatNumberTr(log.grams)}g`
+                    ) : (
+                      <>
+                        {formatNumberTr(log.grams)}g · {formatNumberTr(log.caloriesSnapshot)} kcal · P: {formatNumberTr(log.proteinSnapshot)}g · K:{" "}
+                        {formatNumberTr(log.carbsSnapshot)}g · Y: {formatNumberTr(log.fatSnapshot)}g
+                      </>
+                    )}
                   </p>
                 </div>
               </div>

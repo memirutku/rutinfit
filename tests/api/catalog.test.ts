@@ -77,6 +77,24 @@ describe("/api/profile", () => {
     expect((await callRoute(profilePut, { method: "PUT", body: { ...valid, sex: "x" } })).status).toBe(400);
     expect((await callRoute(profilePut, { method: "PUT", body: { ...valid, fatTargetG: 0 } })).status).toBe(200);
   });
+
+  it("F56: tabanın altındaki kalori hedefi onaysız 422 döner; onayla kaydedilir, onay alanı saklanmaz", async () => {
+    const low = { ...valid, sex: "female", calorieTarget: 1100, calorieCeiling: 1150 };
+    const res = await callRoute(profilePut, { method: "PUT", body: low });
+    expect(res.status).toBe(422);
+    expect(res.json).toMatchObject({ code: "LOW_CALORIE" });
+    expect(res.json.error).toMatch(/1\.200 kcal/);
+
+    const ok = await callRoute(profilePut, { method: "PUT", body: { ...low, acknowledgeLowCalorie: true } });
+    expect(ok.status).toBe(200);
+    expect(ok.json.calorieTarget).toBe(1100);
+    expect(ok.json).not.toHaveProperty("acknowledgeLowCalorie");
+  });
+
+  it("F56: sayıları gizleme tercihi kaydedilir", async () => {
+    const res = await callRoute(profilePut, { method: "PUT", body: { ...valid, hideNumbers: true } });
+    expect(res.json.hideNumbers).toBe(true);
+  });
 });
 
 describe("/api/foods/barcode", () => {

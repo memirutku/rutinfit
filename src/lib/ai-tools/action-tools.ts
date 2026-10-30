@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { prisma } from '../prisma';
 import { getLocalDateString } from '../date-utils';
 import { toSetRpe } from '../rpe';
+import { checkCalorieTarget } from '../safety';
 import { DraftType, validateDraftChanges } from '../ai-schema';
 
 export interface CreateDraftParams {
@@ -131,6 +132,13 @@ export async function verifyAndApplyActionDraft(
   const storedChanges = JSON.parse(draft.proposedChanges || '{}');
   const rawChanges = editedChanges ? { ...storedChanges, ...editedChanges } : storedChanges;
   const changesToApply = validateDraftChanges(draft.draftType as DraftType, rawChanges);
+
+  if (draft.draftType === 'nutrition_targets') {
+    // F56: AI hiçbir zaman güvenli tabanın altında hedef yazamaz.
+    const profile = await prisma.userProfile.findFirst({ select: { sex: true } });
+    const check = checkCalorieTarget(profile?.sex, Number(changesToApply.calorieTarget));
+    if (!check.ok) throw new DraftActionError(check.message!, 400, 'invalid');
+  }
   let affectedEntityId: string | undefined;
   let claimed = false;
 

@@ -36,6 +36,7 @@ export default function DashboardPage() {
   // Gece yarısını geçen açık pencerede de doğru gün (kayıtlar yanlış güne düşmez)
   const todayStr = useToday();
   const profile = useProfile();
+  const hideNumbers = profile.data?.hideNumbers ?? false;
   const foodLogs = useFoodLogs(todayStr);
   const workouts = useWorkouts(todayStr);
   const progress = useProgress();
@@ -160,13 +161,13 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <DashboardHeader homeTime={homeTime || "19:30"} onQuickAdd={() => handleOpenQuickAdd()} />
-      <CeilingAlert alert={summary?.ceilingAlert} />
+      <CeilingAlert alert={summary?.ceilingAlert} hideNumbers={hideNumbers} />
       <RhythmStepCard step={step} onAction={handleRhythmAction} />
 
       {/* Ana Metrikler: Kalori & Makrolar */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <CalorieCard summary={summary} targets={targets} />
-        <MacroBalanceCard summary={summary} targets={targets} />
+        <CalorieCard summary={summary} targets={targets} hideNumbers={hideNumbers} />
+        <MacroBalanceCard summary={summary} targets={targets} hideNumbers={hideNumbers} />
       </div>
 
       {/* İkinci Sıra: Günün Antrenmanı & Kreatin / İyilik Hali */}
@@ -175,7 +176,12 @@ export default function DashboardPage() {
         <WellbeingCard today={progress.data?.today} onToggleCreatine={handleToggleCreatine} onSave={handleSaveWellbeing} />
       </div>
 
-      <TodayMealsList logs={foodLogs.data?.logs ?? []} onAdd={() => handleOpenQuickAdd()} onDelete={handleDeleteFoodLog} />
+      <TodayMealsList
+        logs={foodLogs.data?.logs ?? []}
+        onAdd={() => handleOpenQuickAdd()}
+        onDelete={handleDeleteFoodLog}
+        hideNumbers={hideNumbers}
+      />
 
       <QuickAddModal
         open={isQuickAddOpen}

@@ -12,19 +12,20 @@ interface MacroBarProps {
   remaining?: number;
   percent?: number;
   barClass: string;
+  hideNumbers?: boolean;
 }
 
-function MacroBar({ label, target, consumed, remaining, percent, barClass }: MacroBarProps) {
+function MacroBar({ label, target, consumed, remaining, percent, barClass, hideNumbers }: MacroBarProps) {
   return (
     <div>
       <div className="flex justify-between text-sm mb-1">
-        <span className="font-semibold text-slate-700">
-          {label} (Hedef: {target}g)
-        </span>
-        <span className="font-bold text-slate-900">
-          {consumed || 0}g / {target}g{" "}
-          <span className="text-xs text-slate-400 font-normal">(Kalan: {remaining ?? target}g)</span>
-        </span>
+        <span className="font-semibold text-slate-700">{hideNumbers ? label : `${label} (Hedef: ${target}g)`}</span>
+        {!hideNumbers && (
+          <span className="font-bold text-slate-900">
+            {consumed || 0}g / {target}g{" "}
+            <span className="text-xs text-slate-400 font-normal">(Kalan: {remaining ?? target}g)</span>
+          </span>
+        )}
       </div>
       <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
         <div
@@ -39,16 +40,17 @@ function MacroBar({ label, target, consumed, remaining, percent, barClass }: Mac
 interface MacroBalanceCardProps {
   summary?: DailySummary;
   targets: DailyTargets;
+  hideNumbers?: boolean;
 }
 
 /** Makro Dağılımı Kartı: protein, karbonhidrat ve yağ ilerleme çubukları. */
-export function MacroBalanceCard({ summary, targets }: MacroBalanceCardProps) {
+export function MacroBalanceCard({ summary, targets, hideNumbers = false }: MacroBalanceCardProps) {
   return (
     <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="font-bold text-slate-900 text-base">Makro Besin Dengesi</h3>
-          <p className="text-xs text-slate-500 mt-0.5">Enerji dengesi: Protein ve Karb (4 kcal/g), Yağ (9 kcal/g)</p>
+          {!hideNumbers && <p className="text-xs text-slate-500 mt-0.5">Enerji dengesi: Protein ve Karb (4 kcal/g), Yağ (9 kcal/g)</p>}
         </div>
         <Link
           href="/nutrition"
@@ -67,6 +69,7 @@ export function MacroBalanceCard({ summary, targets }: MacroBalanceCardProps) {
           remaining={summary?.remainingProtein}
           percent={summary?.progressPercent?.protein}
           barClass="bg-emerald-500"
+          hideNumbers={hideNumbers}
         />
         <MacroBar
           label="Karbonhidrat"
@@ -75,6 +78,7 @@ export function MacroBalanceCard({ summary, targets }: MacroBalanceCardProps) {
           remaining={summary?.remainingCarbs}
           percent={summary?.progressPercent?.carbs}
           barClass="bg-amber-500"
+          hideNumbers={hideNumbers}
         />
         <MacroBar
           label="Sağlıklı Yağ"
@@ -83,6 +87,7 @@ export function MacroBalanceCard({ summary, targets }: MacroBalanceCardProps) {
           remaining={summary?.remainingFat}
           percent={summary?.progressPercent?.fat}
           barClass="bg-indigo-500"
+          hideNumbers={hideNumbers}
         />
       </div>
     </div>

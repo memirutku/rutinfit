@@ -265,6 +265,17 @@ describe("Koç sayfası", () => {
     expect(s.calls.filter((c) => c.url.endsWith("/api/ai/chat") && !c.init?.method).length).toBeGreaterThanOrEqual(2);
   });
 
+  it("F56: yanıt güvenlik notu taşıyorsa mesajın altında not olarak gösterilir", async () => {
+    stubCoach({
+      reply: () => jsonResponse({ reply: "Seni dinliyorum.", conversationId: "c1", safetyNotice: "Bir uzmanla konuş. Acilse 112." }),
+    });
+    const user = userEvent.setup();
+    renderWithQuery(<CoachPage />);
+    await ask(user, "kendimi kusturuyorum");
+    const note = await screen.findByRole("note");
+    expect(note.textContent).toContain("112");
+  });
+
   it("öneri reddedilince iptal notu görünür", async () => {
     const s = stubCoach({
       reply: () => jsonResponse({ reply: "Öneri:", conversationId: "c1", actionProposal: mealProposal }),

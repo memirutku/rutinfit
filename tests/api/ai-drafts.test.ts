@@ -166,6 +166,30 @@ describe("Taslak düzenleme ve diğer türler", () => {
     expect(p).toMatchObject({ calorieTarget: 1900, calorieCeiling: 2000, proteinTargetG: 150, fatTargetG: 0 });
   });
 
+  it("F56: cinsiyete göre tabanın altındaki hedef uygulanmaz (400), taslak beklemede kalır", async () => {
+    await createProfile({ sex: "male" });
+    const d = await createActionDraft({
+      draftType: "nutrition_targets",
+      proposedChanges: { calorieTarget: 1400, proteinTargetG: 150, fatTargetG: 50, carbTargetG: 120 },
+      impactSummary: "x",
+    });
+    const res = await approve(d.draftId, d.approvalToken);
+    expect(res.status).toBe(400);
+    expect(res.json.error).toMatch(/1\.500 kcal/);
+    expect((await prisma.actionDraft.findUniqueOrThrow({ where: { id: d.draftId } })).status).toBe("pending");
+    expect((await prisma.userProfile.findUniqueOrThrow({ where: { id: "default-user" } })).calorieTarget).not.toBe(1400);
+  });
+
+  it("F56: 1.200 kcal altındaki hedef taslak olarak hiç oluşturulamaz", async () => {
+    await expect(
+      createActionDraft({
+        draftType: "nutrition_targets",
+        proposedChanges: { calorieTarget: 900, proteinTargetG: 100, fatTargetG: 30, carbTargetG: 60 },
+        impactSummary: "x",
+      })
+    ).rejects.toThrow(/1\.200/);
+  });
+
   it("kesirli hedefleri tam sayıya yuvarlar (Int sütun)", async () => {
     await createProfile();
     const d = await createActionDraft({

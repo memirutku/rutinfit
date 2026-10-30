@@ -51,6 +51,12 @@ export function MessageBubble({ message: m, state, onApprove, onReject, onToggle
           <div className="whitespace-pre-wrap">{m.content}</div>
         </div>
 
+        {m.safetyNotice && (
+          <div role="note" className="max-w-[85%] p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs leading-relaxed">
+            {m.safetyNotice}
+          </div>
+        )}
+
         {/* Yapılandırılmış Eylem Taslak Kartı */}
         {proposal && !state.isRejected && (
           <ActionProposalCard

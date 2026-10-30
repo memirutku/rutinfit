@@ -114,7 +114,8 @@ export const RecipeDraftSchema = z.object({
 const intTarget = (schema: z.ZodNumber) => schema.transform((v) => Math.round(v));
 
 export const NutritionTargetDraftSchema = z.object({
-  calorieTarget: intTarget(z.number().positive("Kalori hedefi pozitif olmalıdır")),
+  // F56: hiçbir AI hedefi 1.200 kcal tabanının altında olamaz (cinsiyete göre taban uygulamada denetlenir).
+  calorieTarget: intTarget(z.number().min(1200, "Kalori hedefi 1.200 kcal altında olamaz.")),
   calorieCeiling: intTarget(z.number().positive()).optional(),
   proteinTargetG: intTarget(z.number().nonnegative("Protein hedefi negatif olamaz")),
   fatTargetG: intTarget(z.number().nonnegative("Yağ hedefi negatif olamaz")),

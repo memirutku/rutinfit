@@ -75,6 +75,8 @@ export const ChatResponseSchema = z.object({
   conversationId: z.string().optional(),
   actionProposal: ActionProposalSchema.nullable().optional(),
   isError: z.boolean().optional(),
+  /** F56: yeme bozukluğu / kendine zarar işaretinde profesyonel desteğe yönlendirme. */
+  safetyNotice: z.string().optional(),
 });
 export type ChatResponse = z.infer<typeof ChatResponseSchema>;
 

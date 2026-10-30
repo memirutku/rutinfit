@@ -23,12 +23,17 @@ export const UpdateProfileSchema = z.object({
   wakeTime: time,
   workdayHomeTime: time,
   isOnboarded: z.boolean().optional(),
+  /** F56: kalori ve makro sayılarını gizle. */
+  hideNumbers: z.boolean().optional(),
+  /** F56: tabanın altındaki hedef bilerek (sağlık profesyoneliyle) seçildi. Saklanmaz. */
+  acknowledgeLowCalorie: z.boolean().optional(),
 });
 export type ProfileInput = z.input<typeof UpdateProfileSchema>;
 
 /** GET/PUT /api/profile yanıtı */
-export const ProfileSchema = UpdateProfileSchema.extend({
+export const ProfileSchema = UpdateProfileSchema.omit({ acknowledgeLowCalorie: true }).extend({
   id: z.string(),
   isOnboarded: z.boolean(),
+  hideNumbers: z.boolean().optional(),
 });
 export type Profile = z.output<typeof ProfileSchema>;

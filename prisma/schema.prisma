@@ -33,6 +33,7 @@ model UserProfile {
   wakeTime        String   @default("06:00")
   workdayHomeTime String   @default("19:30")
   isOnboarded     Boolean  @default(false)
+  hideNumbers     Boolean  @default(false) // F56: kalori ve makro sayılarını gizle
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }

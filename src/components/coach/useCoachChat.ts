@@ -138,7 +138,12 @@ export function useCoachChat() {
       if (data.conversationId && !conversationId) setConversationId(data.conversationId);
       setMessages((prev) => [
         ...prev,
-        { ...assistant(data.reply), proposal: parseProposal(data.actionProposal), isError: data.isError },
+        {
+          ...assistant(data.reply),
+          proposal: parseProposal(data.actionProposal),
+          isError: data.isError,
+          safetyNotice: data.safetyNotice,
+        },
       ]);
       setAttachedFiles([]);
     } catch {
