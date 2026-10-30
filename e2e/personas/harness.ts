@@ -60,7 +60,6 @@ export function journey(page: Page, persona: string, profile: Record<string, unk
     } catch (e) {
       ok = false;
       error = String((e as Error).message ?? e)
-        // eslint-disable-next-line no-control-regex
         .replace(/\u001b\[\d+m/g, "")
         .split("\n")
         .slice(0, 4)
