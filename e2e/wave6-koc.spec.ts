@@ -144,4 +144,15 @@ test.describe("Dalga 6 · AI koç", () => {
       });
     }
   });
+
+  test("B33: 390 px'te gönder düğmesinin erişilebilir adı 'Gönder'", async ({ page, mocks }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await mocks.queueLLM("Kreatin günün herhangi bir saatinde alınabilir.");
+    await page.goto("/coach");
+    await page.getByPlaceholder(/Sorunuzu yazın/).fill("Kreatin ne zaman alınmalı?");
+    const send = page.getByRole("button", { name: "Gönder", exact: true });
+    await expect(send).toBeVisible();
+    await send.click();
+    await expect(page.getByText("Kreatin günün herhangi bir saatinde alınabilir.")).toBeVisible();
+  });
 });

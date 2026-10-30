@@ -222,6 +222,13 @@ describe("ChatComposer ve QuickPrompts", () => {
     expect(attach().disabled).toBe(true);
   });
 
+  it("B33: gönder düğmesinin metni dar ekranda gizlense de erişilebilir adı 'Gönder'dir", () => {
+    render(composer({ input: "selam" }));
+    const button = send();
+    expect(button.getAttribute("aria-label")).toBe("Gönder");
+    expect(button.getAttribute("title")).toBe("Gönder");
+  });
+
   it("form gönderimi ve yazma olaylarını iletir; dosya seçimi sonrası seçici sıfırlanır", async () => {
     const onSubmit = vi.fn();
     const onInputChange = vi.fn();

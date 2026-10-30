@@ -80,13 +80,18 @@ export function ChatComposer({
           className="flex-1 min-w-0 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-2xs"
         />
 
+        {/* B33: dar ekranda metin gizlenir; erişilebilir ad ve ipucu her genişlikte "Gönder". */}
         <button
           type="submit"
+          aria-label="Gönder"
+          title="Gönder"
           disabled={disabled || loading || (!input.trim() && !hasAttachments)}
           className="px-4 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 transition-colors flex items-center gap-1.5 font-bold text-sm shadow-xs"
         >
-          <Send className="w-4 h-4" />
-          <span className="hidden sm:inline">Gönder</span>
+          <Send className="w-4 h-4" aria-hidden="true" />
+          <span className="hidden sm:inline" aria-hidden="true">
+            Gönder
+          </span>
         </button>
       </form>
     </div>
