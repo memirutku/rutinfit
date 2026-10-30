@@ -131,6 +131,16 @@ describe("Ayarlar — profil ve hedefler", () => {
     expect(await screen.findByRole("dialog", { name: /Hedeflerini birlikte kuralım/ })).toBeTruthy();
   });
 
+  it("F31: hane büyüklüğü profil formundan kaydedilir", async () => {
+    const { calls } = setup([
+      ["/api/profile", (_u, init) => (method(init) === "PUT" ? jsonResponse({ ...PROFILE, ...body(init) }) : jsonResponse(PROFILE))],
+    ]);
+    fireEvent.change(await screen.findByLabelText("Hane büyüklüğü (kişi)"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Hedefleri Güncelle" }));
+    await screen.findByText("Profil ve hedefler başarıyla güncellendi! ✓");
+    expect(body(callsTo(calls, "/api/profile", "PUT")[0].init)).toMatchObject({ householdSize: 3 });
+  });
+
   it("F13: günlük su hedefi profil formundan kaydedilir", async () => {
     const { calls } = setup([
       ["/api/profile", (_u, init) => (method(init) === "PUT" ? jsonResponse({ ...PROFILE, ...body(init) }) : jsonResponse(PROFILE))],

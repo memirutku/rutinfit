@@ -3,7 +3,7 @@ import { GET, POST, PUT } from "@/app/api/shopping/route";
 import { prisma } from "@/lib/prisma";
 import { callRoute } from "../helpers/route";
 import { resetDatabase } from "../helpers/db";
-import { createFood, createMealPlan, createRecipe } from "../helpers/factories";
+import { createFood, createMealPlan, createProfile, createRecipe } from "../helpers/factories";
 
 beforeEach(resetDatabase);
 
@@ -84,5 +84,15 @@ describe("/api/shopping", () => {
   it("geçersiz gövde 400, bilinmeyen kalem 404 döner", async () => {
     expect((await callRoute(POST, { body: { weekStart: "dün" } })).status).toBe(400);
     expect((await callRoute(PUT, { method: "PUT", body: { id: "yok", checked: true } })).status).toBe(404);
+  });
+});
+
+describe("F31: hane büyüklüğü", () => {
+  it("alışveriş miktarları hane büyüklüğüyle çarpılır", async () => {
+    await createProfile({ householdSize: 3 });
+    await planWeek();
+    await callRoute(POST, { body: { weekStart: MONDAY } });
+    const chicken = await prisma.shoppingListItem.findFirstOrThrow({ where: { name: "Tavuk Göğsü" } });
+    expect(chicken.amount).toBe(4500);
   });
 });

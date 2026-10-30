@@ -232,6 +232,17 @@ describe("F78: plana uyum", () => {
   });
 });
 
+describe("F31: serbest porsiyon çarpanı", () => {
+  it("hazır düğmeler dışında istenen çarpan yazılabilir", () => {
+    const onMultiplierChange = vi.fn();
+    renderWithQuery(
+      <PlannedMealCard template={DEFAULT_MEAL_TEMPLATES[0]} planned={undefined} multiplier={1} onMultiplierChange={onMultiplierChange} onLogEaten={vi.fn()} />
+    );
+    fireEvent.change(screen.getByLabelText("Porsiyon çarpanı"), { target: { value: "2,5" } });
+    expect(onMultiplierChange).toHaveBeenLastCalledWith(2.5);
+  });
+});
+
 describe("PlannedMealCard", () => {
   it("plan yokken rehber örneğini ve hedefleri gösterir; çarpan düğmeleri bildirir", () => {
     const onMultiplierChange = vi.fn();

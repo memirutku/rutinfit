@@ -40,6 +40,7 @@ model UserProfile {
   goalRateKgPerWeek Float  @default(0.5)
   targetWeightKg    Float?
   waterTargetMl     Int    @default(2500) // F13: günlük sıvı hedefi
+  householdSize     Int    @default(1) // F31: alışveriş listesi kaç kişilik
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }

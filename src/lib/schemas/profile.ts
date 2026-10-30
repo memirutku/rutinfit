@@ -35,6 +35,8 @@ export const UpdateProfileSchema = z.object({
   targetWeightKg: z.number().positive().max(400).nullable().optional(),
   /** F13: günlük sıvı hedefi (ml). */
   waterTargetMl: z.number().int().min(500).max(8000).optional(),
+  /** F31: alışveriş listesi kaç kişilik. */
+  householdSize: z.number().int().min(1).max(12).optional(),
   /** F56: tabanın altındaki hedef bilerek (sağlık profesyoneliyle) seçildi. Saklanmaz. */
   acknowledgeLowCalorie: z.boolean().optional(),
 });

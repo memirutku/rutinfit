@@ -4,6 +4,7 @@ import { Clock, Flame } from "lucide-react";
 import type { MealType } from "@/lib/schemas/enums";
 import type { PlannedMeal } from "@/lib/schemas/meal-plan";
 import { ADHERENCE_LABELS, ADHERENCE_VALUES, type Adherence } from "@/lib/adherence";
+import { DecimalInput } from "@/components/ui/DecimalInput";
 
 /** Günlük öğün planı yoksa gösterilen varsayılan dağılım rehberi. */
 export interface MealTemplate {
@@ -110,6 +111,13 @@ export function PlannedMealCard({ template, planned, multiplier: mult, onMultipl
               {m}x
             </button>
           ))}
+          {/* F31: serbest çarpan */}
+          <DecimalInput
+            aria-label="Porsiyon çarpanı"
+            value={mult}
+            onValueChange={(v) => v >= 0.25 && v <= 10 && onMultiplierChange(v)}
+            className="w-12 px-1.5 py-0.5 rounded border border-slate-200 bg-white text-[11px] font-bold text-center"
+          />
         </div>
 
         {/* Makro Hedef ve Gerçekleşen Rozetleri */}

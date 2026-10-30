@@ -22,7 +22,8 @@ type NumericKey =
   | "proteinTargetG"
   | "carbTargetG"
   | "fatTargetG"
-  | "waterTargetMl";
+  | "waterTargetMl"
+  | "householdSize";
 type TimeKey = "wakeTime" | "workdayHomeTime";
 
 interface NumberFieldDef {
@@ -60,6 +61,7 @@ const TARGETS: NumberFieldDef[] = [
   { id: "settings-field-8", label: "Karbonhidrat (g)", key: "carbTargetG", fallback: 220, parse: int, tone: "font-bold text-amber-700" },
 ];
 const WATER: NumberFieldDef = { id: "settings-field-water", label: "Günlük su hedefi (ml)", key: "waterTargetMl", fallback: 2500, parse: int, tone: "font-bold text-sky-700" };
+const HOUSEHOLD: NumberFieldDef = { id: "settings-field-household", label: "Hane büyüklüğü (kişi)", key: "householdSize", fallback: 1, parse: int };
 const FAT: NumberFieldDef = { id: "settings-field-9", label: "Yağ Hedefi (g)", key: "fatTargetG", fallback: 60, parse: int, tone: "font-bold text-indigo-700" };
 
 function NumberField({ field, draft, onChange }: { field: NumberFieldDef; draft: ProfileDraft; onChange: (key: NumericKey, value: number) => void }) {
@@ -207,6 +209,7 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <NumberField field={WATER} draft={draft} onChange={set} />
+          <NumberField field={HOUSEHOLD} draft={draft} onChange={set} />
         </div>
 
         <label className="flex items-start gap-2 pt-3 border-t border-slate-100 text-xs text-slate-700">
