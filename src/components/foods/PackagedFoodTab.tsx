@@ -1,7 +1,7 @@
 import { AlertCircle, Barcode, Download, Plus, Search } from "lucide-react";
 import { keyedBy } from "@/lib/client/keys";
 import type { PackagedProduct } from "@/lib/schemas/food";
-import { QUICK_SEARCH_TAGS } from "./constants";
+import { QUICK_SEARCH_TAGS, isBarcode } from "./constants";
 import { formatNumberTr } from "@/lib/format";
 
 interface PackagedFoodTabProps {
@@ -96,7 +96,7 @@ export function PackagedFoodTab({
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 shadow-xs"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Bu Ürünü Özel Olarak Kataloğa Ekle</span>
+            <span>{isBarcode(input) ? "Etiketten ekle" : "Bu Ürünü Özel Olarak Kataloğa Ekle"}</span>
           </button>
         </div>
       )}

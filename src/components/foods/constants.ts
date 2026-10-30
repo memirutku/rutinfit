@@ -9,6 +9,7 @@ export const FOOD_CATEGORIES = [
   "Manav (Sebze & Meyve)",
   "Bakliyatlar",
   "Yağlar & Soslar",
+  "Paketli Gıda",
 ] as const;
 
 export const QUICK_SEARCH_TAGS = [
@@ -25,3 +26,6 @@ export interface FoodsNotice {
   type: "success" | "error";
   text: string;
 }
+
+/** Yalnız rakamlardan oluşan 6–14 haneli giriş barkod sayılır. */
+export const isBarcode = (value: string) => /^\d{6,14}$/.test(value.trim());
