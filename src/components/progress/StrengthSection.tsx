@@ -84,6 +84,12 @@ export function StrengthSection() {
             )}
           </div>
 
+          {d.plateau && (
+            <p role="note" className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+              {d.plateau.message}
+            </p>
+          )}
+
           {chart.length > 1 && (
             <div className="h-56" aria-label="e1RM trendi">
               <ResponsiveContainer width="100%" height="100%">

@@ -28,6 +28,11 @@ export const queryKeys = {
   pantry: ["pantry"] as const,
   savedMeals: ["saved-meals"] as const,
   autoBackup: ["auto-backup"] as const,
+  exercises: {
+    all: ["exercises"] as const,
+    list: (params: string) => ["exercises", "list", params] as const,
+    alternatives: (name: string) => ["exercises", "alternatives", name] as const,
+  },
   drinks: {
     all: ["drinks"] as const,
     byDate: (date: string) => ["drinks", date] as const,

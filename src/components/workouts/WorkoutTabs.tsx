@@ -1,11 +1,13 @@
 "use client";
 
-import { Calculator, Dumbbell, Layers, type LucideIcon } from "lucide-react";
+import { BookOpen, Calculator, Dumbbell, HeartPulse, Layers, type LucideIcon } from "lucide-react";
 
-export type WorkoutSubTab = "workouts" | "heatmap" | "plates";
+export type WorkoutSubTab = "workouts" | "cardio" | "library" | "heatmap" | "plates";
 
 const TABS: Array<{ id: WorkoutSubTab; label: string; icon: LucideIcon; iconClass: string }> = [
   { id: "workouts", label: "Şablonlar & Seans", icon: Dumbbell, iconClass: "text-brand-600" },
+  { id: "cardio", label: "Kardiyo", icon: HeartPulse, iconClass: "text-rose-600" },
+  { id: "library", label: "Egzersizler", icon: BookOpen, iconClass: "text-amber-600" },
   { id: "heatmap", label: "Kas Haritası", icon: Layers, iconClass: "text-indigo-600" },
   { id: "plates", label: "Plaka & 1RM", icon: Calculator, iconClass: "text-emerald-600" },
 ];
@@ -19,11 +21,11 @@ export function WorkoutTabs({ tab, onChange }: { tab: WorkoutSubTab; onChange: (
           Haftalık Antrenman & İlerleme 🏋️
         </h2>
         <p className="text-sm text-slate-500 mt-0.5">
-          3 Ağırlık (A/B/C) + 2 Kolay Koşu + 2 Dinlenme · İş çıkışı 19:40 ritmi
+          Haftalık plan, egzersiz kütüphanesi, kas haritası ve plaka hesabı
         </p>
       </div>
 
-      <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold">
+      <div className="flex flex-wrap items-center bg-slate-100 p-1 rounded-xl text-xs font-bold">
         {TABS.map(({ id, label, icon: Icon, iconClass }) => (
           <button
             key={id}

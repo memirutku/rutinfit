@@ -199,6 +199,18 @@ model DrinkLog {
   @@index([date])
 }
 
+/// F25: Kullanıcının eklediği egzersiz (yerleşik kütüphane kodda: src/lib/exercise-library.ts).
+model CustomExercise {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  nameTr    String?
+  primary   String // kas kimliği (src/lib/muscles.ts)
+  secondary String   @default("[]") // JSON dizi
+  equipment String
+  cues      String   @default("[]") // JSON dizi
+  createdAt DateTime @default(now())
+}
+
 model WorkoutTemplate {
   id                    String  @id @default(cuid())
   name                  String // Ağırlık A, Kolay Koşu, vb.
@@ -220,6 +232,7 @@ model WorkoutExercise {
   repMax       Int    @default(12)
   restSeconds  Int    @default(90)
   orderIndex   Int    @default(0)
+  incrementKg  Float  @default(2.5) // F21: ilerlemede eklenecek ağırlık
 
   template WorkoutTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
@@ -252,11 +265,29 @@ model SetLog {
   weightKg         Float
   reps             Int
   rpe              Float? // set başına algılanan zorluk, 1–10, yarım puanlı (RIR = 10 - RPE)
+  setType          String  @default("normal") // F19: normal, warmup, drop, failure
   isTargetMet      Boolean @default(false)
 
   session WorkoutSession @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
 
   @@index([workoutSessionId])
+}
+
+/// F27: Koşu, yürüyüş, bisiklet, yüzme ve diğer kardiyo (elle kayıt).
+model CardioLog {
+  id            String   @id @default(cuid())
+  date          String // YYYY-MM-DD
+  kind          String // run, walk, cycle, swim, other
+  durationMin   Float
+  distanceKm    Float?
+  avgHr         Int?
+  rpe           Float?
+  kcal          Float?
+  kcalEstimated Boolean  @default(false)
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  @@index([date])
 }
 
 model WeightLog {
@@ -281,6 +312,8 @@ model DailyWellbeing {
   hunger1to5   Int      @default(3)
   sleepMinutes Int      @default(420) // 7 saat
   stress1to5   Int      @default(3)
+  soreness1to5 Int? // F51: kas ağrısı (1 yok, 5 çok)
+  mood1to5     Int? // F51: ruh hâli
   notes        String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

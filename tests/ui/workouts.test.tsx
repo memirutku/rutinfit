@@ -205,12 +205,69 @@ describe("ActiveSessionForm", () => {
     expect((onChange.mock.calls[1][0] as SessionForm).setLogs[0].rpe).toBeNull();
   });
 
+  it("F25: egzersiz benzeriyle değiştirilir; o egzersizin bütün setleri yeni adı alır", async () => {
+    const stub = stubFetch([
+      [
+        "/api/exercises?alternativesFor=Squat",
+        () =>
+          jsonResponse({
+            exercise: { id: "squat", name: "Squat", nameTr: "Halter squat" },
+            alternatives: [
+              { id: "leg-press", name: "Leg Press", nameTr: "Leg press", equipment: "machine" },
+              { id: "goblet-squat", name: "Goblet Squat", nameTr: "Goblet squat", equipment: "dumbbell" },
+            ],
+          }),
+      ],
+    ]);
+    const { onChange, form } = renderForm();
+    fireEvent.click(screen.getByRole("button", { name: "Squat egzersizini değiştir" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Leg press/ }));
+    const changed: SessionForm = onChange.mock.calls.at(-1)![0];
+    expect(changed.setLogs.filter((s) => s.exerciseName === "Leg Press")).toHaveLength(2);
+    expect(changed.setLogs.some((s) => s.exerciseName === "Squat")).toBe(false);
+    expect(changed.setLogs.filter((s) => s.exerciseName === "Bench Press")).toHaveLength(2);
+    expect(form.setLogs[0].exerciseName).toBe("Squat");
+    stub.restore();
+  });
+
+  it("F19: her sette tip seçilir ve API gövdesine gider", () => {
+    const { onChange } = renderForm();
+    const types = screen.getAllByLabelText("Tip:");
+    expect(types).toHaveLength(6);
+    fireEvent.change(types[0], { target: { value: "warmup" } });
+    const changed: SessionForm = onChange.mock.calls[0][0];
+    expect(changed.setLogs[0].setType).toBe("warmup");
+    const payload = toWorkoutPayload(changed, "2026-10-20");
+    expect(payload.setLogs?.[0].setType).toBe("warmup");
+    expect(payload.setLogs?.[1].setType).toBe("normal");
+  });
+
   it("RPE ve süre alanları etiketlidir", () => {
     const { onChange } = renderForm();
     fireEvent.change(screen.getByLabelText("Gerçekleşen Süre (Dakika)"), { target: { value: "33" } });
     expect((onChange.mock.calls[0][0] as SessionForm).durationMinutes).toBe(33);
     fireEvent.change(screen.getByLabelText("Algılanan Zorluk Derecesi (RPE 1 - 10)"), { target: { value: "9" } });
     expect((onChange.mock.calls[1][0] as SessionForm).rpe).toBe(9);
+  });
+});
+
+describe("F21: ilerleme paneli", () => {
+  it("durağanlık varsa uyarı gösterir", () => {
+    render(
+      <ProgressionFeedbackPanel
+        feedback={{
+          "Bench Press": {
+            isTargetMetAllSets: false,
+            currentMaxWeight: 80,
+            recommendedNextWeightKg: 80,
+            message: "Aynı ağırlıkla devam.",
+            badge: "maintain",
+            plateau: { sessions: 3, bestE1rm: 101.3, message: "Son 3 seansta yeni rekor yok. Deload dene." },
+          },
+        }}
+      />
+    );
+    expect(screen.getByRole("note").textContent).toContain("Son 3 seansta yeni rekor yok");
   });
 });
 

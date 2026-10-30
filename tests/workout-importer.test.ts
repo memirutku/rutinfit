@@ -47,7 +47,7 @@ describe("Workout Importer (Strong & Hevy CSV)", () => {
 });
 
 describe("Workout Importer — gerçek dışa aktarım biçimleri", () => {
-  it("gerçek Hevy başlığını tanır: egzersiz adı exercise_title, tarih start_time, set_index 0'dan başlar, ısınma atlanır", () => {
+  it("gerçek Hevy başlığını tanır: egzersiz adı exercise_title, tarih start_time, set_index 0'dan başlar; F19: ısınma tipiyle gelir", () => {
     const csv = [
       '"title","start_time","end_time","description","exercise_title","superset_id","exercise_notes","set_index","set_type","weight_kg","reps","distance_km","duration_seconds","rpe"',
       '"Bacak Günü","16 Oct 2026, 18:30","16 Oct 2026, 19:20","","Squat (Barbell)","","","0","warmup","40","10","","",""',
@@ -60,9 +60,10 @@ describe("Workout Importer — gerçek dışa aktarım biçimleri", () => {
     expect(r.workoutCount).toBe(1);
     const w = r.workouts[0];
     expect(w).toMatchObject({ date: "2026-10-16", name: "Bacak Günü", durationMinutes: 50 });
-    expect(w.sets.map((s) => [s.exerciseName, s.setNumber, s.weightKg, s.reps])).toEqual([
-      ["Squat (Barbell)", 1, 90, 8],
-      ["Squat (Barbell)", 2, 90, 7],
+    expect(w.sets.map((s) => [s.exerciseName, s.setNumber, s.weightKg, s.reps, s.setType])).toEqual([
+      ["Squat (Barbell)", 1, 40, 10, "warmup"],
+      ["Squat (Barbell)", 2, 90, 8, "normal"],
+      ["Squat (Barbell)", 3, 90, 7, "normal"],
     ]);
   });
 
@@ -128,10 +129,10 @@ describe("H2: aktarılamayan bilgiler kaybolmaz", () => {
     'Push,"16 Oct 2026, 18:30","16 Oct 2026, 19:20",Güzel seans,Plank,,,0,normal,0,1,,60,',
   ].join("\n");
 
-  it("dolu olup aktarılamayan sütunları ve atlanan ısınma setlerini raporlar", () => {
+  it("dolu olup aktarılamayan sütunları raporlar; F19: ısınma setleri atlanmaz, tipiyle gelir", () => {
     const r = parseWorkoutCsv(hevy);
-    expect(r.totalSetsCount).toBe(2);
-    expect(r.skippedWarmupSets).toBe(1);
+    expect(r.totalSetsCount).toBe(3);
+    expect(r.workouts[0].sets.map((s) => s.setType)).toEqual(["warmup", "normal", "normal"]);
     // distance_km hiç dolu değil: raporlanmaz.
     expect(r.ignoredColumns).toEqual(["superset_id", "duration_seconds"]);
   });
@@ -151,5 +152,18 @@ describe("H2: aktarılamayan bilgiler kaybolmaz", () => {
     expect(r.workouts[0].notes).toContain("Bacaklar yorgun");
     expect(r.workouts[0].notes).toContain("Squat: Derin indim");
     expect(r.ignoredColumns).toEqual([]);
+  });
+});
+
+describe("F19: set tipleri", () => {
+  it("Hevy set tiplerini eşler: warmup, dropset, failure; bilinmeyen normal sayılır", () => {
+    const csv = [
+      "title,start_time,exercise_title,set_index,set_type,weight_kg,reps",
+      'A,"16 Oct 2026, 18:30",Curl,0,warmup,5,15',
+      'A,"16 Oct 2026, 18:30",Curl,1,dropset,10,8',
+      'A,"16 Oct 2026, 18:30",Curl,2,failure,12,6',
+      'A,"16 Oct 2026, 18:30",Curl,3,tuhaf,12,6',
+    ].join("\n");
+    expect(parseWorkoutCsv(csv).workouts[0].sets.map((s) => s.setType)).toEqual(["warmup", "drop", "failure", "normal"]);
   });
 });

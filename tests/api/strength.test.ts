@@ -8,13 +8,15 @@ import { resetDatabase } from "../helpers/db";
 
 beforeEach(resetDatabase);
 
-async function session(date: string, sets: Array<[string, number, number]>, completed = true) {
+async function session(date: string, sets: Array<[string, number, number] | [string, number, number, string]>, completed = true) {
   return prisma.workoutSession.create({
     data: {
       date,
       name: "A",
       completed,
-      setLogs: { create: sets.map(([exerciseName, weightKg, reps], i) => ({ exerciseName, weightKg, reps, setNumber: i + 1 })) },
+      setLogs: {
+        create: sets.map(([exerciseName, weightKg, reps, setType], i) => ({ exerciseName, weightKg, reps, setNumber: i + 1, setType: setType ?? "normal" })),
+      },
     },
   });
 }
@@ -39,6 +41,18 @@ describe("GET /api/progress/strength", () => {
     expect(res.json.history.map((d: any) => d.e1rm)).toEqual([101.3, 106.7]);
     expect(res.json.prs.bestE1rm).toMatchObject({ value: 106.7, date: "2026-10-08" });
     expect(res.json.prs.heaviest).toMatchObject({ weightKg: 85, reps: 5 });
+  });
+});
+
+describe("F19: ısınma setleri istatistiğe girmez", () => {
+  it("rekor ve haftalık hacim yalnız çalışma setlerinden hesaplanır", async () => {
+    const today = getLocalDateString();
+    await session(today, [["Bench Press", 100, 3, "warmup"], ["Bench Press", 80, 8], ["Bench Press", 60, 10, "warmup"]]);
+    const detail = (await callRoute(strength, { query: { exercise: "Bench Press" } })).json;
+    expect(detail.prs.heaviest).toMatchObject({ weightKg: 80, reps: 8 });
+    expect(detail.history[0].sets).toBe(1);
+    const vol = (await callRoute(volume, { query: { weeks: "1" } })).json;
+    expect(vol.rows.find((r: any) => r.muscleId === "chest").sets).toEqual([1]);
   });
 });
 

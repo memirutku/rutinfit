@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/client/api";
 import { queryKeys } from "./keys";
-import type { FinishWorkoutResponse, WorkoutSessionInput, WorkoutsResponse } from "@/lib/schemas/workout";
+import type { FinishWorkoutResponse, TemplateInput, WorkoutSessionInput, WorkoutTemplate, WorkoutsResponse } from "@/lib/schemas/workout";
 import type { StrengthDetail, StrengthList, WeeklyVolumeResponse } from "@/lib/schemas/progress";
 
 /** Şablonlar + son 20 seans (tarih verilirse yalnız o günün seansları). */
@@ -60,5 +60,54 @@ export function useWeeklyVolume(weeks = 4) {
   return useQuery({
     queryKey: queryKeys.workouts.volume(weeks),
     queryFn: () => apiFetch<WeeklyVolumeResponse>(`/api/progress/volume?weeks=${weeks}`),
+  });
+}
+
+/** F17: şablon oluşturma / güncelleme (id varsa günceller). */
+export function useSaveTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id?: string; input: TemplateInput }) =>
+      apiFetch<WorkoutTemplate>(id ? `/api/workouts/templates?id=${encodeURIComponent(id)}` : "/api/workouts/templates", {
+        method: id ? "PUT" : "POST",
+        json: input,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
+  });
+}
+
+export function useDeleteTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch(`/api/workouts/templates?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
+  });
+}
+
+export interface ProgramSummary {
+  id: string;
+  name: string;
+  description: string;
+  place: string;
+  daysPerWeek: number;
+  days: Array<{ dayOfWeek: number; name: string; exercises: number }>;
+}
+
+/** F18: hazır programlar. */
+export function usePrograms(options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: ["programs"] as const,
+    queryFn: () => apiFetch<ProgramSummary[]>("/api/workouts/programs"),
+    enabled: options.enabled ?? true,
+    staleTime: Infinity,
+  });
+}
+
+export function useApplyProgram() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { programId: string; mode: "replace" | "add" }) =>
+      apiFetch<{ created: number }>("/api/workouts/programs", { method: "POST", json: input }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
   });
 }

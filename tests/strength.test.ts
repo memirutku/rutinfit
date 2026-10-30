@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estimate1Rm, exerciseHistory, personalRecords } from "@/lib/strength";
+import { detectPlateau, estimate1Rm, exerciseHistory, personalRecords } from "@/lib/strength";
 
 describe("F23: e1RM (Epley)", () => {
   it("tek tekrarda ağırlığın kendisi; diğerlerinde ağırlık × (1 + tekrar/30), 0,1'e yuvarlı", () => {
@@ -38,5 +38,16 @@ describe("F23: egzersiz geçmişi ve rekorlar", () => {
     const pr = personalRecords(exerciseHistory(bw), bw);
     expect(pr.bestE1rm).toBeNull();
     expect(pr.mostReps).toEqual({ reps: 15, date: "2026-10-02" });
+  });
+});
+
+describe("F21: durağanlık", () => {
+  const day = (date: string, e1rm: number) => ({ date, topSet: { weightKg: 80, reps: 5 }, e1rm, volumeKg: 400, sets: 3 });
+  it("son üç seansta önceki en iyi e1RM aşılmadıysa durağan", () => {
+    expect(detectPlateau([day("a", 100), day("b", 99), day("c", 100), day("d", 98)])).toEqual({ sessions: 3, bestE1rm: 100, message: expect.any(String) });
+  });
+  it("yeni rekor ya da yetersiz geçmişte durağanlık yok", () => {
+    expect(detectPlateau([day("a", 100), day("b", 99), day("c", 101), day("d", 98)])).toBeNull();
+    expect(detectPlateau([day("a", 100), day("b", 99), day("c", 98)])).toBeNull();
   });
 });

@@ -79,3 +79,13 @@ describe("POST /api/progress", () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe("F51: kas ağrısı ve ruh hâli", () => {
+  it("kaydedilir ve bugünün özetinde (stresle birlikte) döner", async () => {
+    const res = await callRoute(POST, { body: { date: today(), energy1to5: 4, sleepMinutes: 450, stress1to5: 2, soreness1to5: 3, mood1to5: 5 } });
+    expect(res.status).toBeLessThan(300);
+    const day = (await callRoute(GET)).json.today;
+    expect(day).toMatchObject({ energy1to5: 4, sleepMinutes: 450, stress1to5: 2, soreness1to5: 3, mood1to5: 5 });
+    expect((await callRoute(POST, { body: { date: today(), soreness1to5: 6 } })).status).toBe(400);
+  });
+});

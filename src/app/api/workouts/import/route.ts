@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseWorkoutCsv, type ImportedWorkout } from "@/lib/workout-importer";
 import { toSetRpe } from "@/lib/rpe";
+import { isWorkingSet } from "@/lib/set-types";
 
 const norm = (v: string) => v.trim().toLocaleLowerCase("tr-TR");
 
@@ -25,7 +26,10 @@ async function loadTemplateIndex(): Promise<TemplateIndex> {
 
 /** H3: seans RPE'si = set RPE'lerinin yuvarlanmış ortalaması (1–10); set RPE'si yoksa null. */
 function sessionRpe(workout: ImportedWorkout): number | null {
-  const values = workout.sets.map((s) => toSetRpe(s.rpe)).filter((v): v is number => v !== null);
+  const values = workout.sets
+    .filter((s) => isWorkingSet(s.setType))
+    .map((s) => toSetRpe(s.rpe))
+    .filter((v): v is number => v !== null);
   if (!values.length) return null;
   return Math.min(10, Math.max(1, Math.round(values.reduce((a, b) => a + b, 0) / values.length)));
 }
@@ -33,7 +37,6 @@ function sessionRpe(workout: ImportedWorkout): number | null {
 function summaryMessage(saved: number, sets: number, skipped: number, parse: ReturnType<typeof parseWorkoutCsv>) {
   const parts = [`${saved} antrenman ve ${sets} set başarıyla RutinFit'e kaydedildi.`];
   if (skipped > 0) parts.push(`${skipped} antrenman zaten kayıtlı olduğu için atlandı.`);
-  if (parse.skippedWarmupSets > 0) parts.push(`${parse.skippedWarmupSets} ısınma seti aktarılmadı.`);
   if (parse.ignoredColumns.length) parts.push(`Aktarılmayan sütunlar: ${parse.ignoredColumns.join(", ")}.`);
   parts.push(...parse.warnings);
   return parts.join(" ");
@@ -112,8 +115,9 @@ export async function POST(req: NextRequest) {
                     weightKg: s.weightKg,
                     reps: s.reps,
                     rpe: toSetRpe(s.rpe),
-                    // Canlı kayıtla aynı kural: üst tekrar sınırına ulaşan set. Şablon yoksa bilinmez.
-                    isTargetMet: target ? s.reps >= target.repMax : false,
+                    setType: s.setType,
+                    // Canlı kayıtla aynı kural: üst tekrar sınırına ulaşan çalışma seti. Şablon yoksa bilinmez.
+                    isTargetMet: target && isWorkingSet(s.setType) ? s.reps >= target.repMax : false,
                   };
                 }),
               },

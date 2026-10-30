@@ -46,6 +46,9 @@ export async function GET() {
         energy1to5: todayWellbeing?.energy1to5 ?? null,
         sleepMinutes: todayWellbeing?.sleepMinutes ?? null,
         hunger1to5: todayWellbeing?.hunger1to5 ?? null,
+        stress1to5: todayWellbeing?.stress1to5 ?? null,
+        soreness1to5: todayWellbeing?.soreness1to5 ?? null,
+        mood1to5: todayWellbeing?.mood1to5 ?? null,
       },
     });
   } catch (error) {
@@ -86,6 +89,8 @@ export async function POST(req: Request) {
       data.hunger1to5 !== undefined ||
       data.sleepMinutes !== undefined ||
       data.stress1to5 !== undefined ||
+      data.soreness1to5 !== undefined ||
+      data.mood1to5 !== undefined ||
       data.notes !== undefined
     ) {
       await prisma.dailyWellbeing.upsert({
@@ -95,6 +100,8 @@ export async function POST(req: Request) {
           hunger1to5: data.hunger1to5,
           sleepMinutes: data.sleepMinutes,
           stress1to5: data.stress1to5,
+          soreness1to5: data.soreness1to5,
+          mood1to5: data.mood1to5,
           notes: data.notes,
         },
         create: {
@@ -103,6 +110,8 @@ export async function POST(req: Request) {
           hunger1to5: data.hunger1to5 ?? 3,
           sleepMinutes: data.sleepMinutes ?? 420,
           stress1to5: data.stress1to5 ?? 3,
+          soreness1to5: data.soreness1to5 ?? null,
+          mood1to5: data.mood1to5 ?? null,
           notes: data.notes ?? null,
         },
       });

@@ -51,8 +51,8 @@ Dal: `ozellik/dalga-2`
 
 | Sıra | Madde | Ne yapılır | Şema |
 | --- | --- | --- | --- |
-| 1 | F25 | Egzersiz kütüphanesi: kaslar, ekipman, metin ipuçları, özel egzersiz, "benzeriyle değiştir" | `Exercise` |
-| 2 | F17 | Şablon/program editörü: oluştur, düzenle, sırala, tekrar aralığı, dinlenme | `WorkoutExercise.exerciseId` |
+| 1 | F25 | Egzersiz kütüphanesi: kaslar, ekipman, metin ipuçları, özel egzersiz, "benzeriyle değiştir". Yerleşik liste kodda; mevcut veriler isimle bağlı kaldığı için özel egzersizler ayrı tabloda | `CustomExercise` |
+| 2 | F17 | Şablon/program editörü: oluştur, düzenle, sırala, tekrar aralığı, dinlenme (egzersizler isimle, kütüphaneden seçilir) | — |
 | 3 | F19 | Set tipi (ısınma, normal, drop, tükeniş); içe aktarmada ısınma setleri artık gelir (H2'nin kalanı) | `SetLog.setType` |
 | 4 | F21 | Egzersiz başına artış miktarı ve durağanlık uyarısı | `WorkoutExercise.incrementKg` |
 | 5 | F18 | 3–5 başlangıç ve ev programı, editörde "programı ekle" | seed verisi |

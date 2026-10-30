@@ -5,7 +5,7 @@ import { useWorkouts } from "@/lib/client/queries/workouts";
 import { computeMuscleLoad, type SessionForLoad } from "@/lib/muscle-load";
 import { useToday } from "@/hooks/useToday";
 import { Activity } from "lucide-react";
-import { MUSCLE_GROUPS } from "@/lib/muscles";
+import { muscleGroupsWithLibrary } from "@/lib/exercise-library";
 
 export interface MuscleFatigue {
   muscleId: string;
@@ -25,7 +25,7 @@ interface MuscleHeatmapProps {
 }
 
 // Kas grubu tanımları src/lib/muscles.ts'te; set ve son gün seanslardan hesaplanır.
-export const DEFAULT_MUSCLES: MuscleFatigue[] = MUSCLE_GROUPS.map((m) => ({ ...m, weeklySets: 0 }));
+export const DEFAULT_MUSCLES: MuscleFatigue[] = muscleGroupsWithLibrary().map((m) => ({ ...m, weeklySets: 0 }));
 
 export function MuscleHeatmap({ workoutSessions, onSelectMuscle }: MuscleHeatmapProps) {
   const today = useToday();
