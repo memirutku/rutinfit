@@ -4,11 +4,14 @@ import { calculateDailySummary } from "@/lib/nutrition-calculator";
 import { DEFAULT_TARGETS, targetsFromProfile } from "@/lib/constants";
 import { MealTypeSchema } from "@/lib/schemas/enums";
 
+// Test kendi hedeflerini kullanır: DEFAULT_TARGETS değişse de beklenen sayılar değişmez.
+const TARGETS = { calorieTarget: 2080, calorieCeiling: 2100, proteinTargetG: 165, fatTargetG: 60, carbTargetG: 220 };
+
 const ctx = (over: Partial<CoachContext> = {}): CoachContext => ({
   today: "2026-10-20",
   profile: { heightCm: 181, age: 30, currentWeightKg: 110 },
-  targets: { ...DEFAULT_TARGETS },
-  dailySummary: calculateDailySummary([{ calories: 500, proteinG: 40, carbsG: 50, fatG: 10 }], DEFAULT_TARGETS),
+  targets: { ...TARGETS },
+  dailySummary: calculateDailySummary([{ calories: 500, proteinG: 40, carbsG: 50, fatG: 10 }], TARGETS),
   todayTemplate: { name: "Ağırlık A", type: "strength", targetDurationMinutes: 45 },
   workoutDoneToday: false,
   wellbeing: { energy1to5: 4, sleepMinutes: 390 },
@@ -28,12 +31,24 @@ describe("buildSystemPrompt", () => {
 
   it("F56: hedefi profilden alır (sabit 2.080 yok), cinsiyete göre tabanı ve hız sınırını kural olarak verir", () => {
     const p = buildSystemPrompt(
-      ctx({ profile: { heightCm: 165, age: 30, currentWeightKg: 70, sex: "female" }, targets: { ...DEFAULT_TARGETS, calorieTarget: 1700, calorieCeiling: 1800 } })
+      ctx({ profile: { heightCm: 165, age: 30, currentWeightKg: 70, sex: "female" }, targets: { ...TARGETS, calorieTarget: 1700, calorieCeiling: 1800 } })
     );
     expect(p).not.toContain("2.080 kcal hedefine");
     expect(p).toContain("1700 kcal hedefine ve 1800 kcal tavanına");
     expect(p).toContain("1200 kcal altında");
     expect(p).toContain("0,7 kg");
+  });
+
+  it("B03: profil yoksa boy, yaş ve kilo uydurulmaz; hedefin genel varsayılan olduğu söylenir", () => {
+    const p = buildSystemPrompt(ctx({ profile: null, targets: { ...DEFAULT_TARGETS } }));
+    expect(p).toContain("Boy, yaş, kilo: profil girilmemiş");
+    expect(p).not.toMatch(/Boy: \d+ cm/);
+    expect(p).not.toContain("112 kg");
+    expect(p).not.toContain("181 cm");
+    expect(p).toContain(`Günlük Kalori Hedefi: ${DEFAULT_TARGETS.calorieTarget} kcal`);
+    expect(p).toMatch(/profil girilmemiş; genel varsayılan/);
+    // Güvenlik kuralının hız sınırı da uydurma kiloya dayanmaz.
+    expect(p).not.toMatch(/haftada [\d,]+ kg'dan/);
   });
 
   it("F52: koça notlar ayrı bölümde, bilgi olarak ve kaçışlanmış verilir", () => {

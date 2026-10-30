@@ -2,16 +2,21 @@
 
 import { AlertCircle, Check } from "lucide-react";
 import { CoachHeader } from "@/components/coach/CoachHeader";
-import { QuickPrompts } from "@/components/coach/QuickPrompts";
+import { QuickPrompts, quickPrompts } from "@/components/coach/QuickPrompts";
+import { coachTargetsFrom, welcomeMessage } from "@/components/coach/types";
 import { MessageList } from "@/components/coach/MessageList";
 import { AttachmentBar, UploadStatus } from "@/components/coach/AttachmentBar";
 import { ChatComposer } from "@/components/coach/ChatComposer";
 import { useCoachChat } from "@/components/coach/useCoachChat";
 import Link from "next/link";
-import { useAISettings } from "@/lib/client/queries/system";
+import { useAISettings, useProfile } from "@/lib/client/queries/system";
 
 export default function CoachPage() {
-  const chat = useCoachChat();
+  // B03: karşılama ve hazır sorular profildeki hedefle kurulur; "sayıları gizle"ye uyar.
+  const profile = useProfile();
+  const targets = coachTargetsFrom(profile.data);
+  const hideNumbers = profile.data?.hideNumbers ?? false;
+  const chat = useCoachChat(welcomeMessage(targets, hideNumbers));
   // F58: ayar okunamazsa koç açık sayılır (sunucu yine de kapalı koçu reddeder).
   const settings = useAISettings();
   const coachDisabled = settings.data?.coachEnabled === false;
@@ -52,7 +57,7 @@ export default function CoachPage() {
       )}
 
       {/* Hızlı Komut Butonları */}
-      <QuickPrompts disabled={coachDisabled || chat.loading} onSend={chat.sendMessage} />
+      <QuickPrompts prompts={quickPrompts(targets, hideNumbers)} disabled={coachDisabled || chat.loading} onSend={chat.sendMessage} />
 
       {/* Sohbet Alanı */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[70vh]">

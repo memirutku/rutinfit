@@ -5,8 +5,8 @@ import CoachPage from "@/app/coach/page";
 import { ActionProposalCard } from "@/components/coach/ActionProposalCard";
 import { AttachmentBar, UploadStatus } from "@/components/coach/AttachmentBar";
 import { ChatComposer } from "@/components/coach/ChatComposer";
-import { QuickPrompts, QUICK_PROMPTS } from "@/components/coach/QuickPrompts";
-import { parseProposal, parseStoredProposal, type AttachedFile, type CardProposal } from "@/components/coach/types";
+import { QuickPrompts, quickPrompts } from "@/components/coach/QuickPrompts";
+import { parseProposal, parseStoredProposal, welcomeMessage, type AttachedFile, type CardProposal } from "@/components/coach/types";
 import { jsonResponse, stubFetch, type StubbedCall } from "../helpers/fetch";
 import { renderWithQuery } from "../helpers/query";
 
@@ -37,7 +37,10 @@ interface ChatStubOptions {
   actions?: (payload: { action: string }) => Response | Promise<Response>;
   upload?: () => Response | Promise<Response>;
   settings?: { coachEnabled: boolean; tone: string };
+  profile?: Record<string, unknown>;
 }
+
+const PROFILE = { id: "default-user", calorieTarget: 1850, calorieCeiling: 1950, proteinTargetG: 140, fatTargetG: 60, carbTargetG: 200, isOnboarded: true, hideNumbers: false };
 
 function stubCoach(opts: ChatStubOptions = {}) {
   const s = stubFetch([
@@ -51,6 +54,7 @@ function stubCoach(opts: ChatStubOptions = {}) {
     ],
     ["/api/ai/actions", (_u, init) => (opts.actions ? opts.actions(JSON.parse(String(init?.body))) : jsonResponse({ success: true }))],
     ["/api/files/upload", () => (opts.upload ? opts.upload() : jsonResponse({ error: "yok" }, 500))],
+    ["/api/profile", () => jsonResponse(opts.profile ?? PROFILE)],
     ["/api/ai/settings", () => jsonResponse({ providerType: "ollama", baseUrl: "http://127.0.0.1:11434/v1", modelName: "m", endpointKind: "local", ...(opts.settings ?? { coachEnabled: true, tone: "supportive" }) })],
   ]);
   restore = s.restore;
@@ -231,11 +235,55 @@ describe("ChatComposer ve QuickPrompts", () => {
 
   it("hazır soru tıklanınca metniyle gönderilir; pasifken tıklanamaz", () => {
     const onSend = vi.fn();
-    const { rerender } = render(<QuickPrompts disabled={false} onSend={onSend} />);
-    fireEvent.click(screen.getByRole("button", { name: QUICK_PROMPTS[0] }));
-    expect(onSend).toHaveBeenCalledWith(QUICK_PROMPTS[0]);
-    rerender(<QuickPrompts disabled onSend={onSend} />);
-    expect((screen.getByRole("button", { name: QUICK_PROMPTS[1] }) as HTMLButtonElement).disabled).toBe(true);
+    const prompts = quickPrompts(null, false);
+    const { rerender } = render(<QuickPrompts prompts={prompts} disabled={false} onSend={onSend} />);
+    fireEvent.click(screen.getByRole("button", { name: prompts[0] }));
+    expect(onSend).toHaveBeenCalledWith(prompts[0]);
+    rerender(<QuickPrompts prompts={prompts} disabled onSend={onSend} />);
+    expect((screen.getByRole("button", { name: prompts[1] }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+describe("B03: karşılama ve hazır sorular profildeki hedeften üretilir", () => {
+  const kcalNumber = /\d[\d.]*\s*kcal/;
+
+  it("hedef sayıları profilden, Türkçe biçimle; sabit 2.080 yok", () => {
+    const text = welcomeMessage({ calorieTarget: 1850, proteinTargetG: 140 }, false);
+    expect(text).toContain("1.850 kcal");
+    expect(text).toContain("140 g protein");
+    expect(text).not.toContain("2.080");
+    expect(quickPrompts({ calorieTarget: 2460, proteinTargetG: 180 }, false).some((p) => p.includes("2.460 kcal hedefime"))).toBe(true);
+  });
+
+  it("sihirbaz atlandıysa hedefin tahmini olduğu söylenir", () => {
+    expect(welcomeMessage({ calorieTarget: 2000, proteinTargetG: 100, estimated: true }, false)).toMatch(/tahmini/);
+  });
+
+  it("'sayıları gizle' açıkken ya da profil yokken metinde sayı yok", () => {
+    for (const text of [welcomeMessage({ calorieTarget: 1850, proteinTargetG: 140 }, true), welcomeMessage(null, false)]) {
+      expect(text).not.toMatch(/\d/);
+      expect(text).toMatch(/^Merhaba! Ben RutinFit/);
+    }
+    for (const prompts of [quickPrompts({ calorieTarget: 1850, proteinTargetG: 140 }, true), quickPrompts(null, false)]) {
+      expect(prompts.some((p) => kcalNumber.test(p))).toBe(false);
+      expect(prompts.some((p) => p.includes("kalori hedefime uyan"))).toBe(true);
+    }
+  });
+
+  it("koç sayfası profili okuyup karşılamayı ve hazır soruyu hedefle gösterir", async () => {
+    stubCoach();
+    renderWithQuery(<CoachPage />);
+    expect(await screen.findByText(/^Merhaba! Ben RutinFit.*1\.850 kcal/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /1\.850 kcal hedefime uyan/ })).toBeTruthy();
+    expect(screen.queryByText(/2\.080/)).toBeNull();
+  });
+
+  it("koç sayfası 'sayıları gizle' açıkken karşılamada sayı göstermez", async () => {
+    stubCoach({ profile: { ...PROFILE, hideNumbers: true } });
+    renderWithQuery(<CoachPage />);
+    await waitFor(() => expect(screen.getByText(/^Merhaba! Ben RutinFit/).textContent).toMatch(/Hedeflerine/));
+    expect(screen.getByText(/^Merhaba! Ben RutinFit/).textContent).not.toMatch(/\d/);
+    expect(screen.queryByText(/\d[\d.]*\s*kcal/)).toBeNull();
   });
 });
 
