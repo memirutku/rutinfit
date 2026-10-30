@@ -24,11 +24,35 @@ function RecordCard({ title, value, detail }: { title: string; value: string; de
 /** B24: Antrenman sayfasındaki kısayolun hedefi (/progress#guc). */
 export const STRENGTH_ANCHOR = "guc";
 
-/** Sayfa #guc ile açıldıysa bölüm (veri geç yüklense de) görünür alana kaydırılır. */
+const SETTLE_MS = 2500;
+
+/**
+ * Sayfa #guc ile açıldıysa bölüm görünür alana kaydırılır. Next.js istemci geçişinde adres
+ * (hash) bileşen bağlandıktan sonra güncellenir; üstteki bölümler de verilerini geç yükleyip
+ * uzar. Bu yüzden sayfa oturana kadar (en çok 2,5 sn, kullanıcı kendisi kaydırmadıkça) her
+ * boyut değişiminde hash yeniden denetlenip bölüm hizalanır.
+ */
 function useScrollIntoViewOnHash(id: string) {
   useEffect(() => {
-    if (typeof window === "undefined" || window.location.hash !== `#${id}`) return;
-    document.getElementById(id)?.scrollIntoView?.({ block: "start" });
+    if (typeof window === "undefined") return;
+    const align = () => {
+      if (window.location.hash === `#${id}`) document.getElementById(id)?.scrollIntoView?.({ block: "start" });
+    };
+    const frame = window.requestAnimationFrame(align);
+    const container = document.getElementById(id)?.parentElement;
+    const observer = typeof ResizeObserver !== "undefined" && container ? new ResizeObserver(align) : null;
+    // body "h-full": kutusu büyümez; bölümleri taşıyan sayfa kapsayıcısı izlenir.
+    if (observer && container) observer.observe(container);
+    const stop = () => observer?.disconnect();
+    const timer = window.setTimeout(stop, SETTLE_MS);
+    const events = ["wheel", "touchmove", "keydown", "mousedown"] as const;
+    events.forEach((e) => window.addEventListener(e, stop, { passive: true, once: true }));
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+      stop();
+      events.forEach((e) => window.removeEventListener(e, stop));
+    };
   }, [id]);
 }
 

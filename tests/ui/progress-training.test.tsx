@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { formatAxisTick, StrengthSection, TrainingProgress } from "@/components/progress/StrengthSection";
 import { VolumeSection } from "@/components/progress/VolumeSection";
 import { renderWithQuery } from "../helpers/query";
@@ -137,5 +137,32 @@ describe("B24: antrenman kaydı yokken güç bölümleri", () => {
     expect(await screen.findByRole("heading", { name: "Haftalık set hacmi" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Güç gelişimi" })).toBeTruthy();
     expect(screen.queryByText(/Henüz antrenman kaydın yok/)).toBeNull();
+  });
+
+  it("sayfa #guc ile açılınca bölüm görünür alana kaydırılır; kullanıcı kaydırınca bırakılır", async () => {
+    restore = stubFetch([["/api/progress/strength", () => jsonResponse({ exercises: [] })]]).restore;
+    const scroll = vi.fn();
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scroll;
+    const observe = vi.fn();
+    const disconnect = vi.fn();
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(private cb: () => void) {}
+      observe = (el: Element) => (observe(el), this.cb());
+      disconnect = disconnect;
+    });
+    window.history.replaceState(null, "", "#guc");
+    try {
+      const { unmount } = renderWithQuery(<TrainingProgress />);
+      await screen.findByText(/Henüz antrenman kaydın yok/);
+      await waitFor(() => expect(scroll).toHaveBeenCalledWith({ block: "start" }));
+      expect(observe).toHaveBeenCalledWith(document.getElementById("guc")!.parentElement);
+      window.dispatchEvent(new Event("wheel"));
+      expect(disconnect).toHaveBeenCalled();
+      unmount();
+    } finally {
+      Element.prototype.scrollIntoView = original;
+      window.history.replaceState(null, "", "#");
+    }
   });
 });
