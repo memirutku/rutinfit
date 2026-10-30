@@ -22,7 +22,8 @@ export async function GET() {
           ...DEFAULT_TARGETS,
           wakeTime: "06:00",
           workdayHomeTime: "19:30",
-          isOnboarded: true,
+          // F09: yeni kurulumda pano kurulum sihirbazını açar.
+          isOnboarded: false,
         },
       });
     }

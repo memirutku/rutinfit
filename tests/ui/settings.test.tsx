@@ -125,6 +125,12 @@ describe("Ayarlar — profil ve hedefler", () => {
     });
   });
 
+  it("F09: 'Sihirbazla yeniden hesapla' kurulum sihirbazını açar", async () => {
+    setup();
+    fireEvent.click(await screen.findByRole("button", { name: "Sihirbazla yeniden hesapla" }));
+    expect(await screen.findByRole("dialog", { name: /Hedeflerini birlikte kuralım/ })).toBeTruthy();
+  });
+
   it("yerel düzenleme korunur; profil verisi değişince (ör. geri yükleme) form yeniden kurulur", async () => {
     const { client } = setup();
     const protein = await screen.findByLabelText<HTMLInputElement>("Protein Hedefi (g)");

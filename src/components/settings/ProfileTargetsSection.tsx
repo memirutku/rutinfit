@@ -9,6 +9,7 @@ import type { Profile, ProfileInput } from "@/lib/schemas/profile";
 import { DecimalInput } from "@/components/ui/DecimalInput";
 import { calorieFloor } from "@/lib/safety";
 import { formatNumberTr } from "@/lib/format";
+import { SetupWizard } from "@/components/onboarding/SetupWizard";
 
 /** Formdaki yerel taslak: profil yüklenemediyse alanlar boş başlar (varsayılanlar gösterilir). */
 type ProfileDraft = Partial<Profile>;
@@ -111,6 +112,7 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
   }
 
   const [acknowledgeLow, setAcknowledgeLow] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const floor = calorieFloor(draft.sex ?? "male");
   const isLowCalorie = (draft.calorieTarget || CALORIE_FALLBACK) < floor;
 
@@ -133,7 +135,15 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
       <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
         <User className="w-5 h-5 text-brand-600" />
         <h3 className="font-bold text-slate-900 text-base">Kullanıcı Profili & Hedefleri</h3>
+        <button
+          type="button"
+          onClick={() => setWizardOpen(true)}
+          className="ml-auto px-3 py-1.5 rounded-lg border border-brand-200 bg-brand-50 text-brand-700 text-xs font-bold hover:bg-brand-100"
+        >
+          Sihirbazla yeniden hesapla
+        </button>
       </div>
+      <SetupWizard open={wizardOpen} profile={profile} onClose={() => setWizardOpen(false)} />
 
       {success.message && (
         <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold">

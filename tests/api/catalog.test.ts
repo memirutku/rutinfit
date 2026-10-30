@@ -60,10 +60,19 @@ describe("/api/profile", () => {
     proteinTargetG: 165, fatTargetG: 60, carbTargetG: 220, wakeTime: "06:00", workdayHomeTime: "19:30",
   };
 
-  it("GET profil yoksa oluşturur", async () => {
+  it("GET profil yoksa oluşturur; F09: yeni profil kurulum sihirbazını bekler", async () => {
     const res = await callRoute(profileGet);
     expect(res.status).toBe(200);
     expect(res.json.id).toBe("default-user");
+    expect(res.json.isOnboarded).toBe(false);
+  });
+
+  it("F09: aktivite, hedef türü, hız ve hedef kilo kaydedilir; geçersiz aktivite 400", async () => {
+    const goal = { activityLevel: "moderate", goalType: "lose", goalRateKgPerWeek: 0.5, targetWeightKg: 90 };
+    const res = await callRoute(profilePut, { method: "PUT", body: { ...valid, ...goal, isOnboarded: true } });
+    expect(res.status).toBe(200);
+    expect(res.json).toMatchObject({ ...goal, isOnboarded: true });
+    expect((await callRoute(profilePut, { method: "PUT", body: { ...valid, activityLevel: "koltuk" } })).status).toBe(400);
   });
 
   it("kesirli hedefleri tam sayıya yuvarlar (Int sütun hatası vermez)", async () => {

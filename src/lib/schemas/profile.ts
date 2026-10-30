@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { ACTIVITY_LEVEL_KEYS, GOAL_TYPES, type GoalType } from "../energy";
+
+const GOAL_TYPE_KEYS = Object.keys(GOAL_TYPES) as [GoalType, ...GoalType[]];
 
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Saat SS:DD biçiminde olmalıdır.");
 // Hedef sütunları tam sayıdır: kesirli girişler yuvarlanır.
@@ -25,6 +28,11 @@ export const UpdateProfileSchema = z.object({
   isOnboarded: z.boolean().optional(),
   /** F56: kalori ve makro sayılarını gizle. */
   hideNumbers: z.boolean().optional(),
+  /** F09: kurulum sihirbazı girdileri. */
+  activityLevel: z.enum(ACTIVITY_LEVEL_KEYS as [string, ...string[]]).optional(),
+  goalType: z.enum(GOAL_TYPE_KEYS).optional(),
+  goalRateKgPerWeek: z.number().min(0).max(2).optional(),
+  targetWeightKg: z.number().positive().max(400).nullable().optional(),
   /** F56: tabanın altındaki hedef bilerek (sağlık profesyoneliyle) seçildi. Saklanmaz. */
   acknowledgeLowCalorie: z.boolean().optional(),
 });

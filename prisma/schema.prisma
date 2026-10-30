@@ -34,6 +34,11 @@ model UserProfile {
   workdayHomeTime String   @default("19:30")
   isOnboarded     Boolean  @default(false)
   hideNumbers     Boolean  @default(false) // F56: kalori ve makro sayılarını gizle
+  // F09: kurulum sihirbazı girdileri
+  activityLevel     String @default("light") // sedentary, light, moderate, active, very_active
+  goalType          String @default("lose") // lose, maintain, gain
+  goalRateKgPerWeek Float  @default(0.5)
+  targetWeightKg    Float?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }

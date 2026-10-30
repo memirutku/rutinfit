@@ -25,6 +25,7 @@ import { TodayWorkoutCard } from "@/components/dashboard/TodayWorkoutCard";
 import { WellbeingCard, type WellbeingValues } from "@/components/dashboard/WellbeingCard";
 import { TodayMealsList } from "@/components/dashboard/TodayMealsList";
 import { getRhythmStep, WELLBEING_SECTION_ID, type RhythmAction } from "@/components/dashboard/rhythm";
+import { SetupWizard } from "@/components/onboarding/SetupWizard";
 
 interface UndoState {
   toast: UndoToastData;
@@ -37,6 +38,9 @@ export default function DashboardPage() {
   const todayStr = useToday();
   const profile = useProfile();
   const hideNumbers = profile.data?.hideNumbers ?? false;
+  // F09: kurulmamış profilde sihirbaz açılır; "Şimdilik geç" bu oturum için kapatır.
+  const [wizardDismissed, setWizardDismissed] = useState(false);
+  const showWizard = profile.data?.isOnboarded === false && !wizardDismissed;
   const foodLogs = useFoodLogs(todayStr);
   const workouts = useWorkouts(todayStr);
   const progress = useProgress();
@@ -203,6 +207,7 @@ export default function DashboardPage() {
           {actionError}
         </div>
       )}
+      <SetupWizard open={showWizard} profile={profile.data} onClose={() => setWizardDismissed(true)} />
     </div>
   );
 }

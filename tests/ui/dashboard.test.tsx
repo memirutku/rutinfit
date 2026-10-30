@@ -23,6 +23,10 @@ afterEach(() => {
 });
 
 const today = getLocalDateString();
+const PROFILE_FIXTURE = {
+  id: "default-user", heightCm: 181, age: 25, sex: "male", currentWeightKg: 112, calorieTarget: 2080, calorieCeiling: 2100,
+  proteinTargetG: 165, fatTargetG: 60, carbTargetG: 220, wakeTime: "06:00", workdayHomeTime: "19:30", isOnboarded: true,
+};
 const targets = { calorieTarget: 1950, calorieCeiling: 2100, proteinTargetG: 165, fatTargetG: 60, carbTargetG: 220 };
 
 const summary = (over: Partial<DailySummary> = {}): DailySummary => ({
@@ -264,6 +268,21 @@ describe("DashboardPage", () => {
     expect(await screen.findByText("/ 1950 kcal")).toBeTruthy();
     expect(screen.getByText(/Eve tahmini varış: 20:15/)).toBeTruthy();
     expect(screen.getByText("Tavuk Göğsü")).toBeTruthy();
+  });
+
+  it("F09: profil kurulmamışsa kurulum sihirbazı açılır; 'Şimdilik geç' kapatır", async () => {
+    const s = stubDashboard();
+    s.restore();
+    restore = stubFetch([
+      ["/api/food-logs", () => jsonResponse({ date: today, logs: [], summary: summary(), targets })],
+      ["/api/workouts", () => jsonResponse({ templates: [], sessions: [] })],
+      ["/api/progress", () => jsonResponse(progress(false))],
+      ["/api/profile", () => jsonResponse({ ...PROFILE_FIXTURE, isOnboarded: false })],
+    ]).restore;
+    renderWithQuery(<DashboardPage />);
+    expect(await screen.findByRole("dialog", { name: /Hedeflerini birlikte kuralım/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Şimdilik geç" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
   it("istekler başarısız olsa da sayfa varsayılan hedeflerle açılır", async () => {
