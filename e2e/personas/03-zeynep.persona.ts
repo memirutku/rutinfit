@@ -17,7 +17,7 @@ test("Zeynep: diyetisyen planı, uyum ve rapor", async ({ page, request }) => {
     await saveWizard(page);
   });
   await step("Diyetisyenin hedefini girer", "Ayarlarda kalori hedefini diyetisyenin verdiği 1500 kcal yapar", async () => {
-    await page.getByRole("link", { name: "Ayarlar" }).click();
+    await page.getByRole("link", { name: "Ayarlar", exact: true }).first().click();
     await page.getByLabel("Kalori Hedefi (kcal)").fill("1500");
     await page.getByLabel("Kalori tavanı (kcal)").fill("1600");
     await page.getByLabel(/Koça notlar/).fill("Laktoz intoleransım var. Diyetisyenim 2 haftada bir kontrol ediyor.");
@@ -25,7 +25,7 @@ test("Zeynep: diyetisyen planı, uyum ve rapor", async ({ page, request }) => {
     await expect(page.getByText(/başarıyla güncellendi/)).toBeVisible();
   });
   await step("Haftalık plan ekranı", "Diyetisyen menüsünü girmek için Yemek Planı › Hafta'yı açar", async () => {
-    await page.getByRole("link", { name: "Yemek Planı" }).click();
+    await page.getByRole("link", { name: "Yemek Planı", exact: true }).first().click();
     await page.getByRole("button", { name: "Hafta", exact: true }).click();
     await expect(page.getByRole("button", { name: "+ Öğün" }).first()).toBeVisible();
   });
@@ -52,8 +52,15 @@ test("Zeynep: diyetisyen planı, uyum ve rapor", async ({ page, request }) => {
   await step("Kahvaltıyı 'Uygulandı' işaretler", "Plana uyduğunu işaretler", async () => {
     await page.getByRole("group", { name: "Plana uyum" }).first().getByRole("button", { name: "Uygulandı" }).click();
   });
-  await step("Kahvaltıyı günlüğe yazar", "'Yedim Olarak Kaydet' ile kalorisinin sayılmasını bekler", async () => {
+  await step("Kahvaltıyı günlüğe yazar", "'Yedim Olarak Kaydet' ile kahvaltısını günlüğe yazar; diyetisyeninin verdiği 380 kcal'yi girer", async () => {
     await page.getByRole("button", { name: "Yedim Olarak Kaydet" }).first().click();
+    // Dalga 6 (B09): tarifsiz öğün kalori girilerek kaydedilir.
+    const d = page.getByRole("dialog", { name: "Planlı öğünü kaydet" });
+    if (await d.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await d.getByLabel("Kalori (kcal)").fill("380");
+      await d.getByLabel("Protein (g)").fill("22");
+      await d.getByRole("button", { name: "Kaydet", exact: true }).click();
+    }
     await expect(page.getByText(/günlüğe kaydedildi/)).toBeVisible();
   });
   await step("Alışveriş listesi", "Haftanın alışveriş listesine bakar", async () => {
@@ -61,7 +68,7 @@ test("Zeynep: diyetisyen planı, uyum ve rapor", async ({ page, request }) => {
     await expect(page.getByRole("heading", { name: /Haftalık Alışveriş Listesi/ })).toBeVisible();
   });
   await step("Laktozsuz yoğurdu kataloğa ekler", "Etiketten değerleriyle 'Laktozsuz yoğurt' ekler", async () => {
-    await page.getByRole("link", { name: "Besin & Tarif" }).click();
+    await page.getByRole("link", { name: "Besin & Tarif", exact: true }).first().click();
     await page.getByRole("button", { name: "Yeni Besin" }).click();
     const d = page.getByRole("dialog", { name: "Yeni Besin Ekle" });
     await d.getByLabel("Besin Adı").fill("Laktozsuz yoğurt");
@@ -86,7 +93,7 @@ test("Zeynep: diyetisyen planı, uyum ve rapor", async ({ page, request }) => {
   }
 
   await step("Ölçülerini girer", "İlerleme sayfasında bel 91, kalça 107 girer", async () => {
-    await page.getByRole("link", { name: "İlerleme" }).click();
+    await page.getByRole("link", { name: "İlerleme", exact: true }).first().click();
     await page.getByLabel("Bel (cm)").fill("91");
     await page.getByLabel("Kalça (cm)").fill("107");
     await page.getByRole("button", { name: "Ölçüleri kaydet" }).click();

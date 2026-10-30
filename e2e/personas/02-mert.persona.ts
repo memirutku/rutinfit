@@ -16,7 +16,7 @@ test("Mert: deneyimli halterci, program ve rekor takibi", async ({ page, request
     await saveWizard(page);
   });
   await step("Antrenman sayfası", "Antrenman bölümünü açar", async () => {
-    await page.getByRole("link", { name: "Antrenman" }).click();
+    await page.getByRole("link", { name: "Antrenman", exact: true }).first().click();
     await expect(page.getByRole("heading", { name: "Haftalık Antrenman Planı" })).toBeVisible();
   });
   await step("Hazır programlara bakar", "Kendi seviyesine uygun bir program arar (5x5, PPL, 5/3/1 gibi)", async () => {
@@ -42,8 +42,11 @@ test("Mert: deneyimli halterci, program ve rekor takibi", async ({ page, request
   await step("Isınma seti işaretler", "İkinci seti ısınma olarak işaretlemek ister", async () => {
     await page.getByLabel("Tip:").nth(1).selectOption("warmup");
   });
-  await step("Seansı kaydeder", "Seansı bitirip kaydeder ve ilerleme önerisini görür", async () => {
+  await step("Seansı kaydeder", "Seansı bitirip kaydeder; yalnız tamamladığı seti kaydetmek ister, ilerleme önerisini görür", async () => {
     await page.getByRole("button", { name: "Antrenmanı Bitir & Kaydet" }).click();
+    // Dalga 6 (B17): tamamlanmamış setler sorulur; Mert yalnız yaptığı seti kaydeder.
+    const drop = page.getByRole("button", { name: "At ve kaydet" });
+    if (await drop.isVisible({ timeout: 2000 }).catch(() => false)) await drop.click();
     await expect(page.getByText(/Seans Tamamlandı/)).toBeVisible();
   });
   await step("Metinden antrenman ekler", "Dün yaptığı antrenmanı Strong'daki gibi metinle ekler", async () => {
@@ -51,6 +54,9 @@ test("Mert: deneyimli halterci, program ve rekor takibi", async ({ page, request
     const d = page.getByRole("dialog", { name: "Metinden antrenman ekle" });
     await d.getByLabel("Antrenman metni").fill("bench press 5x5 100 rpe 8\nsquat 3x5 140\nromanian deadlift 3x8 120\nhip thrust 3x10 140");
     await d.getByLabel("Seans adı").fill("Dünkü alt vücut");
+    // Dalga 6 (B19): tarih seçilebilir; dünkü antrenman düne yazılır.
+    const date = d.getByLabel("Tarih");
+    if (await date.isVisible().catch(() => false)) await date.fill(isoDay(-1));
     await d.getByRole("button", { name: /Seans olarak kaydet/ }).click();
     await d.waitFor({ state: "hidden" });
   });
@@ -69,15 +75,15 @@ test("Mert: deneyimli halterci, program ve rekor takibi", async ({ page, request
   }
 
   await step("Güç gelişimine bakar", "İlerleme sayfasında bench press rekorlarını ve platoyu kontrol eder", async () => {
-    await page.getByRole("link", { name: "İlerleme" }).click();
+    await page.getByRole("link", { name: "İlerleme", exact: true }).first().click();
     await page.locator("#strength-exercise").selectOption({ label: "Bench Press" });
-    await expect(page.getByText("En iyi e1RM")).toBeVisible();
+    await expect(page.getByText(/En iyi e1RM|Tahmini en iyi tek tekrar/).first()).toBeVisible();
   });
   await step("Haftalık set hacmi", "Kas grubu başına haftalık set sayısına bakar", async () => {
     await expect(page.getByText(/haftalık set/i).first()).toBeVisible();
   });
   await step("Plaka hesabı", "142,5 kg için bara hangi plakaları takacağını hesaplar", async () => {
-    await page.getByRole("link", { name: "Antrenman" }).click();
+    await page.getByRole("link", { name: "Antrenman", exact: true }).first().click();
     await page.getByRole("button", { name: "Plaka & 1RM" }).click();
     await page.getByLabel("Hedef Toplam Ağırlık (kg)").fill("142,5");
     await expect(page.getByText(/25/).first()).toBeVisible();
@@ -94,7 +100,7 @@ test("Mert: deneyimli halterci, program ve rekor takibi", async ({ page, request
     await page.getByRole("button", { name: "Kardiyoyu kaydet" }).click();
   });
   await step("Panoda kalori ve protein", "Kilo alma hedefinde günlük kalori/protein hedefini kontrol eder", async () => {
-    await page.getByRole("link", { name: "Ana Panel" }).click();
+    await page.getByRole("link", { name: "Ana Panel", exact: true }).first().click();
     await expect(page.getByText(/kcal/).first()).toBeVisible();
   });
 });

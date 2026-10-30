@@ -48,7 +48,9 @@ test("Can: gizlilik, yerel model, yedek ve Apple Sağlık", async ({ page, reque
     await expect(page.getByText(/kcal/).first()).toBeVisible();
   });
   await step("Şeffaflık tablosu", "Ayarlarda bilgisayardan dışarı ne çıktığını okur", async () => {
-    await page.getByRole("link", { name: "Ayarlar" }).click();
+    await page.getByRole("link", { name: "Ayarlar", exact: true }).first().click();
+    // Dalga 6 (B34): teknik bölümler "Gelişmiş" altında; içindekilerden ya da adresle açılır.
+    await page.goto(`${BASE}/settings#seffaflik`);
     await expect(page.getByRole("heading", { name: /Şeffaflık/ })).toBeVisible();
     await page.getByRole("heading", { name: /Şeffaflık/ }).scrollIntoViewIfNeeded();
   });
@@ -67,11 +69,11 @@ test("Can: gizlilik, yerel model, yedek ve Apple Sağlık", async ({ page, reque
   }
 
   await step("Koça geçmişini sorar", "Koça 'Bu hafta kaç km koştum?' diye sorar; sayının nereden geldiğini görmek ister", async () => {
-    await page.getByRole("link", { name: "AI Koçu" }).click();
+    await page.getByRole("link", { name: "AI Koçu", exact: true }).first().click();
     await queueLLM(request, "Bu hafta düzenli koşmuşsun, tebrikler.");
     await page.getByPlaceholder(/Sorunuzu yazın/).fill("Bu hafta kaç km koştum?");
     await page.getByRole("button", { name: /Gönder/ }).click();
-    await expect(page.getByText(/Kardiyo · Bu hafta/).last()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/(Kardiyo|Koşu) · Bu hafta/).last()).toBeVisible({ timeout: 15_000 });
   });
   await step("Koçtan akşam yemeği önerisi", "Akşam yemeği önerisi ister ve öneriyi onaylayıp plana ekler", async () => {
     await queueLLM(
@@ -80,11 +82,11 @@ test("Can: gizlilik, yerel model, yedek ve Apple Sağlık", async ({ page, reque
     );
     await page.getByPlaceholder(/Sorunuzu yazın/).fill("Akşam ne yiyeyim?");
     await page.getByRole("button", { name: /Gönder/ }).click();
-    await page.getByRole("button", { name: "Onayla ve Plana Ekle" }).click({ timeout: 15_000 });
-    await expect(page.getByText("Plana Eklendi ✓")).toBeVisible();
+    await page.getByRole("button", { name: /Onayla ve Plana Ekle|plana ekle/i }).first().click({ timeout: 15_000 });
+    await expect(page.getByText(/Plana Eklendi ✓|Onaylandı/).first()).toBeVisible();
   });
   await step("Tam yedek indirir", "Tüm verisini JSON olarak indirir", async () => {
-    await page.getByRole("link", { name: "Ayarlar" }).click();
+    await page.getByRole("link", { name: "Ayarlar", exact: true }).first().click();
     const dl = page.waitForEvent("download");
     await page.getByRole("button", { name: "Tüm Verileri JSON Olarak İndir" }).click();
     await dl;
@@ -92,7 +94,9 @@ test("Can: gizlilik, yerel model, yedek ve Apple Sağlık", async ({ page, reque
   });
   await step("Otomatik yedek kurar", "Günlük otomatik yedeği açar, klasörü kabul eder ve hemen bir yedek alır", async () => {
     await page.getByLabel("Otomatik yedek açık").check();
-    await page.getByRole("button", { name: "Otomatik yedeği kaydet" }).click();
+    // Dalga 6 (B34): anahtar dokununca kaydeder; eski sürümde ayrı bir düğme vardı.
+    const save = page.getByRole("button", { name: "Otomatik yedeği kaydet" });
+    if (await save.isVisible().catch(() => false)) await save.click();
     await page.getByRole("button", { name: "Şimdi yedekle" }).click();
     await expect(page.getByText(/Son yedek/)).toBeVisible();
   });
@@ -111,7 +115,7 @@ test("Can: gizlilik, yerel model, yedek ve Apple Sağlık", async ({ page, reque
     }
     lines.push(` <Workout workoutActivityType="HKWorkoutActivityTypeRunning" duration="31" durationUnit="min" totalDistance="5.2" totalDistanceUnit="km" totalEnergyBurned="340" totalEnergyBurnedUnit="kcal" sourceName="Can's Apple Watch" startDate="${d} 07:00:00 +0300" endDate="${d} 07:31:00 +0300"/>`);
     lines.push(`</HealthData>`);
-    await page.getByRole("link", { name: "İlerleme" }).click();
+    await page.getByRole("link", { name: "İlerleme", exact: true }).first().click();
     await page.getByLabel("Apple Sağlık dışa aktarımı (export.zip)").setInputFiles({ name: "export.zip", mimeType: "application/zip", buffer: zipOf("apple_health_export/export.xml", lines.join("\n")) });
     await expect(page.getByText(/kayıt içe aktarıldı/)).toBeVisible();
   });
@@ -121,7 +125,8 @@ test("Can: gizlilik, yerel model, yedek ve Apple Sağlık", async ({ page, reque
     await expect(page.getByText(/Henüz Apple Sağlık verisi yok/)).toBeVisible();
   });
   await step("Tanılama bölümü", "Ayarların sonundaki tanılama bilgisini inceler", async () => {
-    await page.getByRole("link", { name: "Ayarlar" }).click();
+    await page.getByRole("link", { name: "Ayarlar", exact: true }).first().click();
+    await page.goto(`${BASE}/settings#tanilama`);
     await page.getByText(/Tanılama|Sistem/).last().scrollIntoViewIfNeeded();
   });
 });
