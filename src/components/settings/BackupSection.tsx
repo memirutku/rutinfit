@@ -6,6 +6,7 @@ import { ApiError, errorMessage } from "@/lib/client/api";
 import { useImportBackup } from "@/lib/client/queries/system";
 import type { ConfirmOptions } from "@/components/ui/ConfirmDialog";
 import { AutoBackupPanel } from "./AutoBackupPanel";
+import { downloadFile } from "@/lib/client/download";
 
 interface ImportResult {
   ok: boolean;
@@ -22,32 +23,6 @@ function importErrorText(error: unknown): string {
     return typeof body?.error === "string" ? body.error : IMPORT_FALLBACK;
   }
   return errorMessage(error, IMPORT_FALLBACK);
-}
-
-/**
- * Sayfayı JSON adresine götürmek masaüstü görünümünde (WKWebView) dosyayı indirmek yerine
- * ham JSON'u pencerede açıyordu ve geri dönüş yolu yoktu. Yedek blob olarak indirilir.
- */
-async function downloadFile(endpoint: string, fallbackName: string, pathHeader: string): Promise<{ name: string; savedPath: string | null }> {
-  const res = await fetch(endpoint);
-  if (!res.ok) {
-    const data: { error?: string } = await res.json().catch(() => ({}));
-    throw new Error(data.error || "Dışa aktarılamadı");
-  }
-  const blob = await res.blob();
-  const name = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ?? fallbackName;
-  const savedPath = res.headers.get(pathHeader);
-
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  // WebKit indirmeyi başlatmadan adres iptal edilirse indirme düşer; kısa gecikmeyle bırakılır.
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
-  return { name, savedPath: savedPath ? decodeURIComponent(savedPath) : null };
 }
 
 async function downloadBackup(): Promise<string> {

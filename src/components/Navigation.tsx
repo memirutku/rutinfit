@@ -31,7 +31,7 @@ export function Navigation() {
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-white border-r border-slate-800 p-4 fixed inset-y-0 left-0 z-30">
+      <aside className="hidden md:flex print:hidden flex-col w-64 bg-slate-900 text-white border-r border-slate-800 p-4 fixed inset-y-0 left-0 z-30">
         <div className="flex items-center gap-3 px-2 py-4 mb-6 border-b border-slate-800">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-emerald-400 flex items-center justify-center font-bold text-white shadow-md">
             RF
@@ -78,7 +78,7 @@ export function Navigation() {
       </aside>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 px-2 py-1 shadow-lg">
+      <nav className="md:hidden print:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 px-2 py-1 shadow-lg">
         <div className="flex justify-around items-center">
           {NAV_ITEMS.slice(0, 5).map((item) => {
             const Icon = item.icon;

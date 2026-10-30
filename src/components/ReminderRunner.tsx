@@ -37,7 +37,7 @@ export function ReminderRunner({ intervalMs = 60_000 }: { intervalMs?: number })
 
   if (!shown.length) return null;
   return (
-    <div aria-live="polite" className="fixed z-50 bottom-24 md:bottom-6 right-4 left-4 sm:left-auto sm:w-80 space-y-2">
+    <div aria-live="polite" className="print:hidden fixed z-50 bottom-24 md:bottom-6 right-4 left-4 sm:left-auto sm:w-80 space-y-2">
       {shown.map((r) => (
         <div key={r.id} role="status" className="flex items-start gap-3 p-3 rounded-xl bg-white border border-brand-200 shadow-lg">
           <BellRing className="w-5 h-5 text-brand-600 shrink-0 mt-0.5" aria-hidden />

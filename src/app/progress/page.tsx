@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import {
   Scale,
   BatteryMedium,
@@ -68,6 +70,10 @@ export default function ProgressPage() {
             Günlük dalgalanmalar yerine 7 günlük ortalamalar ve toparlanma eğilimi.
           </p>
         </div>
+        {/* F77 */}
+        <Link href="/report" className="self-start sm:self-auto px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50">
+          Diyetisyen raporu
+        </Link>
       </div>
 
       {/* Kreatin ve Kilo Dalgalanması Bilgilendirme Kartı */}
