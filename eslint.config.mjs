@@ -16,6 +16,8 @@ const config = defineConfig([
     "opengym/**",
     "next-env.d.ts",
     "src/generated/**",
+    // Paralel oturumların git worktree kopyaları (kendi node_modules ve .next'leriyle).
+    ".claude/**",
   ]),
   {
     // eslint-config-next eklentileri yalnız bu uzantılar için kaydeder (.cjs hariç).
