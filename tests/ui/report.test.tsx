@@ -83,7 +83,9 @@ describe("F77: diyetisyen raporu", () => {
     await waitFor(() => expect(print).toHaveBeenCalled());
 
     fireEvent.click(screen.getByRole("button", { name: /Excel indir/ }));
-    expect(await screen.findByText(/Excel indirildi: rapor.xlsx/)).toBeTruthy();
+    expect(await screen.findByText(/Excel indirildi: rapor.xlsx \(İndirilenler klasörü\)/)).toBeTruthy();
+    // B36: ham yol yerine Finder düğmesi.
+    expect(screen.getByRole("button", { name: "İndirilen Excel dosyasını Finder'da göster" })).toBeTruthy();
   });
 });
 

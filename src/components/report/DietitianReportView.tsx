@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { FileSpreadsheet, Printer } from "lucide-react";
 import { apiFetch, errorMessage } from "@/lib/client/api";
 import { downloadFile } from "@/lib/client/download";
+import { PathActions } from "@/components/ui/PathActions";
 import { addDaysToDateString, getLocalDateString } from "@/lib/date-utils";
 import { formatDateTr, formatDecimalTr, formatNumberTr } from "@/lib/format";
 import { ADHERENCE_LABELS } from "@/lib/adherence";
@@ -70,7 +71,8 @@ function groupMealsByDay(r: DietitianReport) {
 /** F77: Diyetisyene rapor. Yazdır › PDF olarak kaydet ya da Excel indir. */
 export function DietitianReportView({ today = getLocalDateString() }: { today?: string }) {
   const [range, setRange] = useState({ from: addDaysToDateString(today, -6), to: today });
-  const [message, setMessage] = useState<string | null>(null);
+  // B36: indirilen dosyanın yeri ve Finder düğmeleri (ham yol yerine).
+  const [exported, setExported] = useState<{ name: string; savedPath: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const report = useQuery({
     queryKey: ["reports", "dietitian", range.from, range.to],
@@ -96,7 +98,7 @@ export function DietitianReportView({ today = getLocalDateString() }: { today?: 
     setError(null);
     try {
       const { name, savedPath } = await downloadFile(`/api/reports/dietitian/xlsx?from=${range.from}&to=${range.to}`, "rutinfit-diyetisyen-raporu.xlsx", "X-RutinFit-Export-Path");
-      setMessage(`Excel indirildi: ${name}.` + (savedPath ? ` Bir kopyası uygulama klasörüne kaydedildi: ${savedPath}` : ""));
+      setExported({ name, savedPath: savedPath ?? null });
     } catch (e) {
       setError(errorMessage(e, "Excel hazırlanamadı."));
     }
@@ -135,7 +137,24 @@ export function DietitianReportView({ today = getLocalDateString() }: { today?: 
             Excel indir
           </button>
         </div>
-        {message && <p role="status" className="w-full text-xs text-emerald-700">{message}</p>}
+        {exported && (
+          <div role="status" className="w-full space-y-1.5 text-xs text-emerald-800 print:hidden">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-semibold [overflow-wrap:anywhere]">{`Excel indirildi: ${exported.name} (İndirilenler klasörü)`}</p>
+              <PathActions target={{ download: exported.name }} revealLabel="İndirilen Excel dosyasını Finder'da göster" />
+            </div>
+            {exported.savedPath && (
+              <div className="flex flex-wrap items-center gap-2 text-slate-600">
+                <p>Bir kopyası uygulama klasöründe.</p>
+                <PathActions
+                  target={{ path: exported.savedPath }}
+                  revealLabel="Uygulama klasöründeki kopyayı Finder'da göster"
+                  copy={{ text: exported.savedPath, label: "Uygulama klasöründeki kopyanın yolunu kopyala" }}
+                />
+              </div>
+            )}
+          </div>
+        )}
         {(error || report.isError) && (
           <p role="alert" className="w-full text-xs text-rose-700">
             {error ?? errorMessage(report.error, "Rapor hazırlanamadı.")}
