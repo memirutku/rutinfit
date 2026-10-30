@@ -53,8 +53,9 @@ RutinFit'in tüm yetenekleri gerçek kod tabanı ve testlerle doğrulanmış 3 n
 | **Yerel AI & Ritim** | Güvenli Çoklu Dosya Ayrıştırıcıları (PDF, XLSX, DOCX, TXT) | 🟢 **Hazır** | `<untrusted_content>` izolasyonu ve Zod doğrulaması. |
 | **Sistem & Veri** | Tam Kapsamlı Yedekleme & Geri Yükleme (v2) | 🟢 **Hazır** | Önbellek dışındaki tüm tablolar; satır satır doğrulama, tek transaction, binlerce kayıtta toplu yazma. 1.x yedekleri de okunur. |
 | **Sistem & Veri** | Canlı Sistem Tanılama & Performans Ekranı | 🟢 **Hazır** | SQLite dosya boyutu, RSS bellek ve çalışma süresi izleme. |
-| **Masaüstü Dağıtımı** | Tauri 2 Masaüstü Uygulaması (`pnpm desktop:build`) | 🟡 **Beta** | Gömülü Node 22 + Next.js standalone sunucu; proje klasörü veya pnpm gerektirmeyen `.app` / `.dmg` (macOS, imzasız yerel derleme). |
-| **Masaüstü Dağıtımı** | İmzalı Tek Tıkla Kurulum Paketleri (`.dmg`, `.msi`, `.deb`) | 🔵 **Planlanıyor** | GitHub Releases üzerinden imzalı bağımsız kurulum dosyaları. |
+| **Masaüstü Dağıtımı** | Tauri 2 Masaüstü Uygulaması (`pnpm desktop:build`) | 🟡 **Beta** | Gömülü Node 22 + Next.js standalone sunucu; proje klasörü veya pnpm gerektirmeyen `.app` / `.dmg` (macOS). Sertifika yoksa ad-hoc imzalı yerel derleme. |
+| **Masaüstü Dağıtımı** | İmzalı ve Notarize Edilmiş macOS Paketi (`.dmg`, Apple Silicon + Intel) | 🟡 **Beta** | Developer ID imzası, hardened runtime ve Apple notarization. `v*` etiketinde GitHub Actions derler, Gatekeeper ve duman testiyle doğrular, taslak Release'e yükler ([`docs/RELEASING.md`](docs/RELEASING.md)). |
+| **Masaüstü Dağıtımı** | Windows / Linux Kurulum Paketleri (`.msi`, `.deb`) | 🔵 **Planlanıyor** | Sürüm iş akışı şimdilik yalnız macOS üretir. |
 | **Mobil / Donanım** | Apple Health / Health Connect Dışa Aktarımı | 🔵 **Planlanıyor** | Akıllı saat ve sağlık verisi senkronizasyon köprüsü. |
 
 ---
@@ -214,7 +215,7 @@ Ayrıntılı teknik analizler ve raporlar için:
 
 > [!NOTE]
 > **Son Kullanıcı / Dağıtım Durumu Bildirimi:**  
-> RutinFit şu an aktif açık kaynak geliştirici önizleme aşamasındadır. Önceden derlenmiş tek tıkla kurulan `.dmg` veya `.msi` yükleyicileri henüz GitHub Releases'da yayınlanmamıştır; mevcut aşamada Node.js ve pnpm ile kaynak koddan çalıştırılmaktadır.
+> RutinFit şu an aktif açık kaynak geliştirici önizleme aşamasındadır. macOS için sürüm hattı hazırdır: her `v*` etiketi Developer ID ile imzalanmış ve Apple tarafından notarize edilmiş `.dmg` paketlerini (Apple Silicon ve Intel) [GitHub Releases](https://github.com/memirutku/rutinfit/releases) sayfasına yükler; bu paketler Gatekeeper uyarısı çıkmadan açılır. Releases sayfasında henüz paket yoksa ya da Windows veya Linux kullanıyorsanız (`.msi` / `.deb` henüz yok) uygulamayı Node.js ve pnpm ile kaynak koddan çalıştırın.
 
 ### 💻 Geliştirici Kurulumu
 
@@ -283,7 +284,16 @@ Testler gerçek veritabanınıza **hiçbir zaman** yazmaz; yerel AI ve Open Food
   pakette kullanıcı verisi veya gizli dosya olmadığını doğrular, Node 22 çalışma zamanını
   (sabit sürüm, SHA-256 doğrulamalı) `src-tauri/binaries/` altına indirir ve SQLite yerel eklentisinin
   bu Node ile yüklendiğini, PDF'den metin çıkarmanın da bu Node ile paketteki dosyalarla çalıştığını denetler.
-  Çıktı: `src-tauri/target/release/bundle/` (`macos/RutinFit.app`, `dmg/RutinFit_*.dmg`). Paketler şu an imzasızdır.
+  Çıktı: `src-tauri/target/release/bundle/` (`macos/RutinFit.app`, `dmg/RutinFit_*.dmg`).
+
+  **İmza:** `APPLE_SIGNING_IDENTITY` verilmezse paket ad-hoc imzalanır ve yalnız derlendiği Mac'te açılır.
+  Dağıtım için Developer ID kimliğiyle imzalayıp notarize edin, ardından doğrulayın:
+  ```bash
+  APPLE_SIGNING_IDENTITY="Developer ID Application: Ad Soyad (TAKIMID)" pnpm desktop:build
+  NOTARYTOOL_PROFILE=rutinfit node scripts/notarize-macos.mjs src-tauri/target/release/bundle/dmg/*.dmg
+  node scripts/verify-desktop.mjs --distribution
+  ```
+  Sertifika, notarization profili, GitHub sırları ve kuru çalıştırma: [`docs/RELEASING.md`](docs/RELEASING.md).
 
 #### 5. Çatı Sürümleri ve Yükseltme Notları
 Next.js 16.4, Prisma 7.10 ve Vitest 5.0 kullanılır (Ekim 2026'da 15.5 / 6.19 / 4.1'den yükseltildi; her biri ayrı commit).

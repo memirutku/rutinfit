@@ -21,7 +21,7 @@
     "test:watch": "vitest",
     "desktop": "tauri dev",
     "desktop:dev": "tauri dev",
-    "desktop:build": "tauri build --ci",
+    "desktop:build": "node scripts/desktop-build.mjs",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "test:coverage": "vitest run --coverage",

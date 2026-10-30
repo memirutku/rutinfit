@@ -30,6 +30,12 @@ antigravity_*brief*.md
 .env.local
 .env.*.local
 *.pem
+# Apple imza / notarization malzemesi (sertifika, App Store Connect API anahtarı) asla depoya girmez
+*.p12
+*.p8
+*.cer
+*.mobileprovision
+private_keys/
 
 # Logs & Cache
 npm-debug.log*
