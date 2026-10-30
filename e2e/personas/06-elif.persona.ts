@@ -17,7 +17,7 @@ test("Elif: dar ekran, takviye, hatırlatma, fotoğraf, döngü", async ({ page 
     await expect(page.getByRole("dialog", { name: "Hedeflerini birlikte kuralım" })).toBeVisible();
   });
   await step("Sihirbaz (dar ekran)", "Kadın, 22, 168 cm, 60 kg, orta hareketli, kilo almak", async () => {
-    await fillWizard(page, { sex: "Kadın", age: 22, height: 168, weight: 60, activity: /Orta hareketli/, goal: "Kilo al", rate: "0.25" });
+    await fillWizard(page, { sex: "Kadın", age: 22, height: 168, weight: 60, activity: /Orta hareketli/, goal: "Kilo al", rate: "0.25", dayPattern: "Okul", homeTime: "17:00" });
     await saveWizard(page);
   });
   await step("Simit ekler", "Kahvaltıda yediği simidi tek tıkla ekler", async () => {

@@ -12,7 +12,7 @@ test("Mert: deneyimli halterci, program ve rekor takibi", async ({ page, request
 
   await step("İlk açılış ve sihirbaz", "Hızlıca profilini girer: 28, 180 cm, 85 kg, çok hareketli, kilo almak 0,25", async () => {
     await page.goto(BASE);
-    await fillWizard(page, { sex: "Erkek", age: 28, height: 180, weight: 85, activity: /Çok hareketli/, goal: "Kilo al", rate: "0.25" });
+    await fillWizard(page, { sex: "Erkek", age: 28, height: 180, weight: 85, activity: /Çok hareketli/, goal: "Kilo al", rate: "0.25", dayPattern: "Ofis / iş yeri", homeTime: "18:00" });
     await saveWizard(page);
   });
   await step("Antrenman sayfası", "Antrenman bölümünü açar", async () => {

@@ -15,7 +15,7 @@ test("Ayşe: ilk hafta, kilo verme, Türk ev yemekleri", async ({ page, request 
     await expect(page.getByRole("dialog", { name: "Hedeflerini birlikte kuralım" })).toBeVisible();
   });
   await step("Sihirbaz: vücut, hareket, hedef", "Bilgilerini girer: kadın, 34, 165 cm, 90 kg, masa başı, kilo vermek, hedef 75 kg", async () => {
-    await fillWizard(page, { sex: "Kadın", age: 34, height: 165, weight: 90, activity: /Hareketsiz/, goal: "Kilo ver", target: 75, rate: "0.5" });
+    await fillWizard(page, { sex: "Kadın", age: 34, height: 165, weight: 90, activity: /Hareketsiz/, goal: "Kilo ver", target: 75, rate: "0.5", dayPattern: "Ofis / iş yeri", homeTime: "18:30" });
   });
   await step("Sihirbaz: özet", "Önerilen kalori hedefini okur ve anlamaya çalışır", async () => {
     await expect(page.getByText("Günlük kalori hedefi")).toBeVisible();

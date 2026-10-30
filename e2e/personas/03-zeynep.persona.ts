@@ -13,7 +13,7 @@ test("Zeynep: diyetisyen planı, uyum ve rapor", async ({ page, request }) => {
 
   await step("İlk açılış ve sihirbaz", "Profilini girer; diyetisyeninin verdiği 1500 kcal'i aklında tutar", async () => {
     await page.goto(BASE);
-    await fillWizard(page, { sex: "Kadın", age: 41, height: 160, weight: 78, activity: /Hafif hareketli/, goal: "Kilo ver", target: 68, rate: "0.5" });
+    await fillWizard(page, { sex: "Kadın", age: 41, height: 160, weight: 78, activity: /Hafif hareketli/, goal: "Kilo ver", target: 68, rate: "0.5", dayPattern: "Okul", homeTime: "16:30" });
     await saveWizard(page);
   });
   await step("Diyetisyenin hedefini girer", "Ayarlarda kalori hedefini diyetisyenin verdiği 1500 kcal yapar", async () => {

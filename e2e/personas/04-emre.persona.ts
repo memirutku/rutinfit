@@ -13,7 +13,7 @@ test("Emre: Ramazan, sahur/iftar ve su", async ({ page }) => {
 
   await step("İlk açılış ve sihirbaz", "Profilini girer; kilosunu korumak ister", async () => {
     await page.goto(BASE);
-    await fillWizard(page, { sex: "Erkek", age: 30, height: 178, weight: 82, activity: /Hafif hareketli/, goal: "Kiloyu koru" });
+    await fillWizard(page, { sex: "Erkek", age: 30, height: 178, weight: 82, activity: /Hafif hareketli/, goal: "Kiloyu koru", dayPattern: "Evden / esnek", ramadanProvince: "İstanbul", program: /Tam vücut başlangıç/ });
     await saveWizard(page);
   });
   await step("Ramazan ayarını arar", "Ayarlarda Ramazan/oruç seçeneğini bulmaya çalışır", async () => {
