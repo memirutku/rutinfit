@@ -7,7 +7,10 @@ import type { RecentFood } from "@/lib/recent-foods";
 import { errorMessage } from "@/lib/client/api";
 import { formatNumberTr, parseDecimalTr } from "@/lib/format";
 import { rankFoods } from "@/lib/food-search";
-import { builtinMeasuresFor, mergeMeasures } from "@/lib/measures";
+import { builtinMeasuresFor, mergeMeasures, recipeMeasuresFor, type MergedMeasure } from "@/lib/measures";
+import { useRecipes } from "@/lib/client/queries/nutrition";
+import { recipeTotals } from "@/components/foods/RecipesTab";
+import { StarterCatalogPrompt } from "@/components/foods/StarterCatalogPrompt";
 
 export interface QuickAddFood {
   id: string;
@@ -17,7 +20,9 @@ export interface QuickAddFood {
 }
 
 export interface QuickAddValues {
+  /** Katalog besini seçildiyse dolu; tarif seçildiyse boş ve `recipeId` dolu (B01). */
   foodItemId: string;
+  recipeId?: string;
   name: string;
   grams: number;
   mealType: MealType;
@@ -38,7 +43,13 @@ interface QuickAddModalProps {
   ramadan?: boolean;
 }
 
-/** Hızlı öğün kaydı. Makrolar sunucuda katalog değerlerinden hesaplanır; burada yalnız seçim yapılır. */
+/** Tarif seçenekleri "recipe:" önekli değer taşır (besin kimlikleriyle karışmaz). */
+const RECIPE_PREFIX = "recipe:";
+
+/**
+ * Hızlı öğün kaydı. Makrolar sunucuda katalog değerlerinden hesaplanır; burada yalnız seçim yapılır.
+ * B01: tarifler de (porsiyonla) seçilebilir; katalog boşsa başlangıç kataloğu önerilir.
+ */
 export function QuickAddModal({
   open,
   onClose,
@@ -53,6 +64,8 @@ export function QuickAddModal({
   const ids = { meal: useId(), search: useId(), food: useId(), grams: useId(), unit: useId() };
   const [mealType, setMealType] = useState<MealType>(initialMealType);
   const [foodId, setFoodId] = useState("");
+  // F73: miktar gram ya da besinin ev ölçüsüyle girilir.
+  const [unit, setUnit] = useState("gram");
   const [grams, setGrams] = useState("100");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,19 +82,59 @@ export function QuickAddModal({
     }
   }
 
+  // B01: tarifler porsiyonla seçilir ("Mercimek Çorbası" aranınca çiğ mercimekten önce gelir).
+  const recipesQuery = useRecipes(open);
+  const recipeOptions = (recipesQuery.data ?? []).map((r) => {
+    const totals = recipeTotals(r);
+    const servings = r.servings > 0 ? r.servings : 1;
+    const totalGrams = r.ingredients.reduce((a, i) => a + i.grams, 0);
+    return {
+      id: `${RECIPE_PREFIX}${r.id}`,
+      recipeId: r.id,
+      name: r.name,
+      confidence: "Yüksek",
+      portionKcal: totals.calories / servings,
+      portionGrams: totalGrams / servings,
+    };
+  });
+
   // F02: arama kutusu listeyi süzer ve eşleşme kalitesine göre sıralar.
   const [query, setQuery] = useState("");
-  const visibleFoods = query.trim() ? rankFoods(foods, query) : foods;
+  const rank = (q: string) => ({
+    foods: q.trim() ? rankFoods(foods, q) : foods,
+    recipes: q.trim() ? rankFoods(recipeOptions, q) : recipeOptions,
+    best: q.trim() ? rankFoods<{ id: string; name: string; confidence?: string | null }>([...foods, ...recipeOptions], q)[0] : foods[0] ?? recipeOptions[0],
+  });
+  const visible = rank(query);
+  const visibleFoods = visible.foods;
+  const catalogEmpty = !isLoadingFoods && foods.length === 0 && recipesQuery.isSuccess && recipeOptions.length === 0;
 
-  // Seçim yoksa listedeki ilk besin seçilir (seçim kapanıp açılınca korunur).
-  if (open && !foodId && visibleFoods.length > 0) setFoodId(visibleFoods[0].id);
+  const selectedRecipe = recipeOptions.find((r) => r.id === foodId);
+  // Tarif porsiyonla, besin gramla başlar (porsiyondan besine geçince "1 gram" kalmasın).
+  function selectItem(id: string) {
+    const toRecipe = id.startsWith(RECIPE_PREFIX);
+    if (toRecipe && !foodId.startsWith(RECIPE_PREFIX)) {
+      setUnit("porsiyon");
+      setGrams("1");
+    } else if (!toRecipe && foodId.startsWith(RECIPE_PREFIX)) {
+      setUnit("gram");
+      setGrams("100");
+    }
+    setFoodId(id);
+  }
+
+  // Seçim yoksa listedeki en iyi eşleşme seçilir (seçim kapanıp açılınca korunur).
+  if (open && !foodId && visible.best) selectItem(visible.best.id);
 
   // Son kullanılan bir besin 50'lik listede olmasa da seçilebilir (ad yerelden gelir).
   const recentOutsideList = recentFoods.filter((r) => !foods.some((f) => f.id === r.id));
-  const selectedName = foods.find((f) => f.id === foodId)?.name ?? recentFoods.find((r) => r.id === foodId)?.name;
-  // F73: miktar gram ya da besinin ev ölçüsüyle girilir.
-  const [unit, setUnit] = useState("gram");
-  const measures = selectedName ? mergeMeasures(builtinMeasuresFor(selectedName), customMeasures?.[foodId] ?? []) : [];
+  const selectedName =
+    selectedRecipe?.name ?? foods.find((f) => f.id === foodId)?.name ?? recentFoods.find((r) => r.id === foodId)?.name;
+  const measures: MergedMeasure[] = selectedRecipe
+    ? recipeMeasuresFor(selectedRecipe.name, selectedRecipe.portionGrams).map((x) => ({ ...x, source: "builtin" as const }))
+    : selectedName
+      ? mergeMeasures(builtinMeasuresFor(selectedName), customMeasures?.[foodId] ?? [])
+      : [];
   const measure = unit === "gram" ? undefined : measures.find((x) => x.name === unit);
   if (unit !== "gram" && !measure) setUnit("gram");
   const amountNum = parseDecimalTr(grams) ?? NaN;
@@ -94,7 +147,11 @@ export function QuickAddModal({
     setSubmitting(true);
     setError(null);
     try {
-      await onSubmit({ foodItemId: foodId, name: selectedName, grams: gramsNum, mealType });
+      await onSubmit(
+        selectedRecipe
+          ? { foodItemId: "", recipeId: selectedRecipe.recipeId, name: selectedName, grams: gramsNum, mealType }
+          : { foodItemId: foodId, name: selectedName, grams: gramsNum, mealType },
+      );
     } catch (err) {
       setError(errorMessage(err, "Öğün kaydedilemedi."));
     } finally {
@@ -104,6 +161,11 @@ export function QuickAddModal({
 
   return (
     <Modal open={open} onClose={onClose} title="Hızlı Öğün Kaydı" description="Katalogdan bir besin seçin veya son kullanılanlara tıklayın.">
+      {catalogEmpty && (
+        <div className="mb-4">
+          <StarterCatalogPrompt />
+        </div>
+      )}
       {recentFoods.length > 0 && (
         <div className="mb-4">
           <span className="block text-xs font-semibold text-slate-600 mb-1.5">Son Kullanılanlar (Tek Tıkla Seç)</span>
@@ -114,7 +176,7 @@ export function QuickAddModal({
                 type="button"
                 aria-pressed={foodId === rf.id}
                 onClick={() => {
-                  setFoodId(rf.id);
+                  selectItem(rf.id);
                   setUnit("gram");
                   setGrams(String(rf.defaultGrams));
                 }}
@@ -162,8 +224,9 @@ export function QuickAddModal({
             onChange={(e) => {
               const next = e.target.value;
               setQuery(next);
-              const list = next.trim() ? rankFoods(foods, next) : foods;
-              if (!list.some((f) => f.id === foodId)) setFoodId(list[0]?.id ?? "");
+              const r = rank(next);
+              // Aramada en iyi eşleşme seçilir (besin ya da tarif).
+              if (next.trim() || ![...r.foods, ...r.recipes].some((f) => f.id === foodId)) selectItem(r.best?.id ?? "");
             }}
             className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
@@ -176,7 +239,7 @@ export function QuickAddModal({
           <select
             id={ids.food}
             value={foodId}
-            onChange={(e) => setFoodId(e.target.value)}
+            onChange={(e) => selectItem(e.target.value)}
             disabled={isLoadingFoods}
             className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             required
@@ -187,11 +250,30 @@ export function QuickAddModal({
                 {r.name} (son kullanılan)
               </option>
             ))}
-            {visibleFoods.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name} ({formatNumberTr(f.calories)} kcal / {formatNumberTr(f.basisGrams)}g)
-              </option>
-            ))}
+            {visible.recipes.length > 0 ? (
+              <>
+                <optgroup label="Besinler">
+                  {visibleFoods.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name} ({formatNumberTr(f.calories)} kcal / {formatNumberTr(f.basisGrams)}g)
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Tarifler">
+                  {visible.recipes.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name} ({formatNumberTr(Math.round(r.portionKcal))} kcal / porsiyon)
+                    </option>
+                  ))}
+                </optgroup>
+              </>
+            ) : (
+              visibleFoods.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name} ({formatNumberTr(f.calories)} kcal / {formatNumberTr(f.basisGrams)}g)
+                </option>
+              ))
+            )}
           </select>
         </div>
 
@@ -224,6 +306,7 @@ export function QuickAddModal({
                 setUnit(e.target.value);
                 // Ölçüye geçince 1 ölçüyle başla (gramdaki 150 "150 kaşık" olmasın).
                 if (e.target.value !== "gram" && unit === "gram") setGrams("1");
+                if (e.target.value === "gram" && unit !== "gram" && Number.isFinite(gramsNum)) setGrams(String(gramsNum));
               }}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             >

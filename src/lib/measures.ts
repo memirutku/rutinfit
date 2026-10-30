@@ -74,6 +74,11 @@ export function builtinMeasuresFor(foodName: string): Measure[] {
   return RULES.find((r) => r.match.test(name))?.measures.map((x) => ({ ...x })) ?? [];
 }
 
+/** B01: tarifin ev ölçüleri; "porsiyon" tarifin bir porsiyonudur (toplam gram / porsiyon sayısı). */
+export function recipeMeasuresFor(_recipeName: string, portionGrams: number): Measure[] {
+  return portionGrams > 0 ? [m("porsiyon", Math.round(portionGrams * 10) / 10)] : [];
+}
+
 const order = (name: string) => {
   const i = MEASURE_NAMES.indexOf(name as MeasureName);
   return i === -1 ? MEASURE_NAMES.length : i;

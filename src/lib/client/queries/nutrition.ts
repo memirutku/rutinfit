@@ -39,13 +39,14 @@ export function useFoods(limit: number, options: { enabled?: boolean; sort?: "us
   });
 }
 
-export function useRecipes() {
+export function useRecipes(enabled = true) {
   return useQuery({
     queryKey: queryKeys.recipes,
     queryFn: async () => {
       const data = await apiFetch<Recipe[]>("/api/recipes");
       return Array.isArray(data) ? data : [];
     },
+    enabled,
   });
 }
 

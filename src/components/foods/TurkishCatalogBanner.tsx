@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, errorMessage } from "@/lib/client/api";
 import { queryKeys } from "@/lib/client/queries/keys";
 
-const KEY = ["catalog", "turkish"] as const;
+const KEY = queryKeys.catalog.turkish;
 
 /** F74: Türk ev yemekleri paketi kurulu değilse tek tıkla eklenir. */
 export function TurkishCatalogBanner() {
@@ -17,7 +17,7 @@ export function TurkishCatalogBanner() {
     onSuccess: (r) => {
       setDone(`${r.recipesCreated} tarif eklendi${r.foodsCreated ? `, ${r.foodsCreated} malzeme kataloğa girdi` : ""}.`);
       return Promise.all([
-        qc.invalidateQueries({ queryKey: KEY }),
+        qc.invalidateQueries({ queryKey: queryKeys.catalog.all }),
         qc.invalidateQueries({ queryKey: queryKeys.recipes }),
         qc.invalidateQueries({ queryKey: queryKeys.foods.all }),
       ]);

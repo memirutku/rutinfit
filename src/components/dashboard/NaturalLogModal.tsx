@@ -8,6 +8,7 @@ import { useCreateFoodLog } from "@/lib/client/queries/nutrition";
 import { formatNumberTr } from "@/lib/format";
 import { MEAL_TYPES, MEAL_TYPE_LABELS, type MealType } from "@/lib/schemas/enums";
 import type { MatchRef, ParsedMealItem } from "@/lib/services/natural-log";
+import { StarterCatalogPrompt } from "@/components/foods/StarterCatalogPrompt";
 
 interface Row extends ParsedMealItem {
   key: string;
@@ -29,6 +30,7 @@ export function NaturalLogModal({ open, date, defaultMealType, onClose }: { open
   const [text, setText] = useState("");
   const [mealType, setMealType] = useState<MealType>(defaultMealType);
   const [rows, setRows] = useState<Row[] | null>(null);
+  const [catalogEmpty, setCatalogEmpty] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -39,7 +41,11 @@ export function NaturalLogModal({ open, date, defaultMealType, onClose }: { open
     setParsing(true);
     setError(null);
     try {
-      const { items } = await apiFetch<{ items: ParsedMealItem[] }>("/api/food-logs/parse", { method: "POST", json: { text } });
+      const { items, catalogEmpty: empty } = await apiFetch<{ items: ParsedMealItem[]; catalogEmpty?: boolean }>("/api/food-logs/parse", {
+        method: "POST",
+        json: { text },
+      });
+      setCatalogEmpty(!!empty);
       setRows(items.map((i, n) => ({ ...i, key: `${n}:${i.raw}`, choice: i.match ? refKey(i.match) : "", baseGrams: i.grams })));
     } catch (e) {
       setError(errorMessage(e, "Metin çözümlenemedi."));
@@ -53,6 +59,7 @@ export function NaturalLogModal({ open, date, defaultMealType, onClose }: { open
   function close() {
     setText("");
     setRows(null);
+    setCatalogEmpty(false);
     onClose();
   }
 
@@ -107,6 +114,8 @@ export function NaturalLogModal({ open, date, defaultMealType, onClose }: { open
             Çözümle
           </button>
         </div>
+
+        {catalogEmpty && <StarterCatalogPrompt onInstalled={parse} />}
 
         {rows && (
           <ul aria-label="Önizleme" className="space-y-2">

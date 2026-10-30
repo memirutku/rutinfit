@@ -12,6 +12,8 @@ export interface CatalogIngredient {
   proteinG: number;
   carbsG: number;
   fatG: number;
+  /** Değerin kaynağı (verilmezse "USDA FDC (yaklaşık)"). */
+  source?: string;
 }
 
 const ing = (name: string, category: string, calories: number, proteinG: number, carbsG: number, fatG: number): CatalogIngredient => ({

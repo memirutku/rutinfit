@@ -1,9 +1,20 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { renderWithQuery } from "../helpers/query";
+import { jsonResponse, stubFetch } from "../helpers/fetch";
 import { UndoToast } from "@/components/dashboard/UndoToast";
 import { QuickAddModal } from "@/components/dashboard/QuickAddModal";
 import { RestTimer } from "@/components/workouts/RestTimer";
 import type { Countdown } from "@/hooks/useCountdown";
+
+// QuickAddModal tarifleri (B01) kendisi yükler: sorgu istemcisi ve boş tarif listesi.
+const render = (ui: ReactElement) => renderWithQuery(ui);
+let restoreFetch: (() => void) | undefined;
+beforeEach(() => {
+  restoreFetch = stubFetch([["/api/recipes", () => jsonResponse([])]]).restore;
+});
+afterEach(() => restoreFetch?.());
 
 describe("UndoToast", () => {
   beforeEach(() => vi.useFakeTimers());
