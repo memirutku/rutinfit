@@ -30,6 +30,8 @@ import { DrinksCard } from "@/components/dashboard/DrinksCard";
 import { SavedMealsModal } from "@/components/dashboard/SavedMealsModal";
 import { computeReadiness } from "@/lib/readiness";
 import { useAllCustomMeasures } from "@/lib/client/queries/measures";
+import { NaturalLogModal } from "@/components/dashboard/NaturalLogModal";
+import { mealTypeForHour } from "@/lib/meal-time";
 
 interface UndoState {
   toast: UndoToastData;
@@ -45,6 +47,7 @@ export default function DashboardPage() {
   // F09: kurulmamış profilde sihirbaz açılır; "Şimdilik geç" bu oturum için kapatır.
   const [wizardDismissed, setWizardDismissed] = useState(false);
   const [savedMealsOpen, setSavedMealsOpen] = useState(false);
+  const [naturalLogOpen, setNaturalLogOpen] = useState(false);
   const quickFood = useQuickAddFood();
   const showWizard = profile.data?.isOnboarded === false && !wizardDismissed;
   const foodLogs = useFoodLogs(todayStr);
@@ -200,9 +203,17 @@ export default function DashboardPage() {
         onDelete={handleDeleteFoodLog}
         hideNumbers={hideNumbers}
         onOpenSavedMeals={() => setSavedMealsOpen(true)}
+        onOpenNaturalLog={() => setNaturalLogOpen(true)}
         onQuickFood={(item, count) =>
           quickFood.mutate({ item, count, date: todayStr }, { onError: (e) => showError(e, "Eklenemedi.") })
         }
+      />
+
+      <NaturalLogModal
+        open={naturalLogOpen}
+        date={todayStr}
+        defaultMealType={mealTypeForHour(new Date().getHours())}
+        onClose={() => setNaturalLogOpen(false)}
       />
 
       <SavedMealsModal
