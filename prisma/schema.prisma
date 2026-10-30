@@ -482,6 +482,19 @@ model AutoBackupSettings {
   updatedAt   DateTime  @updatedAt
 }
 
+/// F49: Haftalık değerlendirme. Metrikler kodda hesaplanır; özeti model (ya da kural) yazar.
+model WeeklyCheckin {
+  id          String   @id @default(cuid())
+  weekStart   String   @unique // Pazartesi
+  metrics     String // JSON
+  summary     String
+  aiGenerated Boolean  @default(false)
+  suggestion  String? // JSON: tek öneri
+  draftId     String? // hedef değişikliği önerisinin onay taslağı
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model OpenFoodFactsCache {
   id        String   @id @default(cuid())
   queryKey  String   @unique // e.g. barcode:3017620422003 or search:yulaf

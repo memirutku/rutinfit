@@ -118,8 +118,8 @@ export function AIProviderSection() {
 
         {provider === "openai" && (
           <div role="note" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed">
-            OpenAI seçildiğinde mesajların, profil özetin (boy, kilo, hedefler), bugünkü öğünlerin ve eklediğin dosyaların
-            içeriği OpenAI sunucularına gönderilir. Diğer tüm veriler bu bilgisayarda kalır.
+            OpenAI seçildiğinde mesajların, profil özetin (boy, kilo, hedefler), bugünkü öğünlerin, haftalık değerlendirme
+            sayıların ve eklediğin dosyaların içeriği OpenAI sunucularına gönderilir. Diğer tüm veriler bu bilgisayarda kalır.
           </div>
         )}
 

@@ -61,6 +61,10 @@ async function seedRichData() {
   await prisma.foodMeasure.create({ data: { foodItemId: food.id, name: "kase", grams: 60 } });
   // F27: kardiyo kaydı.
   await prisma.cardioLog.create({ data: { date: "2026-10-19", kind: "run", durationMin: 30, distanceKm: 5, avgHr: 150, kcal: 380 } });
+  // F49: haftalık değerlendirme.
+  await prisma.weeklyCheckin.create({
+    data: { weekStart: "2026-10-12", metrics: JSON.stringify({ loggedDays: 6 }), summary: "İyi hafta.", aiGenerated: true, suggestion: JSON.stringify({ kind: "keep", text: "Devam" }) },
+  });
   // F01: kayıtlı öğün, katalog gıdasına bağlı kalemiyle.
   await prisma.savedMeal.create({
     data: {

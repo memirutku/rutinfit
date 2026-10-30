@@ -14,13 +14,13 @@ interface EgressRow {
 const ROWS: EgressRow[] = [
   {
     feature: "AI koçu (yerel model)",
-    what: "Mesajın ve profil özetin, yalnız bu bilgisayardaki model sunucusuna",
+    what: "Mesajın, profil özetin ve haftalık değerlendirme sayıların, yalnız bu bilgisayardaki model sunucusuna",
     where: "Dışarı çıkmaz (127.0.0.1)",
     endpoint: "local",
   },
   {
     feature: "AI koçu (OpenAI seçiliyse)",
-    what: "Mesajın, profil özetin, bugünkü öğünlerin ve eklediğin dosyaların içeriği",
+    what: "Mesajın, profil özetin, bugünkü öğünlerin, haftalık değerlendirme sayıların ve eklediğin dosyaların içeriği",
     where: "api.openai.com",
     endpoint: "cloud",
   },
