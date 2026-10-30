@@ -21,6 +21,13 @@ const ctx = (over: Partial<CoachContext> = {}): CoachContext => ({
 });
 
 describe("buildSystemPrompt", () => {
+  it("F56: 'sayıları gizle' açıksa model yanıtta sayı yazmaması için uyarılır", () => {
+    expect(buildSystemPrompt(ctx())).not.toContain("SAYILARI GİZLE");
+    const p = buildSystemPrompt(ctx({ hideNumbers: true }));
+    expect(p).toContain("SAYILARI GİZLE");
+    expect(p).toMatch(/kalori, makro, kilo ve gram sayısı yazma/);
+  });
+
   it("onaylı hedefleri, bugünkü alımı ve antrenman durumunu içerir", () => {
     const p = buildSystemPrompt(ctx());
     expect(p).toContain("Kilo: 110 kg");
