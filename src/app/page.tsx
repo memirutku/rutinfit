@@ -110,7 +110,8 @@ export default function DashboardPage() {
   }
 
   function handleOpenQuickAdd(preferredMealType?: MealType) {
-    if (preferredMealType) setQuickAddMealType(preferredMealType);
+    // B13: öğün verilmediyse günün saatine göre seçilir.
+    setQuickAddMealType(preferredMealType ?? mealTypeForHour(new Date().getHours()));
     setIsQuickAddOpen(true);
     setQuickAddRequested(true);
     if (foods.isError) foods.refetch();

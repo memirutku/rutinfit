@@ -10,6 +10,7 @@ import { TodayWorkoutCard } from "@/components/dashboard/TodayWorkoutCard";
 import { TodayMealsList, dashboardMealLabel } from "@/components/dashboard/TodayMealsList";
 import { WellbeingCard, toWellbeingValues } from "@/components/dashboard/WellbeingCard";
 import { WeightGoalCard } from "@/components/dashboard/WeightGoalCard";
+import { mealTypeForHour } from "@/lib/meal-time";
 import { getLocalDateString } from "@/lib/date-utils";
 import type { DailySummary, FoodLog, FoodLogsResponse } from "@/lib/schemas/food";
 import type { ProgressResponse } from "@/lib/schemas/progress";
@@ -411,6 +412,14 @@ describe("DashboardPage", () => {
     expect(fastingCard.compareDocumentPosition(rhythm) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByText(/İftara 3 sa 20 dk kaldı/)).toBeTruthy();
     expect(screen.queryByText("Alkol")).toBeNull();
+  });
+
+  it("B13: 'Hızlı Öğün Ekle' öğünü günün saatine göre seçer (hep öğle değil)", async () => {
+    stubDashboard();
+    renderWithQuery(<DashboardPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Hızlı Öğün Ekle" }));
+    const select = (await screen.findByLabelText("Öğün Türü")) as HTMLSelectElement;
+    expect(select.value).toBe(mealTypeForHour(new Date().getHours()));
   });
 
   it("B02: gün düzeni girilmemişse eve varış saati ve iş çıkışı bandı görünmez", async () => {
