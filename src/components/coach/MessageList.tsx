@@ -39,7 +39,7 @@ export function MessageBubble({ message: m, state, onApprove, onReject, onToggle
     <div className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
       {!isUser && <BotAvatar />}
 
-      <div className={`max-w-xl space-y-3 ${isUser ? "items-end" : ""}`}>
+      <div className={`min-w-0 max-w-xl space-y-3 ${isUser ? "items-end" : ""}`}>
         <div
           className={`p-4 rounded-2xl text-sm leading-relaxed ${
             isUser
@@ -49,7 +49,7 @@ export function MessageBubble({ message: m, state, onApprove, onReject, onToggle
               : "bg-slate-100/80 text-slate-800 rounded-tl-none border border-slate-200/50"
           }`}
         >
-          <div className="whitespace-pre-wrap">{m.content}</div>
+          <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">{m.content}</div>
         </div>
         {m.aiGenerated && <p className="text-[10px] text-slate-400 pl-1">AI tarafından üretildi · hatalı olabilir</p>}
 

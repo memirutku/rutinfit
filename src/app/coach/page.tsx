@@ -17,7 +17,7 @@ export default function CoachPage() {
   const coachDisabled = settings.data?.coachEnabled === false;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0">
       {/* Üst Başlık & Oturum Çubuğu */}
       <CoachHeader
         conversations={chat.conversations}

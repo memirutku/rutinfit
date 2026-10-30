@@ -77,7 +77,7 @@ export function ChatComposer({
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
           disabled={disabled || loading}
-          className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-2xs"
+          className="flex-1 min-w-0 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-2xs"
         />
 
         <button

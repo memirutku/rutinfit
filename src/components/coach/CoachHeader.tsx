@@ -14,8 +14,8 @@ interface CoachHeaderProps {
 export function CoachHeader({ conversations, conversationId, onSelect, onNew }: CoachHeaderProps) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-      <div>
-        <div className="flex items-center gap-2">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
             AI Sağlık & Beslenme Koçu 🤖
           </h2>

@@ -15,7 +15,8 @@ interface QuickPromptsProps {
 /** Tek tıkla gönderilen hazır sorular. */
 export function QuickPrompts({ disabled, onSend }: QuickPromptsProps) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1">
+    // B27: şerit kendi içinde yatay kayar; içerik genişliği sayfayı genişletmez (inline-size containment).
+    <div role="group" aria-label="Hazır sorular" className="flex gap-2 overflow-x-auto pb-1 max-w-full [contain:inline-size]">
       {QUICK_PROMPTS.map((p) => (
         <button
           key={p}
