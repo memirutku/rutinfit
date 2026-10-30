@@ -20,7 +20,7 @@ export function WorkoutTabs({ tab, onChange }: { tab: WorkoutSubTab; onChange: (
           Haftalık Antrenman & İlerleme 🏋️
         </h2>
         <p className="text-sm text-slate-500 mt-0.5">
-          3 Ağırlık (A/B/C) + 2 Kolay Koşu + 2 Dinlenme · İş çıkışı 19:40 ritmi
+          Haftalık plan, egzersiz kütüphanesi, kas haritası ve plaka hesabı
         </p>
       </div>
 

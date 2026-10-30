@@ -83,3 +83,31 @@ export function useDeleteTemplate() {
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
   });
 }
+
+export interface ProgramSummary {
+  id: string;
+  name: string;
+  description: string;
+  place: string;
+  daysPerWeek: number;
+  days: Array<{ dayOfWeek: number; name: string; exercises: number }>;
+}
+
+/** F18: hazır programlar. */
+export function usePrograms(options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: ["programs"] as const,
+    queryFn: () => apiFetch<ProgramSummary[]>("/api/workouts/programs"),
+    enabled: options.enabled ?? true,
+    staleTime: Infinity,
+  });
+}
+
+export function useApplyProgram() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { programId: string; mode: "replace" | "add" }) =>
+      apiFetch<{ created: number }>("/api/workouts/programs", { method: "POST", json: input }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
+  });
+}

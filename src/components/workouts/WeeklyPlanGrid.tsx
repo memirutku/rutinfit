@@ -31,13 +31,26 @@ interface WeeklyPlanGridProps {
   loading: boolean;
   onStart: StartSession;
   onEdit?: EditTemplate;
+  /** F18: hazır program penceresini açar. */
+  onPickProgram?: () => void;
 }
 
 /** Haftalık 3+2+2 planı: her gün için şablon kartı ve seans başlatma düğmeleri. */
-export function WeeklyPlanGrid({ templates, loading, onStart, onEdit }: WeeklyPlanGridProps) {
+export function WeeklyPlanGrid({ templates, loading, onStart, onEdit, onPickProgram }: WeeklyPlanGridProps) {
   return (
     <div className="space-y-4">
-      <h3 className="font-bold text-slate-900 text-base">Haftalık Antrenman Planı (3+2+2)</h3>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-bold text-slate-900 text-base">Haftalık Antrenman Planı</h3>
+        {onPickProgram && (
+          <button
+            type="button"
+            onClick={onPickProgram}
+            className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50"
+          >
+            Hazır program
+          </button>
+        )}
+      </div>
       {loading && (
         <p role="status" className="text-sm text-slate-500">
           Antrenman planı yükleniyor...

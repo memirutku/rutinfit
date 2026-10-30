@@ -7,6 +7,7 @@ import { errorMessage } from "@/lib/client/api";
 import { useFinishWorkout, useWorkouts } from "@/lib/client/queries/workouts";
 import type { ProgressionFeedback, WorkoutSession, WorkoutTemplate } from "@/lib/schemas/workout";
 import { TemplateEditor } from "@/components/workouts/TemplateEditor";
+import { ProgramPicker } from "@/components/workouts/ProgramPicker";
 import { MuscleHeatmap } from "@/components/MuscleHeatmap";
 import { PlateCalculator } from "@/components/PlateCalculator";
 import { ExerciseLibraryPanel } from "@/components/workouts/ExerciseLibraryPanel";
@@ -39,6 +40,7 @@ export default function WorkoutsPage() {
   const [feedback, setFeedback] = useState<Record<string, ProgressionFeedback> | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   // F17: şablon editörü (null: kapalı)
+  const [pickingProgram, setPickingProgram] = useState(false);
   const [editing, setEditing] = useState<{ template: WorkoutTemplate | null; dayOfWeek: number } | null>(null);
   const submitting = useRef(false);
 
@@ -116,7 +118,9 @@ export default function WorkoutsPage() {
             loading={workouts.isPending}
             onStart={startSession}
             onEdit={(template, dayOfWeek) => setEditing({ template, dayOfWeek })}
+            onPickProgram={() => setPickingProgram(true)}
           />
+          <ProgramPicker open={pickingProgram} onClose={() => setPickingProgram(false)} />
           <TemplateEditor
             open={editing !== null}
             template={editing?.template ?? null}
