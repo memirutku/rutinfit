@@ -69,6 +69,11 @@ describe("/api/checkins", () => {
     expect(res.json.summary).toMatch(/2 gün/);
     // Kayıt %70'in altında: önce kayıt alışkanlığı önerilir.
     expect(res.json.suggestion).toMatchObject({ kind: "habit" });
+    // B40: öneri özette tekrar etmez (yalnız "tek adım" kutusunda); özet hedefle karşılaştırır.
+    expect(res.json.summary).not.toContain("Öneri:");
+    expect(res.json.summary).not.toContain(res.json.suggestion.text);
+    expect(res.json.summary).toContain("hedefin (2.000 kcal) ortalama 75 kcal altındaydın");
+    expect(res.json.summary).toContain("Protein ortalaman 85 g; hedefin (150 g) 65 g altında.");
     await callRoute(POST, { method: "POST" });
     expect(await prisma.weeklyCheckin.count()).toBe(1);
     expect((await callRoute(GET)).json.checkins).toHaveLength(1);
@@ -85,6 +90,21 @@ describe("/api/checkins", () => {
     expect(res.json.suggestion).toMatchObject({ kind: "protein" });
     const prompt = JSON.stringify(llm.requests[0].body.messages);
     expect(prompt).toContain("7/7");
-    expect(prompt).toContain("Proteini artır");
+    // B40: öneri ayrı kutuda gösterilir; model onu yeniden yazmasın diye isteme konmaz.
+    expect(prompt).not.toContain("Proteini artır");
+    expect(prompt).toContain("hedefle fark: 0 kcal");
+  });
+
+  it("B40: kalori hedefe yakınsa 'hedefinle neredeyse aynı', üstündeyse 'üstündeydin' yazar", async () => {
+    await createProfile({ calorieTarget: 2000, proteinTargetG: 0 });
+    await prisma.aISettings.create({ data: { id: "default-ai", coachEnabled: false } });
+    const weekStart = addDaysToDateString(startOfWeek(getLocalDateString()), -7);
+    await food(weekStart, 2030, 80);
+    let res = await callRoute(POST, { method: "POST" });
+    expect(res.json.summary).toContain("hedefinle (2.000 kcal) neredeyse aynıydı");
+    expect(res.json.summary).not.toContain("Protein ortalaman");
+    await food(addDaysToDateString(weekStart, 1), 2570, 80);
+    res = await callRoute(POST, { method: "POST" });
+    expect(res.json.summary).toContain("hedefin (2.000 kcal) ortalama 300 kcal üstündeydin");
   });
 });

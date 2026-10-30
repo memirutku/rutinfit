@@ -1,7 +1,10 @@
 /**
  * F49: Haftalık değerlendirme. Bütün metrikler kodda hesaplanır; model yalnız 3–5 cümlelik özeti
- * yazar (ulaşılamazsa kurallı özet). Tek bir öneri seçilir; hedef değişikliği önerisi onaylı
+ * yazar (ulaşılamazsa otomatik özet). Tek bir öneri seçilir; hedef değişikliği önerisi onaylı
  * taslak (nutrition_targets) olarak gelir ve F56 kurallarından geçer.
+ *
+ * B40: Öneri yalnız "tek adım" kutusunda gösterilir; özet onu tekrar etmez (modele de verilmez).
+ * Özet ortalamaları hedefle karşılaştırır.
  */
 import { prisma } from "../prisma";
 import { addDaysToDateString, getLocalDateString, startOfWeek } from "../date-utils";
@@ -114,8 +117,12 @@ export async function chooseSuggestion(m: WeeklyMetrics): Promise<CheckinSuggest
 function metricLines(m: WeeklyMetrics): string[] {
   const lines = [
     `Kayıt: ${m.loggedDays}/7 gün`,
-    m.avgCalories !== null ? `Ortalama kalori: ${m.avgCalories} kcal (hedef ${m.calorieTarget}), hedef aralığında ${m.daysOnTarget} gün` : "Kalori kaydı yok",
-    m.avgProtein !== null ? `Ortalama protein: ${m.avgProtein} g (hedef ${m.proteinTarget}), hedefe ulaşılan ${m.proteinDaysHit} gün` : "Protein kaydı yok",
+    m.avgCalories !== null
+      ? `Ortalama kalori: ${m.avgCalories} kcal (hedef ${m.calorieTarget}, hedefle fark: ${signedDiff(m.avgCalories - m.calorieTarget)} kcal), hedef aralığında ${m.daysOnTarget} gün`
+      : "Kalori kaydı yok",
+    m.avgProtein !== null
+      ? `Ortalama protein: ${m.avgProtein} g (hedef ${m.proteinTarget}, hedefle fark: ${signedDiff(m.avgProtein - m.proteinTarget)} g), hedefe ulaşılan ${m.proteinDaysHit} gün`
+      : "Protein kaydı yok",
     m.weightDeltaKg !== null ? `Kilo ortalaması değişimi: ${m.weightDeltaKg} kg (önceki haftaya göre)` : "Kilo eğilimi için yeterli tartı yok",
     `Antrenman: ${m.workouts} seans, ${m.workingSets} çalışma seti; kardiyo ${m.cardioMinutes} dk`,
   ];
@@ -124,17 +131,38 @@ function metricLines(m: WeeklyMetrics): string[] {
   return lines;
 }
 
-function ruleSummary(m: WeeklyMetrics, s: CheckinSuggestion): string {
+const signedDiff = (n: number) => (n > 0 ? `+${n}` : `${n}`);
+
+/** B40: kalori farkı bu kadar küçükse "neredeyse aynı" sayılır. */
+const CALORIE_NEAR = 50;
+const PROTEIN_NEAR = 5;
+
+/** B40: otomatik özet. Ortalamayı hedefle karşılaştırır; öneriyi yazmaz (o kutuda). */
+function ruleSummary(m: WeeklyMetrics): string {
   const parts = [`${formatDateTr(m.weekStart, { short: true })}–${formatDateTr(m.weekEnd, { short: true })} haftasında ${m.loggedDays} gün kayıt girdin.`];
-  if (m.avgCalories !== null) parts.push(`Ortalaman ${formatNumberTr(m.avgCalories)} kcal; ${m.daysOnTarget} gün hedef aralığındaydın.`);
+  if (m.avgCalories !== null) {
+    const diff = m.avgCalories - m.calorieTarget;
+    const target = `${formatNumberTr(m.calorieTarget)} kcal`;
+    const compare =
+      Math.abs(diff) <= CALORIE_NEAR
+        ? `hedefinle (${target}) neredeyse aynıydı`
+        : `hedefin (${target}) ortalama ${formatNumberTr(Math.abs(diff))} kcal ${diff < 0 ? "altındaydın" : "üstündeydin"}`;
+    parts.push(`Ortalaman ${formatNumberTr(m.avgCalories)} kcal; ${compare}; ${m.daysOnTarget} gün hedef aralığındaydın.`);
+  }
+  if (m.avgProtein !== null && m.proteinTarget > 0) {
+    const diff = m.avgProtein - m.proteinTarget;
+    const target = `${formatNumberTr(m.proteinTarget)} g`;
+    const compare =
+      Math.abs(diff) <= PROTEIN_NEAR ? `hedefinle (${target}) neredeyse aynı` : `hedefin (${target}) ${formatNumberTr(Math.abs(diff))} g ${diff < 0 ? "altında" : "üstünde"}`;
+    parts.push(`Protein ortalaman ${formatNumberTr(m.avgProtein)} g; ${compare}.`);
+  }
   if (m.weightDeltaKg !== null) parts.push(`Kilo ortalaman önceki haftaya göre ${m.weightDeltaKg > 0 ? "+" : ""}${formatNumberTr(m.weightDeltaKg)} kg değişti.`);
   parts.push(`${m.workouts} antrenman ve ${m.cardioMinutes} dakika kardiyo yaptın.`);
-  parts.push(`Öneri: ${s.text}`);
   return parts.join(" ");
 }
 
-/** Model 3–5 cümle yazar; ulaşılamazsa null (kurallı özet kullanılır). */
-async function aiSummary(m: WeeklyMetrics, s: CheckinSuggestion): Promise<string | null> {
+/** Model 3–5 cümle yazar; ulaşılamazsa null (otomatik özet kullanılır). */
+async function aiSummary(m: WeeklyMetrics): Promise<string | null> {
   const settings = await prisma.aISettings.findFirst();
   if (settings && !settings.coachEnabled) return null;
   const baseUrl = settings?.baseUrl ?? DEFAULT_AI_BASE_URL;
@@ -154,9 +182,9 @@ async function aiSummary(m: WeeklyMetrics, s: CheckinSuggestion): Promise<string
         messages: [
           {
             role: "system",
-            content: `Sen RutinFit'in haftalık değerlendirme koçusun. Türkçe yaz. ${tonePrompt(settings?.tone)} Yalnız verilen sayıları kullan, yeni sayı uydurma. 3–5 cümle yaz, tıbbi teşhis koyma, son cümlede verilen öneriyi kendi sözlerinle aktar.`,
+            content: `Sen RutinFit'in haftalık değerlendirme koçusun. Türkçe yaz. ${tonePrompt(settings?.tone)} Yalnız verilen sayıları kullan, yeni sayı uydurma. 3–5 cümle yaz, tıbbi teşhis koyma. Ortalamaları hedefle karşılaştır (altında, üstünde ya da yakın). Öneri ya da tavsiye yazma: haftanın tek adımı ayrı bir kutuda gösterilir.`,
           },
-          { role: "user", content: `Geçen haftanın metrikleri:\n${metricLines(m).map((l) => `- ${l}`).join("\n")}\nÖnerilen tek adım: ${s.text}` },
+          { role: "user", content: `Geçen haftanın metrikleri:\n${metricLines(m).map((l) => `- ${l}`).join("\n")}` },
         ],
       }),
     });
@@ -174,8 +202,8 @@ export async function createWeeklyCheckin(today = getLocalDateString()) {
   const weekStart = addDaysToDateString(startOfWeek(today), -7);
   const metrics = await computeWeeklyMetrics(weekStart);
   const suggestion = await chooseSuggestion(metrics);
-  const ai = await aiSummary(metrics, suggestion);
-  let summary = ai ?? ruleSummary(metrics, suggestion);
+  const ai = await aiSummary(metrics);
+  let summary = ai ?? ruleSummary(metrics);
   // F82: modele gönderilmez; özetin sonuna kodla eklenir.
   if (metrics.cycleDays) {
     summary += ` Bu hafta adet dönemi (${metrics.cycleDays} gün) vardı; su tutma kiloyu birkaç gün geçici olarak artırabilir.`;
