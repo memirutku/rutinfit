@@ -13,14 +13,18 @@ export interface AutoBackupView {
   lastStatus: "ok" | "error" | null;
   lastMessage: string | null;
   lastFile: string | null;
+  /** B36: dışa aktarmalarda uygulama klasörüne kopya (varsayılan açık). */
+  exportCopies: boolean;
   suggestedFolder: string;
 }
 
+/** B34: her ayar kendi alanıyla kaydedilir; gönderilmeyen alanlar sunucuda aynı kalır. */
 export interface AutoBackupInput {
-  enabled: boolean;
-  folderPath: string | null;
-  frequency: "daily" | "weekly";
-  keepCount: number;
+  enabled?: boolean;
+  folderPath?: string | null;
+  frequency?: "daily" | "weekly";
+  keepCount?: number;
+  exportCopies?: boolean;
 }
 
 /** F61: otomatik yedek ayarları. */

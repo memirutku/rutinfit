@@ -21,6 +21,15 @@ interface Checkin {
 }
 
 const KEY = [...queryKeys.progress, "checkins"];
+
+/**
+ * B40: öneri yalnız "tek adım" kutusunda yazar. Önceki sürümün kaydettiği özetlerin sonundaki
+ * "Öneri: …" cümlesi gösterilirken çıkarılır.
+ */
+export function summaryWithoutSuggestion(summary: string, suggestion: CheckinSuggestion | null | undefined): string {
+  if (!suggestion) return summary;
+  return summary.replace(` Öneri: ${suggestion.text}`, "").replace(`Öneri: ${suggestion.text}`, "").trim();
+}
 const signed = (n: number) => (n < 0 ? `−${formatNumberTr(-n)}` : n > 0 ? `+${formatNumberTr(n)}` : "0");
 
 function metricItems(m: WeeklyMetrics) {
@@ -110,10 +119,10 @@ export function CheckinCard() {
             </span>
             <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-bold ${latest.aiGenerated ? "bg-brand-50 text-brand-700" : "bg-slate-100 text-slate-600"}`}>
               {latest.aiGenerated && <Sparkles className="w-3 h-3" aria-hidden />}
-              {latest.aiGenerated ? "AI özeti" : "Kurallı özet"}
+              {latest.aiGenerated ? "AI özeti" : "Otomatik özet"}
             </span>
           </div>
-          <p className="text-sm text-slate-800 whitespace-pre-line">{latest.summary}</p>
+          <p className="text-sm text-slate-800 whitespace-pre-line">{summaryWithoutSuggestion(latest.summary, s)}</p>
 
           {s && (
             <div className="p-3 rounded-xl bg-brand-50 border border-brand-200 text-sm text-brand-900 space-y-2">

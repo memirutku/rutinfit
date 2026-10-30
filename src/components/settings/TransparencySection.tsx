@@ -2,6 +2,7 @@
 
 import { ShieldCheck } from "lucide-react";
 import { useAIExposure, useAISettings, useDiagnostics } from "@/lib/client/queries/system";
+import { coachDataText } from "@/lib/coach-egress";
 
 interface EgressRow {
   feature: string;
@@ -11,23 +12,22 @@ interface EgressRow {
   endpoint?: "local" | "cloud";
 }
 
+/** Dar ekranda hücrenin üstüne başlığı yazılır (kart görünümü). */
+const CELL =
+  "block sm:table-cell py-1 sm:py-2 sm:pr-3 before:block before:text-[10px] before:font-semibold before:uppercase before:text-slate-400 before:content-[attr(data-label)] sm:before:content-none";
+
 const ROWS: EgressRow[] = [
-  {
-    feature: "AI koçu (yerel model)",
-    what: "Mesajın, profil özetin ve haftalık değerlendirme sayıların, yalnız bu bilgisayardaki model sunucusuna",
-    where: "Dışarı çıkmaz (127.0.0.1)",
-    endpoint: "local",
-  },
-  {
-    feature: "AI koçu (OpenAI seçiliyse)",
-    what: "Mesajın, profil özetin, bugünkü öğünlerin, haftalık değerlendirme sayıların ve eklediğin dosyaların içeriği",
-    where: "api.openai.com",
-    endpoint: "cloud",
-  },
+  // B39: iki koç satırı aynı listeyi yazar; fark yalnız "Nereye" sütunundadır.
+  { feature: "AI koçu (yerel model)", what: coachDataText(), where: "Dışarı çıkmaz: bu bilgisayardaki model sunucusu (127.0.0.1)", endpoint: "local" },
+  { feature: "AI koçu (OpenAI seçiliyse)", what: coachDataText(), where: "api.openai.com", endpoint: "cloud" },
   { feature: "Paketli gıda araması ve barkod", what: "Barkod numarası ya da arama kelimesi", where: "world.openfoodfacts.org" },
   { feature: "Adresten tarif içe aktarma", what: "Yalnız yapıştırdığın adrese sayfa isteği (veri gönderilmez)", where: "Girdiğin tarif sitesi" },
   { feature: "openGym eşitlemesi", what: "Hiçbir şey; bu bilgisayardaki openGym dosyası okunur", where: "—" },
-  { feature: "Yedekler ve dışa aktarma", what: "Hiçbir şey; dosya bu bilgisayara yazılır", where: "—" },
+  {
+    feature: "Yedekler ve dışa aktarma",
+    what: "Dosya bu bilgisayara yazılır ve şifrelenmez. Otomatik yedek klasörü iCloud Drive içindeyse yedek dosyası Apple sunucularına da yüklenir.",
+    where: "— (iCloud Drive seçiliyse Apple)",
+  },
   { feature: "Apple Sağlık içe aktarma", what: "Hiçbir şey; dışa aktarım dosyası bu bilgisayarda okunur", where: "—" },
   { feature: "İlerleme fotoğrafları", what: "Hiçbir şey; fotoğraflar yalnız bu bilgisayardaki veri klasöründe durur", where: "—" },
 ];
@@ -54,35 +54,52 @@ export function TransparencySection() {
         bu bilgisayardan dışarı çıkabilen her şeyi gösterir.
       </p>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs text-left">
-          <caption className="sr-only">Cihazdan ne çıkar?</caption>
-          <thead>
-            <tr className="text-slate-500 border-b border-slate-200">
-              <th scope="col" className="py-2 pr-3 font-semibold">Özellik</th>
-              <th scope="col" className="py-2 pr-3 font-semibold">Ne gider</th>
-              <th scope="col" className="py-2 font-semibold">Nereye</th>
+      {/* B35: dar ekranda her satır bir karta dönüşür; hücre başlığı data-label'dan gelir. */}
+      <table className="w-full text-xs text-left block sm:table">
+        <caption className="sr-only">Cihazdan ne çıkar?</caption>
+        <thead className="sr-only sm:not-sr-only sm:table-header-group">
+          <tr className="text-slate-500 border-b border-slate-200">
+            <th scope="col" className="py-2 pr-3 font-semibold">Özellik</th>
+            <th scope="col" className="py-2 pr-3 font-semibold">Ne gider</th>
+            <th scope="col" className="py-2 font-semibold">Nereye</th>
+          </tr>
+        </thead>
+        <tbody className="block sm:table-row-group space-y-2 sm:space-y-0">
+          {ROWS.map((row) => (
+            <tr
+              key={row.feature}
+              className="block sm:table-row rounded-xl border border-slate-200 p-3 sm:p-0 sm:rounded-none sm:border-0 sm:border-b sm:border-slate-100 align-top"
+            >
+              <td data-label="Özellik" className={`${CELL} font-semibold text-slate-800`}>
+                {row.feature}
+                {row.endpoint && row.endpoint === active && (
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded bg-brand-50 text-brand-700 text-[10px] font-bold whitespace-nowrap">Şu an kullanılan</span>
+                )}
+              </td>
+              <td data-label="Ne gider" className={`${CELL} text-slate-600`}>
+                {row.what}
+              </td>
+              <td data-label="Nereye" className={`${CELL} text-slate-800 font-mono break-all`}>
+                {row.where}
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {ROWS.map((row) => (
-              <tr key={row.feature} className="border-b border-slate-100 align-top">
-                <td className="py-2 pr-3 font-semibold text-slate-800">
-                  {row.feature}
-                  {row.endpoint && row.endpoint === active && (
-                    <span className="ml-1.5 px-1.5 py-0.5 rounded bg-brand-50 text-brand-700 text-[10px] font-bold">Şu an kullanılan</span>
-                  )}
-                </td>
-                <td className="py-2 pr-3 text-slate-600">{row.what}</td>
-                <td className="py-2 text-slate-800 font-mono">{row.where}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
 
       {exposure.data?.applicable &&
-        (exposure.data.exposed ? (
+        (exposure.data.localReachable === false ? (
+          // B39: sunucu çalışmıyorsa ağ açıklığı ölçülemez; yeşil onay verilmez.
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 text-xs space-y-1.5">
+            <p>
+              Yerel model sunucusu yanıt vermiyor (port {exposure.data.port}); ağa açık olup olmadığı kontrol yapılmadı. Sunucuyu başlatınca
+              yeniden kontrol et.
+            </p>
+            <button type="button" onClick={() => exposure.refetch()} disabled={exposure.isFetching} className="font-bold underline disabled:opacity-50">
+              Yeniden kontrol et
+            </button>
+          </div>
+        ) : exposure.data.exposed ? (
           <div role="alert" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1.5">
             <p className="font-bold">
               Yerel model sunucun yerel ağa açık: <span className="font-mono">{exposure.data.exposedAt}</span>

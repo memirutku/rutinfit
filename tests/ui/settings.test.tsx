@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import SettingsPage from "@/app/settings/page";
 import { queryKeys } from "@/lib/client/queries/keys";
@@ -24,9 +24,35 @@ const PROFILE: Profile = {
 };
 
 const DIAGNOSTICS: Diagnostics = {
-  storage: { dbPath: "/data/rutinfit.db", dbSizeFormatted: "1.23 MB", backupsDir: "/data/backups", backupCount: 4 },
+  generatedAt: "2026-10-30T13:57:24.000Z",
+  storage: {
+    dataDir: "/data",
+    dbPath: "/data/rutinfit.db",
+    dbSizeFormatted: "1.23 MB",
+    backupsDir: "/data/backups",
+    backupCount: 4,
+    exportsDir: "/data/exports",
+    uploadsDir: "/data/uploads",
+    autoBackupFolder: "/Users/ben/iCloud/RutinFit",
+    autoBackupCount: 3,
+  },
   counts: { foods: 42, foodLogs: 7, recipes: 3, mealPlans: 2, workoutSessions: 5, setLogs: 60, weightLogs: 9, pantryItems: 11 },
-  system: { nodeVersion: "v22.1.0", platform: "darwin", arch: "arm64", memoryRssMb: 180 },
+  tables: [
+    { model: "FoodItem", label: "Besinler", count: 42 },
+    { model: "PantryItem", label: "Kiler ürünleri", count: 11 },
+    { model: "CardioLog", label: "Kardiyo kayıtları", count: 6 },
+    { model: "HealthRecord", label: "Apple Sağlık kayıtları", count: 15 },
+    { model: "AIConversation", label: "Koç sohbetleri", count: 2 },
+  ],
+  system: {
+    appVersion: "0.1.0",
+    nodeVersion: "v22.1.0",
+    platform: "darwin",
+    arch: "arm64",
+    memoryRssMb: 180,
+    logFile: "/Users/ben/Library/Logs/com.rutinfit.desktop/rutinfit.log",
+    logFileExists: true,
+  },
 };
 
 type Responder = Parameters<typeof stubFetch>[0][number][1];
@@ -114,11 +140,15 @@ describe("Ayarlar — profil ve hedefler", () => {
     fireEvent.change(calories, { target: { value: "1400" } });
     expect(screen.getByText(/1\.500 kcal altında/)).toBeTruthy();
     fireEvent.click(screen.getByRole("checkbox", { name: /doktor ya da diyetisyenle/ }));
+    // B34: gizleme anahtarı kendi başına kaydedilir (kayıtlı hedefle); form kaydı sonra gelir.
     fireEvent.click(screen.getByRole("checkbox", { name: /Kalori ve makro sayılarını gizle/ }));
+    await waitFor(() => expect(callsTo(calls, "/api/profile", "PUT")).toHaveLength(1));
+    expect(body(callsTo(calls, "/api/profile", "PUT")[0].init)).toMatchObject({ calorieTarget: 2080, hideNumbers: true });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Hedefleri Güncelle" }).hasAttribute("disabled")).toBe(false));
     fireEvent.click(screen.getByRole("button", { name: "Hedefleri Güncelle" }));
 
     await screen.findByText("Profil ve hedefler başarıyla güncellendi! ✓");
-    expect(body(callsTo(calls, "/api/profile", "PUT")[0].init)).toMatchObject({
+    expect(body(callsTo(calls, "/api/profile", "PUT")[1].init)).toMatchObject({
       calorieTarget: 1400,
       acknowledgeLowCalorie: true,
       hideNumbers: true,
@@ -226,6 +256,47 @@ describe("Ayarlar — F67 şeffaflık", () => {
     expect(screen.getByText(/OLLAMA_HOST=127\.0\.0\.1/)).toBeTruthy();
     expect(await screen.findByText(/Sürüm 0\.1\.0/)).toBeTruthy();
     expect(screen.getByText(/shasum -a 256/)).toBeTruthy();
+  });
+});
+
+describe("Ayarlar — B39 şeffaflık ayrıntıları", () => {
+  const local = { providerType: "ollama", baseUrl: "http://127.0.0.1:11434/v1", modelName: "llama3.2", coachEnabled: true, tone: "supportive", endpointKind: "local" };
+
+  it("yerel model sunucusu yanıt vermiyorsa yeşil onay yerine 'kontrol yapılmadı' yazar", async () => {
+    let reachable = false;
+    setup([
+      ["/api/ai/settings", () => jsonResponse(local)],
+      ["/api/ai/exposure", () => jsonResponse({ applicable: true, localReachable: reachable, exposed: false, port: 11434, lanAddresses: ["192.168.1.20"] })],
+    ]);
+    expect(await screen.findByText(/sunucusu yanıt vermiyor.*kontrol yapılmadı/)).toBeTruthy();
+    expect(screen.queryByText(/yalnız bu bilgisayardan erişilebilir/)).toBeNull();
+    reachable = true;
+    fireEvent.click(screen.getByRole("button", { name: "Yeniden kontrol et" }));
+    expect(await screen.findByText(/yalnız bu bilgisayardan erişilebilir \(port 11434\)/)).toBeTruthy();
+  });
+
+  it("yerel ve bulut koç satırları aynı veri listesini yazar; fark yalnız 'Nereye' sütununda", async () => {
+    setup([["/api/ai/settings", () => jsonResponse(local)]]);
+    const table = (await screen.findByRole("table", { name: "Cihazdan ne çıkar?" })) as HTMLTableElement;
+    const rows = Array.from(table.tBodies[0].rows);
+    const what = (feature: RegExp) => rows.find((r) => feature.test(r.cells[0].textContent ?? ""))!.cells[1].textContent;
+    const where = (feature: RegExp) => rows.find((r) => feature.test(r.cells[0].textContent ?? ""))!.cells[2].textContent;
+    expect(what(/yerel model/)).toBe(what(/OpenAI/));
+    for (const item of ["koça notların", "eklediğin dosyaların içeriği", "geçmiş sorularına kayıtlarından hesaplanan sonuçlar", "bugünkü öğün"]) {
+      expect(what(/yerel model/)).toContain(item);
+    }
+    expect(where(/yerel model/)).toContain("127.0.0.1");
+    expect(where(/OpenAI/)).toBe("api.openai.com");
+    // Yedek satırı iCloud'u anar.
+    expect(what(/Yedekler/)).toMatch(/iCloud/);
+  });
+
+  it("otomatik yedek iCloud önerisinde ve iCloud klasörü seçiliyken yedeğin şifrelenmediği yazar", async () => {
+    const state = { enabled: true, folderPath: "/Users/ben/Library/Mobile Documents/com~apple~CloudDocs/RutinFit", frequency: "daily", keepCount: 10, lastRunAt: null, lastStatus: null, lastMessage: null, lastFile: null, suggestedFolder: "/x", exportCopies: true };
+    setup([["/api/backup/auto", () => jsonResponse(state)]]);
+    expect(await screen.findByText(/Yedek dosyası şifrelenmez/)).toBeTruthy();
+    const note = await screen.findByRole("note", { name: "iCloud uyarısı" });
+    expect(note.textContent).toMatch(/iCloud Drive klasörü seçili.*Apple sunucularına/);
   });
 });
 
@@ -349,15 +420,18 @@ describe("Ayarlar — yedekleme", () => {
       ],
     ]);
     const folder = (await screen.findByLabelText("Yedek klasörü")) as HTMLInputElement;
-    expect(folder.placeholder).toBe("/Users/ben/Documents/RutinFit Yedekleri");
-    fireEvent.click(screen.getByRole("checkbox", { name: /Otomatik yedek açık/ }));
+    expect(folder.value).toBe("");
+    expect(screen.getByText(/Önerilen: \/Users\/ben\/Documents\/RutinFit Yedekleri/)).toBeTruthy();
+    // Elle yazılan klasör alandan çıkınca kaydedilir (B34: ayrı Kaydet düğmesi yok).
     fireEvent.change(folder, { target: { value: "/Users/ben/iCloud" } });
-    fireEvent.change(screen.getByLabelText("Sıklık"), { target: { value: "weekly" } });
-    fireEvent.change(screen.getByLabelText("Saklanacak yedek sayısı"), { target: { value: "5" } });
-    fireEvent.click(screen.getByRole("button", { name: "Otomatik yedeği kaydet" }));
+    fireEvent.blur(folder);
     await waitFor(() => expect(callsTo(calls, "/api/backup/auto", "PUT")).toHaveLength(1));
-    expect(body(callsTo(calls, "/api/backup/auto", "PUT")[0].init)).toEqual({ enabled: true, folderPath: "/Users/ben/iCloud", frequency: "weekly", keepCount: 5 });
+    expect(body(callsTo(calls, "/api/backup/auto", "PUT")[0].init)).toEqual({ folderPath: "/Users/ben/iCloud" });
+    fireEvent.click(screen.getByRole("checkbox", { name: /Otomatik yedek açık/ }));
+    await waitFor(() => expect(callsTo(calls, "/api/backup/auto", "PUT")).toHaveLength(2));
+    expect(body(callsTo(calls, "/api/backup/auto", "PUT")[1].init)).toEqual({ enabled: true, folderPath: "/Users/ben/iCloud" });
 
+    await waitFor(() => expect(screen.getByRole("button", { name: "Şimdi yedekle" }).hasAttribute("disabled")).toBe(false));
     fireEvent.click(screen.getByRole("button", { name: "Şimdi yedekle" }));
     expect(await screen.findByText(/Yedek alındı\. .*rutinfit-otomatik-yedek-1\.json/)).toBeTruthy();
   });
@@ -379,7 +453,7 @@ describe("Ayarlar — yedekleme", () => {
       ],
     ]);
     fireEvent.click(await screen.findByRole("button", { name: "Antrenmanlar (CSV, Strong biçimi)" }));
-    expect(await screen.findByText(/CSV indirildi: rutinfit-antrenmanlar-2026-10-30\.csv/)).toBeTruthy();
+    expect(await screen.findByText(/CSV indirildi: rutinfit-antrenmanlar-2026-10-30\.csv \(İndirilenler klasörü\)/)).toBeTruthy();
     expect(screen.getByText(/\/data\/exports\//)).toBeTruthy();
     expect(calls.some((c) => c.url.includes("/api/export/csv?type=workouts"))).toBe(true);
     expect(click).toHaveBeenCalled();
@@ -406,9 +480,9 @@ describe("Ayarlar — yedekleme", () => {
     const exportButton = await screen.findByRole("button", { name: /Tüm Verileri JSON Olarak İndir/ });
     fireEvent.click(exportButton);
     const status = await screen.findByRole("status");
-    expect(status.textContent).toBe(
-      "Yedek indirildi: rutinfit-2026-10-20.json. Bir kopyası uygulama klasörüne de kaydedildi: /data/backups/rutinfit-2026-10-20.json"
-    );
+    // B36: dosyanın nereye indiği ve uygulama klasöründeki kopya ayrı satırlarda.
+    expect(status.textContent).toContain("Yedek indirildi: rutinfit-2026-10-20.json (İndirilenler klasörü)");
+    expect(status.textContent).toContain("Uygulama klasöründeki kopya: /data/backups/rutinfit-2026-10-20.json");
     expect(click).toHaveBeenCalledTimes(1);
 
     failExport = true;
@@ -417,18 +491,297 @@ describe("Ayarlar — yedekleme", () => {
   });
 });
 
-describe("Ayarlar — sistem tanılama", () => {
-  it("depolama, ortam ve kayıt sayılarını gösterir; Yenile yeniden çeker", async () => {
-    const { calls } = setup();
-    expect(await screen.findByText("rutinfit.db")).toBeTruthy();
-    expect(screen.getByText("Boyut: 1.23 MB")).toBeTruthy();
-    expect(screen.getByText("Node v22.1.0 (darwin-arm64)")).toBeTruthy();
-    expect(screen.getByText("Besinler:").nextElementSibling?.textContent).toBe("42");
-    expect(screen.getByText("Kiler Ürünleri:").nextElementSibling?.textContent).toBe("11");
-    await waitFor(() => expect(screen.getByRole("button", { name: "Yenile" }).hasAttribute("disabled")).toBe(false));
+describe("Ayarlar — B34 içindekiler, Gelişmiş ve anında kaydeden anahtarlar", () => {
+  const profileRoute = (puts: unknown[], fail = false): [string, Responder] => [
+    "/api/profile",
+    (_u, init) => {
+      if (method(init) !== "PUT") return jsonResponse(PROFILE);
+      puts.push(body(init));
+      return fail ? jsonResponse({ error: "Disk dolu" }, 500) : jsonResponse({ ...PROFILE, ...body(init) });
+    },
+  ];
 
+  afterEach(() => {
+    window.location.hash = "";
+  });
+
+  it("içindekiler her bölüme bağlanır; teknik bölümler kapalı 'Gelişmiş' altında durur ve bağlantıyla açılır", async () => {
+    setup();
+    const nav = await screen.findByRole("navigation", { name: "Ayarlar bölümleri" });
+    const links = within(nav).getAllByRole("link");
+    expect(links.map((l) => l.textContent)).toEqual(["Profil", "Takviyeler", "Hatırlatmalar", "Oruç", "AI koçu", "Yedek", "Gelişmiş"]);
+    for (const link of links) expect(document.getElementById(link.getAttribute("href")!.slice(1))).toBeTruthy();
+
+    const advanced = document.getElementById("gelismis") as HTMLDetailsElement;
+    expect(advanced.tagName).toBe("DETAILS");
+    expect(advanced.open).toBe(false);
+    for (const id of ["seffaflik", "yedek-ayrintilari", "opengym", "tanilama"]) expect(advanced.querySelector(`#${id}`)).toBeTruthy();
+    // Kişisel bölümler Gelişmiş'in dışında kalır.
+    for (const id of ["profil", "takviyeler", "hatirlatmalar", "yedek"]) expect(advanced.contains(document.getElementById(id))).toBe(false);
+
+    fireEvent.click(within(nav).getByRole("link", { name: "Gelişmiş" }));
+    expect(advanced.open).toBe(true);
+  });
+
+  it("adres bir gelişmiş bölümü gösteriyorsa (#tanilama) Gelişmiş açık gelir", async () => {
+    window.location.hash = "#tanilama";
+    setup();
+    await screen.findByRole("navigation", { name: "Ayarlar bölümleri" });
+    expect((document.getElementById("gelismis") as HTMLDetailsElement).open).toBe(true);
+  });
+
+  it("adresteki bölüm (#takviyeler, #tanilama) sayfa yüklendikten sonra ekrana kaydırılır", async () => {
+    const scrolled: string[] = [];
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: function (this: HTMLElement) {
+        scrolled.push(this.id);
+      },
+    });
+    window.location.hash = "#takviyeler";
+    setup();
+    await waitFor(() => expect(scrolled).toEqual(["takviyeler"]));
+
+    // Sayfa açıkken Gelişmiş içindeki bir bölüme gidilince bölüm açılır ve kaydırılır.
+    window.location.hash = "#tanilama";
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+    await waitFor(() => expect(scrolled).toContain("tanilama"));
+    expect((document.getElementById("gelismis") as HTMLDetailsElement).open).toBe(true);
+    delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+  });
+
+  it("döngü notu anahtarı dokununca kaydeder; formdaki kaydedilmemiş düzenleme gönderilmez ve korunur", async () => {
+    const puts: Array<Record<string, unknown>> = [];
+    setup([profileRoute(puts)]);
+    const calories = await screen.findByLabelText<HTMLInputElement>("Kalori Hedefi (kcal)");
+    fireEvent.change(calories, { target: { value: "1950" } });
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /Adet döngüsü notu/ }));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]).toMatchObject({ cycleTracking: true, calorieTarget: 2080 });
+    const saved = await screen.findByText("Kaydedildi ✓");
+    expect(saved.closest("label")?.textContent).toContain("Adet döngüsü notu");
+    expect(screen.getByRole("checkbox", { name: /Adet döngüsü notu/ })).toHaveProperty("checked", true);
+    expect(calories.value).toBe("1950");
+  });
+
+  it("sayıları gizle anahtarı kaydedilemezse eski hâline döner ve hata yanında görünür", async () => {
+    const puts: Array<Record<string, unknown>> = [];
+    setup([profileRoute(puts, true)]);
+    const toggle = await screen.findByRole("checkbox", { name: /Kalori ve makro sayılarını gizle/ });
+    fireEvent.click(toggle);
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]).toMatchObject({ hideNumbers: true });
+    expect((await screen.findByRole("alert")).textContent).toContain("Disk dolu");
+    expect(toggle).toHaveProperty("checked", false);
+  });
+
+  it("otomatik yedek anahtarı ve sıklık dokununca kaydeder (klasör seçilmemişse önerilen klasörle); ayrı 'Kaydet' düğmesi yok", async () => {
+    const state = { enabled: false, folderPath: null as string | null, frequency: "daily", keepCount: 10, lastRunAt: null, lastStatus: null, lastMessage: null, lastFile: null, suggestedFolder: "/Users/ben/Documents/RutinFit Yedekleri", exportCopies: true };
+    const { calls } = setup([
+      [
+        "/api/backup/auto",
+        (_u, init) => {
+          if (method(init) === "PUT") Object.assign(state, body(init));
+          return jsonResponse(state);
+        },
+      ],
+    ]);
+    fireEvent.click(await screen.findByRole("checkbox", { name: /Otomatik yedek açık/ }));
+    await waitFor(() => expect(callsTo(calls, "/api/backup/auto", "PUT")).toHaveLength(1));
+    expect(body(callsTo(calls, "/api/backup/auto", "PUT")[0].init)).toEqual({ enabled: true, folderPath: "/Users/ben/Documents/RutinFit Yedekleri" });
+
+    fireEvent.change(screen.getByLabelText("Sıklık"), { target: { value: "weekly" } });
+    await waitFor(() => expect(callsTo(calls, "/api/backup/auto", "PUT")).toHaveLength(2));
+    expect(body(callsTo(calls, "/api/backup/auto", "PUT")[1].init)).toEqual({ frequency: "weekly" });
+    expect(screen.queryByRole("button", { name: "Otomatik yedeği kaydet" })).toBeNull();
+
+    // Saklama sayısı teknik ayrıntıdır: Gelişmiş › Yedek ayrıntıları altında, alandan çıkınca kaydedilir.
+    const keep = screen.getByLabelText("Saklanacak otomatik yedek sayısı");
+    expect(document.getElementById("gelismis")!.contains(keep)).toBe(true);
+    fireEvent.change(keep, { target: { value: "5" } });
+    fireEvent.blur(keep);
+    await waitFor(() => expect(callsTo(calls, "/api/backup/auto", "PUT")).toHaveLength(3));
+    expect(body(callsTo(calls, "/api/backup/auto", "PUT")[2].init)).toEqual({ keepCount: 5 });
+  });
+});
+
+describe("Ayarlar — B36 dosyanın yeri, Finder'da göster, yolu kopyala, klasör seçici", () => {
+  const exportRoute = (copy: string | null): [string, Responder] => [
+    "/api/backup/export",
+    () =>
+      new Response("{}", {
+        headers: {
+          "Content-Disposition": 'attachment; filename="rutinfit-backup-2026-10-30_16-57-24.json"',
+          ...(copy ? { "X-RutinFit-Backup-Path": encodeURIComponent(copy) } : {}),
+        },
+      }),
+  ];
+  const stubDownload = () => {
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: vi.fn(() => "blob:yedek"), revokeObjectURL: vi.fn() }));
+  };
+
+  it("indirilen dosya ve kopya Finder'da gösterilir; yol panoya kopyalanır", async () => {
+    stubDownload();
+    const writeText = vi.fn(async () => {});
+    vi.stubGlobal("navigator", Object.assign(Object.create(navigator), { clipboard: { writeText } }));
+    const { calls } = setup([exportRoute("/data/backups/rutinfit-backup-2026-10-30_16-57-24.json"), ["/api/system/reveal", (_u, init) => jsonResponse({ ok: true, path: String(body(init).path ?? "") })]]);
+    fireEvent.click(await screen.findByRole("button", { name: /Tüm Verileri JSON Olarak İndir/ }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "İndirilen dosyayı Finder'da göster" }));
+    await waitFor(() => expect(callsTo(calls, "/api/system/reveal", "POST")).toHaveLength(1));
+    expect(body(callsTo(calls, "/api/system/reveal", "POST")[0].init)).toEqual({ download: "rutinfit-backup-2026-10-30_16-57-24.json" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Uygulama klasöründeki kopyayı Finder'da göster" }));
+    await waitFor(() => expect(callsTo(calls, "/api/system/reveal", "POST")).toHaveLength(2));
+    expect(body(callsTo(calls, "/api/system/reveal", "POST")[1].init)).toEqual({ path: "/data/backups/rutinfit-backup-2026-10-30_16-57-24.json" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Uygulama klasöründeki kopyanın yolunu kopyala" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("/data/backups/rutinfit-backup-2026-10-30_16-57-24.json"));
+    expect(await screen.findByText("Yol kopyalandı")).toBeTruthy();
+  });
+
+  it("pano erişimi yoksa eski yöntemle kopyalar; Finder hatası düğmenin yanında görünür", async () => {
+    stubDownload();
+    vi.stubGlobal("navigator", Object.assign(Object.create(navigator), { clipboard: undefined }));
+    const exec = vi.fn(() => true);
+    Object.defineProperty(document, "execCommand", { value: exec, configurable: true });
+    setup([exportRoute("/data/backups/a.json"), ["/api/system/reveal", () => jsonResponse({ error: "Dosya Finder'da gösterilemedi." }, 500)]]);
+    fireEvent.click(await screen.findByRole("button", { name: /Tüm Verileri JSON Olarak İndir/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Uygulama klasöründeki kopyanın yolunu kopyala" }));
+    expect(await screen.findByText("Yol kopyalandı")).toBeTruthy();
+    expect(exec).toHaveBeenCalledWith("copy");
+    fireEvent.click(screen.getByRole("button", { name: "İndirilen dosyayı Finder'da göster" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("Finder'da gösterilemedi");
+  });
+
+  it("kopya kapalıysa yalnız indirme satırı çıkar; metin kopyanın açık olduğunu ve nereden kapatılacağını söyler", async () => {
+    stubDownload();
+    setup([exportRoute(null)]);
+    expect(await screen.findByText(/Gelişmiş › Yedek ayrıntıları/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Tüm Verileri JSON Olarak İndir/ }));
+    expect(await screen.findByText(/Yedek indirildi: .*\(İndirilenler klasörü\)/)).toBeTruthy();
+    expect(screen.queryByText(/Uygulama klasöründeki kopya/)).toBeNull();
+  });
+
+  it("dışa aktarma kopyası anahtarı (varsayılan açık) Gelişmiş'te dokununca kaydeder", async () => {
+    const state = { enabled: false, folderPath: null, frequency: "daily", keepCount: 10, lastRunAt: null, lastStatus: null, lastMessage: null, lastFile: null, suggestedFolder: "/Users/ben/Documents/RutinFit Yedekleri", exportCopies: true };
+    const { calls } = setup([["/api/backup/auto", (_u, init) => jsonResponse(method(init) === "PUT" ? Object.assign(state, body(init)) : state)]]);
+    const toggle = await screen.findByRole("checkbox", { name: /uygulama klasörüne de kopya kaydet/ });
+    await waitFor(() => expect(toggle).toHaveProperty("checked", true));
+    expect(document.getElementById("gelismis")!.contains(toggle)).toBe(true);
+    fireEvent.click(toggle);
+    await waitFor(() => expect(callsTo(calls, "/api/backup/auto", "PUT")).toHaveLength(1));
+    expect(body(callsTo(calls, "/api/backup/auto", "PUT")[0].init)).toEqual({ exportCopies: false });
+    await waitFor(() => expect(toggle).toHaveProperty("checked", false));
+  });
+
+  it("'Klasör seç…' sistem penceresinden gelen klasörü kaydeder; vazgeçilirse bir şey değişmez; macOS dışında elle yazma önerilir", async () => {
+    const state = { enabled: true, folderPath: "/Users/ben/Eski", frequency: "daily", keepCount: 10, lastRunAt: "2026-10-30T13:57:24.000Z", lastStatus: "ok", lastMessage: "Yedek alındı.", lastFile: "/Users/ben/Eski/rutinfit-otomatik-yedek-2026-10-30_16-57-24.json", suggestedFolder: "/Users/ben/Documents/RutinFit Yedekleri", exportCopies: true };
+    const picks: Array<{ status: number; data: unknown }> = [
+      { status: 200, data: { path: "/Users/ben/Yeni Yedek" } },
+      { status: 200, data: { path: null } },
+      { status: 501, data: { error: "Klasör seçme penceresi yalnız macOS'ta açılır; klasör yolunu elle yaz." } },
+    ];
+    const { calls } = setup([
+      ["/api/backup/auto", (_u, init) => jsonResponse(method(init) === "PUT" ? Object.assign(state, body(init)) : state)],
+      ["/api/system/choose-folder", () => {
+        const next = picks.shift()!;
+        return jsonResponse(next.data, next.status);
+      }],
+    ]);
+    // Son yedek dosyası için de Finder ve kopyala düğmeleri vardır.
+    expect(await screen.findByRole("button", { name: "Son otomatik yedeği Finder'da göster" })).toBeTruthy();
+
+    const pick = screen.getByRole("button", { name: "Klasör seç…" });
+    fireEvent.click(pick);
+    await waitFor(() => expect(callsTo(calls, "/api/backup/auto", "PUT")).toHaveLength(1));
+    expect(body(callsTo(calls, "/api/backup/auto", "PUT")[0].init)).toEqual({ folderPath: "/Users/ben/Yeni Yedek" });
+    await waitFor(() => expect(screen.getByLabelText<HTMLInputElement>("Yedek klasörü").value).toBe("/Users/ben/Yeni Yedek"));
+
+    await waitFor(() => expect(pick.hasAttribute("disabled")).toBe(false));
+    fireEvent.click(pick);
+    await waitFor(() => expect(callsTo(calls, "/api/system/choose-folder", "POST")).toHaveLength(2));
+    await waitFor(() => expect(pick.hasAttribute("disabled")).toBe(false));
+    expect(callsTo(calls, "/api/backup/auto", "PUT")).toHaveLength(1);
+
+    fireEvent.click(pick);
+    expect((await screen.findByRole("alert")).textContent).toContain("elle yaz");
+  });
+});
+
+describe("Ayarlar — B35 dil ve dar ekran", () => {
+  it("karışık İngilizce ifadeler yok; yedek dosyası Türkçe seçiciyle seçilir", async () => {
+    setup();
+    await screen.findByLabelText("Boy (cm)");
+    const text = document.body.textContent ?? "";
+    for (const word of ["Upsert", "Smart Merge", "sidecar", "Opsiyonel", "Yerel-First", "Choose File", "docs/CSV_FORMATS"]) expect(text).not.toContain(word);
+    expect(screen.getByText("Yedek dosyası seç (JSON)")).toBeTruthy();
+    expect(screen.getByLabelText<HTMLInputElement>("Yedekten geri yükle").type).toBe("file");
+  });
+
+  it("şeffaflık tablosu dar ekranda karta dönüşür: her hücre kendi başlığını taşır", async () => {
+    setup();
+    const table = (await screen.findByRole("table", { name: "Cihazdan ne çıkar?" })) as HTMLTableElement;
+    for (const row of Array.from(table.tBodies[0].rows)) {
+      expect(row.className).toContain("block");
+      expect(Array.from(row.cells).map((c) => c.dataset.label)).toEqual(["Özellik", "Ne gider", "Nereye"]);
+    }
+  });
+});
+
+describe("Ayarlar — sistem tanılama", () => {
+  it("B38: tam yollar, iki yedek klasörü, bütün tablolar, sürüm ve günlük dosyası görünür; Yenile yeniden çeker", async () => {
+    const { calls } = setup();
+    const section = (await screen.findByRole("heading", { name: /Sistem Tanılama/ })).closest("section")!;
+    await within(section).findByText("/data/rutinfit.db");
+    expect(within(section).getByText("Boyut: 1.23 MB")).toBeTruthy();
+    expect(within(section).getByText("Node v22.1.0 (darwin-arm64)")).toBeTruthy();
+    expect(within(section).getByText("RutinFit 0.1.0")).toBeTruthy();
+    expect(within(section).getByText("/data/backups")).toBeTruthy();
+    expect(within(section).getByText("/Users/ben/iCloud/RutinFit")).toBeTruthy();
+    expect(within(section).getByText("/Users/ben/Library/Logs/com.rutinfit.desktop/rutinfit.log")).toBeTruthy();
+    expect(within(section).getByText(/Uygulama klasöründe: 4 yedek/)).toBeTruthy();
+    expect(within(section).getByText(/Otomatik yedek klasöründe: 3 yedek/)).toBeTruthy();
+    for (const [label, count] of [["Besinler", "42"], ["Kiler ürünleri", "11"], ["Kardiyo kayıtları", "6"], ["Apple Sağlık kayıtları", "15"], ["Koç sohbetleri", "2"]]) {
+      expect(within(section).getByText(label).nextElementSibling?.textContent).toBe(count);
+    }
+    expect(within(section).getByRole("button", { name: "Veritabanı dosyasını Finder'da göster" })).toBeTruthy();
+    expect(within(section).getByRole("button", { name: "Günlük dosyasının yolunu kopyala" })).toBeTruthy();
+
+    await waitFor(() => expect(within(section).getByRole("button", { name: "Yenile" }).hasAttribute("disabled")).toBe(false));
     const before = callsTo(calls, "/api/diagnostics").length;
-    fireEvent.click(screen.getByRole("button", { name: "Yenile" }));
+    fireEvent.click(within(section).getByRole("button", { name: "Yenile" }));
     await waitFor(() => expect(callsTo(calls, "/api/diagnostics")).toHaveLength(before + 1));
+  });
+
+  it("B38: 'Tanılamayı kopyala' sürüm, yollar ve tablo sayılarıyla düz metin kopyalar", async () => {
+    const writeText = vi.fn(async (_text: string) => {});
+    vi.stubGlobal("navigator", Object.assign(Object.create(navigator), { clipboard: { writeText } }));
+    setup();
+    fireEvent.click(await screen.findByRole("button", { name: "Tanılamayı kopyala" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    const text = writeText.mock.calls[0][0];
+    expect(text).toContain("RutinFit 0.1.0");
+    expect(text).toContain("Veritabanı: /data/rutinfit.db (1.23 MB)");
+    expect(text).toContain("Günlük dosyası: /Users/ben/Library/Logs/com.rutinfit.desktop/rutinfit.log");
+    expect(text).toContain("Otomatik yedek klasörü: /Users/ben/iCloud/RutinFit (3 yedek)");
+    expect(text).toContain("Kardiyo kayıtları: 6");
+    expect(await screen.findByText("Tanılama kopyalandı")).toBeTruthy();
+  });
+
+  it("B38: bir işlem bitince (ör. Şimdi yedekle) tanılama kendiliğinden yenilenir", async () => {
+    const state = { enabled: true, folderPath: "/Users/ben/Yedek", frequency: "daily", keepCount: 10, lastRunAt: null, lastStatus: null, lastMessage: null, lastFile: null, suggestedFolder: "/x", exportCopies: true };
+    const { calls } = setup([
+      ["/api/backup/auto", (_u, init) => (method(init) === "POST" ? jsonResponse({ ok: true, message: "Yedek alındı.", file: "/Users/ben/Yedek/a.json" }) : jsonResponse(state))],
+    ]);
+    const run = await screen.findByRole("button", { name: "Şimdi yedekle" });
+    await waitFor(() => expect(run.hasAttribute("disabled")).toBe(false));
+    await waitFor(() => expect(callsTo(calls, "/api/diagnostics").length).toBeGreaterThanOrEqual(1));
+    await new Promise((r) => setTimeout(r, 50));
+    const before = callsTo(calls, "/api/diagnostics").length;
+    fireEvent.click(run);
+    await waitFor(() => expect(callsTo(calls, "/api/diagnostics").length).toBeGreaterThan(before));
   });
 });

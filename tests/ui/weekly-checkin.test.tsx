@@ -100,7 +100,7 @@ describe("F49: haftalık değerlendirme kartı", () => {
       }],
     ]).restore;
     renderWithQuery(<CheckinCard />);
-    expect(await screen.findByText("Kurallı özet")).toBeTruthy();
+    expect(await screen.findByText("Otomatik özet")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Hedefi uygula" }));
     await waitFor(() => expect(actions).toHaveLength(2));
     expect(actions[0]).toMatchObject({ draftId: "d1", action: "reissue" });
@@ -129,5 +129,30 @@ describe("F49: haftalık değerlendirme kartı", () => {
     renderWithQuery(<CheckinCard />);
     expect(await screen.findByText(/Öneriyi reddettin/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Hedefi uygula" })).toBeNull();
+  });
+
+  it("B40: önceki sürümün özetindeki 'Öneri:' cümlesi gösterilmez; öneri yalnız kutuda bir kez yazar", async () => {
+    const text = "Bu hafta 4 gün kayıt girdin. Önümüzdeki hafta en az 5 gün öğünlerini kaydetmeye çalış.";
+    restore = stubFetch([
+      ["/api/checkins", () =>
+        jsonResponse({
+          checkins: [
+            {
+              id: "c3",
+              weekStart: "2026-10-19",
+              metrics,
+              summary: `19.10–25.10 haftasında 4 gün kayıt girdin. Öneri: ${text} Bu hafta adet dönemi (2 gün) vardı.`,
+              aiGenerated: false,
+              suggestion: { kind: "habit", text },
+              draftId: null,
+              draftStatus: null,
+            },
+          ],
+        })],
+    ]).restore;
+    renderWithQuery(<CheckinCard />);
+    expect(await screen.findByText("19.10–25.10 haftasında 4 gün kayıt girdin. Bu hafta adet dönemi (2 gün) vardı.")).toBeTruthy();
+    expect(screen.getAllByText(new RegExp(text.slice(0, 30))).length).toBe(1);
+    expect(screen.getByText("Otomatik özet")).toBeTruthy();
   });
 });

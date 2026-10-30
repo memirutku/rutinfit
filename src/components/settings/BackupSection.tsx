@@ -1,12 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, Check, Download, Upload } from "lucide-react";
+import { AlertCircle, Check, Download } from "lucide-react";
 import { ApiError, errorMessage } from "@/lib/client/api";
 import { useImportBackup } from "@/lib/client/queries/system";
 import type { ConfirmOptions } from "@/components/ui/ConfirmDialog";
 import { AutoBackupPanel } from "./AutoBackupPanel";
 import { downloadFile } from "@/lib/client/download";
+import { useAutoBackup } from "@/lib/client/queries/auto-backup";
+import { queryKeys } from "@/lib/client/queries/keys";
+import { useQueryClient } from "@tanstack/react-query";
+import { PathActions } from "@/components/ui/PathActions";
+import { FilePicker } from "@/components/ui/FilePicker";
 
 interface ImportResult {
   ok: boolean;
@@ -25,9 +30,12 @@ function importErrorText(error: unknown): string {
   return errorMessage(error, IMPORT_FALLBACK);
 }
 
-async function downloadBackup(): Promise<string> {
+/** B36: indirilen dosyanın adı ve (ayar açıksa) uygulama klasöründeki kopyanın yolu. */
+type ExportResult = { ok: true; what: string; name: string; savedPath: string | null } | { ok: false; message: string };
+
+async function downloadBackup(): Promise<ExportResult> {
   const { name, savedPath } = await downloadFile("/api/backup/export", "rutinfit-backup.json", "X-RutinFit-Backup-Path");
-  return `Yedek indirildi: ${name}.` + (savedPath ? ` Bir kopyası uygulama klasörüne de kaydedildi: ${savedPath}` : "");
+  return { ok: true, what: "Yedek", name, savedPath };
 }
 
 /** F60: diğer uygulamalarda ve tablolama programlarında açılabilen CSV dosyaları. */
@@ -37,42 +45,72 @@ const CSV_EXPORTS = [
   { type: "body", label: "Kilo ve bel ölçüsü (CSV)" },
 ] as const;
 
-async function downloadCsv(type: string): Promise<string> {
+async function downloadCsv(type: string): Promise<ExportResult> {
   const { name, savedPath } = await downloadFile(`/api/export/csv?type=${type}`, `rutinfit-${type}.csv`, "X-RutinFit-Export-Path");
-  return `CSV indirildi: ${name}.` + (savedPath ? ` Bir kopyası uygulama klasörüne de kaydedildi: ${savedPath}` : "");
+  return { ok: true, what: "CSV", name, savedPath };
+}
+
+/** B36: dosyanın nereye indiği; Finder'da göster ve kopyanın yolunu kopyala. */
+function ExportResultView({ result }: { result: ExportResult }) {
+  if (!result.ok) {
+    return (
+      <p role="alert" className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 break-all">
+        {result.message}
+      </p>
+    );
+  }
+  return (
+    <div role="status" className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="font-semibold break-all">{`${result.what} indirildi: ${result.name} (İndirilenler klasörü)`}</p>
+        <PathActions target={{ download: result.name }} revealLabel="İndirilen dosyayı Finder'da göster" />
+      </div>
+      {result.savedPath && (
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="break-all text-slate-600">{`Uygulama klasöründeki kopya: ${result.savedPath}`}</p>
+          <PathActions
+            target={{ path: result.savedPath }}
+            revealLabel="Uygulama klasöründeki kopyayı Finder'da göster"
+            copy={{ text: result.savedPath, label: "Uygulama klasöründeki kopyanın yolunu kopyala" }}
+          />
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** Tam veritabanı yedeği: JSON indirme ve onaylı geri yükleme (akıllı birleştirme). */
 export function BackupSection({ confirm }: { confirm: (options: ConfirmOptions) => Promise<boolean> }) {
-  const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [exportResult, setExportResult] = useState<ExportResult | null>(null);
+  const exportCopies = useAutoBackup().data?.exportCopies ?? true;
+  const qc = useQueryClient();
+  // B38: indirme bir işlem (mutation) değildir; uygulama klasörüne kopya düştüğü için tanılama tazelenir.
+  const refreshDiagnostics = () => qc.invalidateQueries({ queryKey: queryKeys.diagnostics });
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const importBackup = useImportBackup();
 
   async function handleExport() {
-    setExportMessage(null);
+    setExportResult(null);
     try {
-      setExportMessage(await downloadBackup());
+      setExportResult(await downloadBackup());
+      void refreshDiagnostics();
     } catch (err) {
-      setExportMessage(`Hata: ${errorMessage(err, "Yedek dışa aktarılamadı")}`);
+      setExportResult({ ok: false, message: `Hata: ${errorMessage(err, "Yedek dışa aktarılamadı")}` });
     }
   }
 
   async function handleCsv(type: string) {
-    setExportMessage(null);
+    setExportResult(null);
     try {
-      setExportMessage(await downloadCsv(type));
+      setExportResult(await downloadCsv(type));
+      void refreshDiagnostics();
     } catch (err) {
-      setExportMessage(`Hata: ${errorMessage(err, "CSV dışa aktarılamadı")}`);
+      setExportResult({ ok: false, message: `Hata: ${errorMessage(err, "CSV dışa aktarılamadı")}` });
     }
   }
 
-  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
-    const input = e.target;
-    const file = input.files?.[0];
-    // Aynı dosya tekrar seçilebilsin diye input her durumda sıfırlanır.
-    const reset = () => {
-      input.value = "";
-    };
+  // B35: Türkçe dosya seçici girdiyi her seçimden sonra kendisi sıfırlar (aynı dosya yeniden seçilebilir).
+  async function handleImport(file: File | undefined) {
     if (!file) return;
 
     const ok = await confirm({
@@ -85,12 +123,9 @@ export function BackupSection({ confirm }: { confirm: (options: ConfirmOptions) 
       ),
       confirmLabel: "Geri Yükle",
     });
-    if (!ok) {
-      reset();
-      return;
-    }
+    if (!ok) return;
 
-    try {
+    {
       let backup: unknown;
       try {
         backup = JSON.parse(await file.text());
@@ -105,8 +140,6 @@ export function BackupSection({ confirm }: { confirm: (options: ConfirmOptions) 
       } catch (err) {
         setImportResult({ ok: false, message: `Hata: ${importErrorText(err)}`, counts: null });
       }
-    } finally {
-      reset();
     }
   }
 
@@ -114,26 +147,22 @@ export function BackupSection({ confirm }: { confirm: (options: ConfirmOptions) 
     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
       <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
         <Download className="w-5 h-5 text-slate-700" />
-        <h3 className="font-bold text-slate-900 text-base">Yerel Veri Yedekleme & Geri Yükleme</h3>
-        <span className="text-[11px] bg-blue-50 text-blue-700 font-semibold px-2.5 py-0.5 rounded-full ml-auto">
-          Akıllı Birleştirme (Upsert)
-        </span>
+        <h3 className="font-bold text-slate-900 text-base">Yedek ve dışa aktarma</h3>
       </div>
 
       <p className="text-xs text-slate-500 leading-relaxed">
-        Tüm besin kataloğunuz, antrenman geçmişiniz, yemek planlarınız, kiler envanteriniz ve kilo kayıtlarınız tek bir JSON dosyasında
-        yedeklenir. Geri yükleme işlemi <strong>Akıllı Birleştirme (Smart Merge)</strong> prensibiyle çalışır: Mevcut kayıtlarınız
-        silinmez; yedekteki aynı kimliğe sahip kayıtlar güncellenir, yeni kayıtlar eklenir.
+        Besin kataloğun, öğün ve antrenman geçmişin, yemek planların, kilerin ve kilo kayıtların tek bir JSON dosyasına yedeklenir.
+        Geri yükleme <strong>birleştirerek</strong> çalışır: mevcut kayıtların silinmez; yedekteki aynı kayıtlar güncellenir, yeniler
+        eklenir.
       </p>
 
-      {exportMessage && (
-        <p
-          role={exportMessage.startsWith("Hata") ? "alert" : "status"}
-          className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 break-all"
-        >
-          {exportMessage}
-        </p>
-      )}
+      <p className="text-[11px] text-slate-500">
+        {exportCopies
+          ? "İndirilen her dosyanın bir kopyası uygulama klasörüne de kaydedilir; indirme engellenirse dosya kaybolmaz. Bunu Gelişmiş › Yedek ayrıntıları bölümünden kapatabilirsin."
+          : "Uygulama klasörüne kopya kaydı kapalı; dosyalar yalnız İndirilenler klasörüne iner. Gelişmiş › Yedek ayrıntıları bölümünden açabilirsin."}
+      </p>
+
+      {exportResult && <ExportResultView result={exportResult} />}
 
       {importResult && (
         <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
@@ -161,6 +190,8 @@ export function BackupSection({ confirm }: { confirm: (options: ConfirmOptions) 
 
       <div className="flex flex-wrap gap-3 pt-2">
         <button
+          id="backup-export"
+          type="button"
           onClick={handleExport}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 shadow-xs"
         >
@@ -168,18 +199,22 @@ export function BackupSection({ confirm }: { confirm: (options: ConfirmOptions) 
           <span>Tüm Verileri JSON Olarak İndir</span>
         </button>
 
-        <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 cursor-pointer border border-slate-200">
-          <Upload className="w-4 h-4" />
-          <span>{importBackup.isPending ? "Geri yükleniyor..." : "Yedekten Geri Yükle (JSON Seç)"}</span>
-          <input type="file" accept=".json" disabled={importBackup.isPending} onChange={handleImport} className="hidden" />
-        </label>
       </div>
+
+      <FilePicker
+        id="backup-import"
+        label="Yedekten geri yükle"
+        accept=".json,application/json"
+        buttonText={importBackup.isPending ? "Geri yükleniyor..." : "Yedek dosyası seç (JSON)"}
+        disabled={importBackup.isPending}
+        onFile={handleImport}
+      />
 
       <div className="pt-3 border-t border-slate-100 space-y-2">
         <p className="text-xs font-bold text-slate-700">CSV olarak dışa aktar</p>
         <p className="text-[11px] text-slate-500">
-          Tablolama programlarında ve diğer uygulamalarda açılır. Antrenman dosyası Strong biçimindedir; RutinFit'e geri içe
-          aktarılabilir. Biçimler: docs/CSV_FORMATS.md
+          Excel, Numbers ve diğer uygulamalarda açılır. Antrenman dosyası Strong uygulamasının biçimindedir; RutinFit'e geri
+          içe aktarılabilir.
         </p>
         <div className="flex flex-wrap gap-2">
           {CSV_EXPORTS.map((c) => (

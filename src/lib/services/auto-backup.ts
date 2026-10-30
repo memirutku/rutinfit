@@ -9,6 +9,7 @@ import path from "node:path";
 import { prisma } from "../prisma";
 import { HttpError } from "../api-error";
 import { exportAllData } from "./backup";
+import { localFileStamp, uniqueFilePath } from "./export-files";
 
 const ID = "default";
 const FILE_PREFIX = "rutinfit-otomatik-yedek-";
@@ -53,12 +54,19 @@ export async function getAutoBackupSettings() {
       lastStatus: null,
       lastMessage: null,
       lastFile: null,
+      exportCopies: true,
       updatedAt: new Date(0),
     }
   );
 }
 
-export async function saveAutoBackupSettings(input: { enabled?: boolean; folderPath?: string | null; frequency?: AutoBackupFrequency; keepCount?: number }) {
+export async function saveAutoBackupSettings(input: {
+  enabled?: boolean;
+  folderPath?: string | null;
+  frequency?: AutoBackupFrequency;
+  keepCount?: number;
+  exportCopies?: boolean;
+}) {
   const current = await getAutoBackupSettings();
   const folderPath = input.folderPath === undefined ? current.folderPath : input.folderPath?.trim() || null;
   const enabled = input.enabled ?? current.enabled;
@@ -68,11 +76,10 @@ export async function saveAutoBackupSettings(input: { enabled?: boolean; folderP
     folderPath: folderPath && enabled ? prepareFolder(folderPath) : folderPath,
     frequency: input.frequency ?? current.frequency,
     keepCount: input.keepCount ?? current.keepCount,
+    exportCopies: input.exportCopies ?? current.exportCopies,
   };
   return prisma.autoBackupSettings.upsert({ where: { id: ID }, update: data, create: { id: ID, ...data } });
 }
-
-const stamp = (d: Date) => d.toISOString().replace(/[:T]/g, "-").replace("Z", "").replace(".", "-");
 
 export interface AutoBackupResult {
   ok: boolean;
@@ -86,7 +93,8 @@ export async function runAutoBackup(now = new Date()): Promise<AutoBackupResult>
   try {
     if (!settings.folderPath) throw new Error("Otomatik yedek klasörü seçilmemiş.");
     if (!fs.existsSync(/*turbopackIgnore: true*/ settings.folderPath)) throw new Error(`Klasör bulunamadı: ${settings.folderPath}`);
-    const file = path.join(/*turbopackIgnore: true*/ settings.folderPath, `${FILE_PREFIX}${stamp(now)}.json`);
+    // B36: yerel saatli ad; aynı saniyedeki ikinci yedek üzerine yazmaz.
+    const file = uniqueFilePath(settings.folderPath, `${FILE_PREFIX}${localFileStamp(now)}.json`);
     fs.writeFileSync(/*turbopackIgnore: true*/ file, JSON.stringify(await exportAllData(), null, 2), "utf8");
     const ours = fs
       .readdirSync(/*turbopackIgnore: true*/ settings.folderPath)

@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Trash2 } from "lucide-react";
+import { Bell, CalendarPlus, Trash2 } from "lucide-react";
 import { errorMessage } from "@/lib/client/api";
+import { downloadFile } from "@/lib/client/download";
+import { PathActions } from "@/components/ui/PathActions";
 import { notificationPermission, requestNotificationPermission, sendSystemNotification, type NotificationPermissionState } from "@/lib/client/notify";
 import { useDeleteReminder, useReminders, useSaveReminder } from "@/lib/client/queries/reminders";
 import { useSupplements } from "@/lib/client/queries/supplements";
@@ -28,7 +30,66 @@ const PERMISSION_TEXT: Record<NotificationPermissionState, string> = {
   unsupported: "Bu ortam sistem bildirimlerini desteklemiyor; hatırlatmalar uygulama içinde görünür.",
 };
 
-/** F83: Hatırlatmalar (uygulama açıkken). Yapılmış işler için hatırlatma gelmez. */
+type IcsResult = { ok: true; name: string; savedPath: string | null } | { ok: false; message: string };
+
+/**
+ * B41: hatırlatmalar telefona ulaşsın diye takvim dosyası (.ics). Kısa vadeli yol: dosya
+ * Takvim'e eklenir; iCloud takvimine eklenirse iPhone'a da gelir.
+ */
+function CalendarExport({ hasActive }: { hasActive: boolean }) {
+  const [result, setResult] = useState<IcsResult | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function exportIcs() {
+    setBusy(true);
+    setResult(null);
+    try {
+      const { name, savedPath } = await downloadFile("/api/reminders/ics", "rutinfit-hatirlatmalar.ics", "X-RutinFit-Export-Path");
+      setResult({ ok: true, name, savedPath });
+    } catch (err) {
+      setResult({ ok: false, message: errorMessage(err, "Takvim dosyası indirilemedi.") });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="pt-3 border-t border-slate-100 space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          id="reminders-ics"
+          type="button"
+          disabled={!hasActive || busy}
+          onClick={exportIcs}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+        >
+          <CalendarPlus className="w-4 h-4" aria-hidden />
+          Takvime aktar (.ics)
+        </button>
+        <span className="text-[11px] text-slate-500">Açık hatırlatmalar haftalık tekrarlanan, alarmlı etkinlik olur.</span>
+      </div>
+      {result?.ok === false && (
+        <p role="alert" className="text-xs text-rose-700">
+          {result.message}
+        </p>
+      )}
+      {result?.ok && (
+        <div role="status" className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-semibold break-all">{`Takvim dosyası indirildi: ${result.name} (İndirilenler klasörü)`}</p>
+            <PathActions target={{ download: result.name }} revealLabel="İndirilen takvim dosyasını Finder'da göster" />
+          </div>
+          <p>
+            Dosyayı çift tıklayınca Takvim açılır; iCloud takvimini seçersen hatırlatmalar iPhone'una da gelir. Takvim, iş yapılmış olsa da
+            hatırlatır. Saat ya da gün değiştirirsen takvimdeki eski etkinlikleri silip dosyayı yeniden aktar.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** F83: Hatırlatmalar (uygulama açıkken). Yapılmış işler için hatırlatma gelmez. B41: takvime aktarma. */
 export function RemindersSection() {
   const reminders = useReminders();
   const supplements = useSupplements(getLocalDateString());
@@ -74,6 +135,7 @@ export function RemindersSection() {
       </div>
       <p className="text-xs text-slate-500">
         Hatırlatmalar RutinFit açıkken gelir. İş zaten yapıldıysa (tartı girildi, takviye alındı, öğün kaydedildi, su hedefi doldu) hatırlatma atlanır.
+        Telefonunda da görmek için aşağıdan takvime aktar; iCloud takvimine eklersen telefonuna da gelir.
       </p>
 
       {permission && (
@@ -205,6 +267,7 @@ export function RemindersSection() {
           {errorMessage(error, "İşlem yapılamadı.")}
         </p>
       )}
+      <CalendarExport hasActive={!!reminders.data?.some((r) => r.enabled)} />
     </section>
   );
 }

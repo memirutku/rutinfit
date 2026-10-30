@@ -109,7 +109,7 @@ export function AIProviderSection() {
   }
 
   return (
-    <div id="yapay-zeka" className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6 scroll-mt-4">
+    <div id="yapay-zeka" className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6 scroll-mt-16">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
         <div className="flex items-center gap-2">
           <Bot className="w-5 h-5 text-indigo-600" />

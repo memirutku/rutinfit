@@ -27,6 +27,7 @@ type NumericKey =
   | "waterTargetMl"
   | "householdSize";
 type TimeKey = "wakeTime" | "workdayHomeTime";
+type ToggleKey = "hideNumbers" | "cycleTracking";
 
 interface NumberFieldDef {
   id: string;
@@ -106,6 +107,14 @@ function TimeField(props: { id: string; label: string; field: TimeKey; fallback:
   );
 }
 
+function ToggleSaved({ show }: { show: boolean }) {
+  return show ? (
+    <span role="status" className="text-[11px] font-semibold text-emerald-700">
+      Kaydedildi ✓
+    </span>
+  ) : null;
+}
+
 /**
  * Profil ve günlük hedefler. Yazılanlar yerel taslakta tutulur; profil sorgusu yeni veri
  * getirdiğinde (kayıt yanıtı, yedekten geri yükleme) taslak yeniden kurulur.
@@ -113,9 +122,12 @@ function TimeField(props: { id: string; label: string; field: TimeKey; fallback:
 export function ProfileTargetsSection({ profile }: { profile: Profile | undefined }) {
   const [draft, setDraft] = useState<ProfileDraft>(() => profile ?? {});
   const [seededFrom, setSeededFrom] = useState(profile);
+  // B34: anahtar kaydından dönen profil yalnız anahtarları günceller; formdaki kaydedilmemiş düzenleme kalır.
+  const [toggleSaving, setToggleSaving] = useState(false);
   if (profile !== seededFrom) {
     setSeededFrom(profile);
-    setDraft(profile ?? {});
+    setDraft((d) => (toggleSaving && profile ? { ...d, hideNumbers: profile.hideNumbers, cycleTracking: profile.cycleTracking } : profile ?? {}));
+    if (toggleSaving) setToggleSaving(false);
   }
 
   const [acknowledgeLow, setAcknowledgeLow] = useState(false);
@@ -135,6 +147,29 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
   const save = useSaveProfile();
   const success = useTimedMessage<string>(3000);
   const set = <K extends keyof ProfileDraft>(key: K, value: ProfileDraft[K]) => setDraft((d) => ({ ...d, [key]: value }));
+
+  // B34: açma-kapama ayarları dokununca kaydedilir. Kayıtlı profil + yalnız bu anahtar gönderilir;
+  // formdaki kaydedilmemiş hedefler bu kayda girmez. Onay mesajı anahtarın yanında görünür.
+  const toggleSave = useSaveProfile();
+  const toggleDone = useTimedMessage<ToggleKey>(2500);
+  function saveToggle(key: ToggleKey, value: boolean) {
+    set(key, value);
+    toggleDone.clear();
+    if (!profile) return;
+    setToggleSaving(true);
+    // Kayıtlı hedef taban altındaysa daha önce onaylanmıştır (sunucu onaysız kaydetmez).
+    const acknowledged = profile.calorieTarget < calorieFloor(profile.sex);
+    toggleSave.mutate(
+      { ...(profile as ProfileInput), [key]: value, acknowledgeLowCalorie: acknowledged || undefined },
+      {
+        onSuccess: () => toggleDone.show(key),
+        onError: () => {
+          setToggleSaving(false);
+          set(key, !value);
+        },
+      }
+    );
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -265,28 +300,45 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
           <p className="mt-1 text-[11px] text-slate-500">Koç bu notları her yanıtta dikkate alır. Notlar yalnız seçtiğin yapay zekâ sağlayıcısına gönderilir.</p>
         </div>
 
-        <label className="flex items-start gap-2 pt-3 border-t border-slate-100 text-xs text-slate-700">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={draft.hideNumbers ?? false}
-            onChange={(e) => set("hideNumbers", e.target.checked)}
-          />
-          <span>
-            <span className="font-bold">Kalori ve makro sayılarını gizle</span>
-            <span className="block text-slate-500">Pano ilerlemeyi sayı yerine sözle gösterir. Sayılar hesaplanmaya devam eder.</span>
-          </span>
-        </label>
-
-        <label className="flex items-start gap-2 text-xs text-slate-700">
-          <input type="checkbox" className="mt-0.5" checked={draft.cycleTracking ?? false} onChange={(e) => set("cycleTracking", e.target.checked)} />
-          <span>
-            <span className="font-bold">Adet döngüsü notu</span>
-            <span className="block text-slate-500">
-              Günlük ritimde isteğe bağlı not. Haftalık değerlendirme kilo dalgalanmasını açıklarken kullanır; yapay zekâ modeline gönderilmez.
+        <div className="pt-3 border-t border-slate-100 space-y-3">
+          <p className="text-[11px] text-slate-500">Bu iki ayar dokununca kaydedilir.</p>
+          <label className="flex items-start gap-2 text-xs text-slate-700">
+            <input
+              id="settings-hide-numbers"
+              type="checkbox"
+              className="mt-0.5"
+              checked={draft.hideNumbers ?? false}
+              disabled={toggleSave.isPending}
+              onChange={(e) => saveToggle("hideNumbers", e.target.checked)}
+            />
+            <span>
+              <span className="font-bold">Kalori ve makro sayılarını gizle</span> <ToggleSaved show={toggleDone.message === "hideNumbers"} />
+              <span className="block text-slate-500">Pano ilerlemeyi sayı yerine sözle gösterir. Sayılar hesaplanmaya devam eder.</span>
             </span>
-          </span>
-        </label>
+          </label>
+
+          <label className="flex items-start gap-2 text-xs text-slate-700">
+            <input
+              id="settings-cycle-tracking"
+              type="checkbox"
+              className="mt-0.5"
+              checked={draft.cycleTracking ?? false}
+              disabled={toggleSave.isPending}
+              onChange={(e) => saveToggle("cycleTracking", e.target.checked)}
+            />
+            <span>
+              <span className="font-bold">Adet döngüsü notu</span> <ToggleSaved show={toggleDone.message === "cycleTracking"} />
+              <span className="block text-slate-500">
+                Günlük ritimde isteğe bağlı not. Haftalık değerlendirme kilo dalgalanmasını açıklarken kullanır; yapay zekâ modeline gönderilmez.
+              </span>
+            </span>
+          </label>
+          {toggleSave.isError && (
+            <p role="alert" className="text-xs font-semibold text-rose-700">
+              {errorMessage(toggleSave.error, "Ayar kaydedilemedi.")}
+            </p>
+          )}
+        </div>
 
         <div className="flex justify-end pt-2">
           <button

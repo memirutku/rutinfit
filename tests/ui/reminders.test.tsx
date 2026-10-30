@@ -114,4 +114,43 @@ describe("F83: hatırlatmalar", () => {
     expect(calls[1]).toMatchObject({ method: "DELETE" });
     expect(calls[2]).toMatchObject({ method: "POST", body: { kind: "supplement", supplementId: "s1", time: "21:30", days: "12345" } });
   });
+
+  it("B41: 'Takvime aktar (.ics)' dosyayı indirir; nereye indiğini ve telefona nasıl ekleneceğini söyler", async () => {
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: vi.fn(() => "blob:ics"), revokeObjectURL: vi.fn() }));
+    const requested: string[] = [];
+    restore = stubFetch([
+      ["/api/supplements", () => jsonResponse({ supplements: [] })],
+      ["/api/reminders/ics", (url) => {
+        requested.push(url);
+        return new Response("BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n", {
+          headers: {
+            "Content-Type": "text/calendar",
+            "Content-Disposition": 'attachment; filename="rutinfit-hatirlatmalar-2026-10-30.ics"',
+            "X-RutinFit-Export-Path": encodeURIComponent("/data/exports/rutinfit-hatirlatmalar-2026-10-30.ics"),
+          },
+        });
+      }],
+      ["/api/reminders", () => jsonResponse({ reminders: [{ id: "r1", kind: "water", title: "Su iç", time: "10:00", days: "1234567", enabled: true, mealType: null, supplementId: null }] })],
+    ]).restore;
+    renderWithQuery(<RemindersSection />);
+    expect(await screen.findByText(/telefonuna da gelir/)).toBeTruthy();
+    const button = await screen.findByRole("button", { name: "Takvime aktar (.ics)" });
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(button);
+    expect(await screen.findByText("Takvim dosyası indirildi: rutinfit-hatirlatmalar-2026-10-30.ics (İndirilenler klasörü)")).toBeTruthy();
+    expect(requested).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "İndirilen takvim dosyasını Finder'da göster" })).toBeTruthy();
+    expect(screen.getByText(/iş yapılmış olsa da/)).toBeTruthy();
+  });
+
+  it("B41: açık hatırlatma yoksa takvim düğmesi pasiftir", async () => {
+    restore = stubFetch([
+      ["/api/supplements", () => jsonResponse({ supplements: [] })],
+      ["/api/reminders", () => jsonResponse({ reminders: [{ id: "r1", kind: "water", title: "Su iç", time: "10:00", days: "1234567", enabled: false, mealType: null, supplementId: null }] })],
+    ]).restore;
+    renderWithQuery(<RemindersSection />);
+    await screen.findByText(/Su iç/);
+    expect((screen.getByRole("button", { name: "Takvime aktar (.ics)" }) as HTMLButtonElement).disabled).toBe(true);
+  });
 });

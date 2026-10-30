@@ -577,6 +577,8 @@ model AutoBackupSettings {
   lastStatus  String? // ok, error
   lastMessage String?
   lastFile    String?
+  /// B36: dışa aktarmalarda uygulama klasörüne kopya yazılsın mı (indirme engellenirse dosya kaybolmasın)
+  exportCopies Boolean  @default(true)
   updatedAt   DateTime  @updatedAt
 }
 

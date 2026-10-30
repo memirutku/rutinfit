@@ -57,7 +57,7 @@ export function SupplementsSection() {
   }
 
   return (
-    <section ref={sectionRef} id="takviyeler" className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 scroll-mt-6">
+    <section ref={sectionRef} id="takviyeler" className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 scroll-mt-16">
       <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
         <Pill className="w-5 h-5 text-emerald-600" />
         <h3 className="font-bold text-slate-900 text-base">Takviyeler</h3>
