@@ -71,7 +71,8 @@ const d = (name: string, servings: number, prepMinutes: number, portion: string,
 });
 
 export const TURKISH_DISHES: CatalogDish[] = [
-  d("Mercimek Çorbası", 6, 40, "1 kase", [
+  // B11: çorbalarda porsiyon bir kasedir (≈ 250 g): toplam ≈ 2 kg / 8.
+  d("Mercimek Çorbası", 8, 40, "1 kase", [
     ["Kırmızı Mercimek (çiğ)", 250],
     ["Kuru Soğan", 100],
     ["Havuç", 80],
@@ -80,7 +81,7 @@ export const TURKISH_DISHES: CatalogDish[] = [
     ["Domates Salçası", 15],
     ["İçme Suyu", 1500],
   ]),
-  d("Yayla Çorbası", 6, 35, "1 kase", [
+  d("Yayla Çorbası", 8, 35, "1 kase", [
     ["Yoğurt (%1.5 az yağlı)", 500],
     ["Pirinç (baldo/basmati)", 70],
     ["Buğday Unu", 20],

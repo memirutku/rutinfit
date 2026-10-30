@@ -95,6 +95,7 @@ export function QuickAddModal({
       confidence: "Yüksek",
       portionKcal: totals.calories / servings,
       portionGrams: totalGrams / servings,
+      instructions: r.instructions,
     };
   });
 
@@ -131,7 +132,7 @@ export function QuickAddModal({
   const selectedName =
     selectedRecipe?.name ?? foods.find((f) => f.id === foodId)?.name ?? recentFoods.find((r) => r.id === foodId)?.name;
   const measures: MergedMeasure[] = selectedRecipe
-    ? recipeMeasuresFor(selectedRecipe.name, selectedRecipe.portionGrams).map((x) => ({ ...x, source: "builtin" as const }))
+    ? recipeMeasuresFor(selectedRecipe.name, selectedRecipe.portionGrams, selectedRecipe.instructions).map((x) => ({ ...x, source: "builtin" as const }))
     : selectedName
       ? mergeMeasures(builtinMeasuresFor(selectedName), customMeasures?.[foodId] ?? [])
       : [];

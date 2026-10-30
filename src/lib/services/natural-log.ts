@@ -4,7 +4,7 @@
  */
 import { prisma } from "../prisma";
 import { rankFoods } from "../food-search";
-import { builtinMeasuresFor, mergeMeasures } from "../measures";
+import { builtinMeasuresFor, mergeMeasures, recipeMeasuresFor, RECIPE_SERVING_UNITS } from "../measures";
 import { parseFoodText, splitFoodText } from "../natural-log";
 import { calculatePortionMacros, calculateRecipeMacros, scaleMacros, type NutritionalValues } from "../nutrition-calculator";
 import { QUICK_FOODS, type QuickFood } from "../quick-foods";
@@ -98,12 +98,14 @@ export async function parseMealText(text: string): Promise<ParsedMealItem[]> {
       const ingredients = recipe.ingredients.map((i) => ({ grams: i.grams, foodItem: i.foodItem }));
       const total = ingredients.reduce((a, i) => a + i.grams, 0);
       const portion = recipe.servings > 0 ? total / recipe.servings : total;
-      const measure = parsed.unit ? builtinMeasuresFor(recipe.name).find((m) => m.name === parsed.unit) : undefined;
+      // B11: kase/porsiyon/adet/dilim tarifin porsiyonudur (tarif kartıyla aynı sayı).
+      const measure = parsed.unit ? recipeMeasuresFor(recipe.name, portion, recipe.instructions).find((m) => m.name === parsed.unit) : undefined;
       if (parsed.unit === "gram") grams = parsed.quantity;
       else if (measure) grams = parsed.quantity * measure.grams;
+      else if (!parsed.unit || RECIPE_SERVING_UNITS.has(parsed.unit)) grams = parsed.quantity * portion;
       else {
         grams = parsed.quantity * portion;
-        if (parsed.unit && !["porsiyon", "adet"].includes(parsed.unit)) note = `"${parsed.unit}" bu tarif için bilinmiyor; ${parsed.quantity} porsiyon sayıldı.`;
+        note = `"${parsed.unit}" bu tarif için bilinmiyor; ${parsed.quantity} porsiyon sayıldı.`;
       }
       grams = round1(grams);
       const macros = scaleMacros(calculateRecipeMacros(ingredients), total > 0 ? grams / total : 0);

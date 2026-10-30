@@ -63,4 +63,23 @@ test.describe("Dalga 6 · besin", () => {
     expect(created?.foodItemId).toBeTruthy();
     expect(created?.caloriesSnapshot).toBe(72);
   });
+
+  test("B11: '1 kase' mercimek çorbası tarif kartında ve yazarak eklemede aynı kaloridir", async ({ page, api }) => {
+    const recipes = await (await api.get("/api/recipes")).json();
+    const soup = recipes.find((r: { name: string }) => r.name === "Mercimek Çorbası");
+    const kcal = Math.round(soup.calculatedMacros.calories / soup.servings);
+
+    await page.goto("/foods");
+    await page.getByRole("button", { name: /^Tarifler/ }).click();
+    const badge = page.getByLabel(`Porsiyon başına ${kcal} kcal`).first();
+    await expect(badge).toBeVisible();
+    await expect(badge).toContainText("1 kase");
+
+    await page.getByRole("link", { name: "Ana Panel" }).first().click();
+    await page.getByRole("button", { name: /Yazarak ekle/ }).first().click();
+    const d = page.getByRole("dialog", { name: "Yazarak öğün ekle" });
+    await d.getByLabel("Ne yedin?").fill("1 kase mercimek çorbası");
+    await d.getByRole("button", { name: "Çözümle" }).click();
+    await expect(d.getByRole("listitem").filter({ hasText: "1 kase mercimek çorbası" })).toContainText(`${kcal} kcal`);
+  });
 });

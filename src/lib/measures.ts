@@ -74,9 +74,30 @@ export function builtinMeasuresFor(foodName: string): Measure[] {
   return RULES.find((r) => r.match.test(name))?.measures.map((x) => ({ ...x })) ?? [];
 }
 
-/** B01: tarifin ev ölçüleri; "porsiyon" tarifin bir porsiyonudur (toplam gram / porsiyon sayısı). */
-export function recipeMeasuresFor(_recipeName: string, portionGrams: number): Measure[] {
-  return portionGrams > 0 ? [m("porsiyon", Math.round(portionGrams * 10) / 10)] : [];
+/**
+ * B11: Tarifte bu ölçüler tarifin bir porsiyonudur (toplam gram / porsiyon sayısı). "1 kase
+ * mercimek çorbası" tarif kartındaki porsiyonla aynı kaloriyi verir; kepçe, su bardağı gibi
+ * ölçüler yerleşik gramla kalır.
+ */
+export const RECIPE_SERVING_UNITS: ReadonlySet<string> = new Set(["porsiyon", "kase", "adet", "dilim"]);
+
+/** Türk paketi tariflerinin talimatı "Porsiyon: 1 kase." ile başlar → "1 kase". */
+export function recipePortionText(instructions: string | null | undefined): string | null {
+  return /^Porsiyon: ([^.]+)\./.exec(instructions ?? "")?.[1]?.trim() || null;
+}
+
+/**
+ * Tarifin ev ölçüleri: "porsiyon" (ve yerleşik kurallarda geçen kase/adet/dilim) bir porsiyondur.
+ * Talimatta porsiyon ölçüsü yazıyorsa ("Porsiyon: 1 su bardağı") o ölçü de bir porsiyondur.
+ */
+export function recipeMeasuresFor(recipeName: string, portionGrams: number, instructions?: string | null): Measure[] {
+  if (!(portionGrams > 0)) return [];
+  const portion = Math.round(portionGrams * 10) / 10;
+  const ownUnit = recipePortionText(instructions)?.replace(/^[\d.,]+\s*/, "");
+  const isServing = (name: string) => RECIPE_SERVING_UNITS.has(name) || name === ownUnit;
+  const builtin = builtinMeasuresFor(recipeName).map((x) => (isServing(x.name) ? { ...x, grams: portion } : x));
+  const extra = ownUnit && ownUnit !== "porsiyon" && !builtin.some((x) => x.name === ownUnit) ? [{ name: ownUnit, grams: portion }] : [];
+  return [...builtin.filter((x) => x.name !== "porsiyon"), ...extra, m("porsiyon", portion)].sort((a, b) => order(a.name) - order(b.name));
 }
 
 const order = (name: string) => {

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { POST } from "@/app/api/food-logs/parse/route";
+import { GET as RECIPES } from "@/app/api/recipes/route";
 import { installTurkishCatalog } from "@/lib/services/turkish-catalog";
 import { callRoute } from "../helpers/route";
 import { resetDatabase } from "../helpers/db";
@@ -16,7 +17,7 @@ describe("POST /api/food-logs/parse", () => {
     expect(res.status).toBe(200);
     const items = res.json.items;
     expect(items.map((i: any) => [i.match?.name ?? null, i.grams])).toEqual([
-      ["Mercimek Çorbası", 250],
+      ["Mercimek Çorbası", 248.8],
       ["Tam Buğday Ekmeği", 60],
       ["Yumurta (büyük boy, adet ~50g)", 150],
       ["Tavuk Göğsü (çiğ)", 150],
@@ -32,7 +33,7 @@ describe("POST /api/food-logs/parse", () => {
 
   it("F06: ölçü bilinmiyorsa porsiyon/100 g sayılır ve not düşülür; alternatifler verilir", async () => {
     await installTurkishCatalog();
-    const res = await callRoute(POST, { body: { text: "2 kase bulgur pilavı, 1 kase domates" } });
+    const res = await callRoute(POST, { body: { text: "2 avuç bulgur pilavı, 1 kase domates" } });
     const [pilav, tomato] = res.json.items;
     expect(pilav.match.name).toBe("Bulgur Pilavı");
     expect(pilav.note).toMatch(/porsiyon/);
@@ -40,6 +41,28 @@ describe("POST /api/food-logs/parse", () => {
     expect(tomato.grams).toBe(100);
     expect(tomato.note).toMatch(/100 g/);
     expect(Array.isArray(pilav.alternatives)).toBe(true);
+  });
+
+  it("B11: '1 kase' çorba tarif kartındaki porsiyonla aynı kaloriyi verir (~250 g)", async () => {
+    await installTurkishCatalog();
+    const recipes = (await callRoute(RECIPES)).json as Array<{ name: string; servings: number; calculatedMacros: { calories: number } }>;
+    const soup = recipes.find((r) => r.name === "Mercimek Çorbası")!;
+    const cardKcal = Math.round(soup.calculatedMacros.calories / soup.servings);
+    const res = await callRoute(POST, { body: { text: "1 kase mercimek çorbası, 2 kase yayla çorbası, 1 kepçe mercimek çorbası, 1 porsiyon kısır" } });
+    const [bowl, two, ladle, kisir] = res.json.items;
+    expect(Math.round(bowl.macros.calories)).toBe(cardKcal);
+    expect(bowl.grams).toBeGreaterThanOrEqual(240);
+    expect(bowl.grams).toBeLessThanOrEqual(260);
+    expect(bowl.note).toBeUndefined();
+    expect(two.match.name).toBe("Yayla Çorbası");
+    expect(two.note).toBeUndefined();
+    expect(ladle.grams).toBe(120);
+    expect(kisir.note).toBeUndefined();
+
+    // Tarifin kendi porsiyon ölçüsü ("Porsiyon: 1 su bardağı") da bir porsiyondur.
+    const ayran = recipes.find((r) => r.name === "Ayran")!;
+    const [glass] = (await callRoute(POST, { body: { text: "1 su bardağı ayran" } })).json.items;
+    expect(Math.round(glass.macros.calories)).toBe(Math.round(ayran.calculatedMacros.calories / ayran.servings));
   });
 
   it("B10: katalogda karşılığı olmayan hızlı kalem (ekmek, simit) yine eşlenir", async () => {
