@@ -14,7 +14,7 @@ const BUTTON =
   "px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:border-sky-400 hover:text-sky-700 disabled:opacity-50";
 
 /** F13: Günlük sıvı, kafein ve alkol. Hazır içecekler tek tıkla eklenir. */
-export function DrinksCard({ date }: { date: string }) {
+export function DrinksCard({ date, hideAlcohol = false }: { date: string; /** B25: Ramazan'da alkol satırı gizlenir. */ hideAlcohol?: boolean }) {
   const drinks = useDrinks(date);
   const add = useAddDrink();
   const remove = useDeleteDrink();
@@ -78,14 +78,16 @@ export function DrinksCard({ date }: { date: string }) {
           </button>
         ))}
       </div>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-[11px] font-bold text-slate-400 uppercase">Alkol</span>
-        {ALCOHOL.map((p) => (
-          <button key={p.id} type="button" className={BUTTON} disabled={add.isPending} onClick={() => addPreset(p.id)}>
-            {p.label}
-          </button>
-        ))}
-      </div>
+      {!hideAlcohol && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] font-bold text-slate-400 uppercase">Alkol</span>
+          {ALCOHOL.map((p) => (
+            <button key={p.id} type="button" className={BUTTON} disabled={add.isPending} onClick={() => addPreset(p.id)}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {(drinks.data?.logs.length ?? 0) > 0 && (
         <ul className="flex flex-wrap gap-1.5">

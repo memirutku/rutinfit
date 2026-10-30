@@ -24,7 +24,8 @@ import { MacroBalanceCard } from "@/components/dashboard/MacroBalanceCard";
 import { TodayWorkoutCard } from "@/components/dashboard/TodayWorkoutCard";
 import { WellbeingCard, type WellbeingValues } from "@/components/dashboard/WellbeingCard";
 import { TodayMealsList } from "@/components/dashboard/TodayMealsList";
-import { getRhythmStep, WELLBEING_SECTION_ID, type RhythmAction } from "@/components/dashboard/rhythm";
+import { FASTING_SECTION_ID, getRamadanRhythmStep, getRhythmStep, WELLBEING_SECTION_ID, type RhythmAction } from "@/components/dashboard/rhythm";
+import { useFasting } from "@/lib/client/queries/fasting";
 import { SetupWizard } from "@/components/onboarding/SetupWizard";
 import { DrinksCard } from "@/components/dashboard/DrinksCard";
 import { SavedMealsModal } from "@/components/dashboard/SavedMealsModal";
@@ -60,6 +61,10 @@ export default function DashboardPage() {
   const foodLogs = useFoodLogs(todayStr);
   const workouts = useWorkouts(todayStr);
   const progress = useProgress();
+  // B25: Ramazan günlerinde pano imsak/iftara göre düzenlenir.
+  const fasting = useFasting();
+  const ramadanStatus = fasting.data?.ramadan ?? null;
+  const ramadanActive = !!ramadanStatus && ramadanStatus.period?.inRamadan !== false;
 
   // Hızlı yemek ekleme modalı: besin listesi ilk açılışta bir kez yüklenir.
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
@@ -113,6 +118,7 @@ export default function DashboardPage() {
 
   function handleRhythmAction(action: RhythmAction) {
     if (action.kind === "quickAdd") handleOpenQuickAdd(action.mealType);
+    else if (action.kind === "scrollToFasting") document.getElementById(FASTING_SECTION_ID)?.scrollIntoView({ behavior: "smooth" });
     else document.getElementById(WELLBEING_SECTION_ID)?.scrollIntoView({ behavior: "smooth" });
   }
 
@@ -178,7 +184,7 @@ export default function DashboardPage() {
   const isWorkoutCompleted = !!workouts.data?.sessions.some((s) => s.date === todayStr && s.completed);
   // F51: kaydedilmiş bugünkü durumdan hazır olma.
   const readiness = progress.data ? computeReadiness(progress.data.today) : null;
-  const step = getRhythmStep(new Date().getHours(), { dayPattern, homeTime });
+  const step = ramadanActive && ramadanStatus ? getRamadanRhythmStep(ramadanStatus) : getRhythmStep(new Date().getHours(), { dayPattern, homeTime });
   const goalType = profile.data?.goalType;
   const weightGoal =
     profile.data?.isOnboarded && (goalType === "lose" || goalType === "gain")
@@ -219,6 +225,8 @@ export default function DashboardPage() {
         </div>
       )}
       <CeilingAlert alert={summary?.ceilingAlert} hideNumbers={hideNumbers} />
+      {/* B25: Ramazan'da vakit kartı en üstte */}
+      {ramadanActive && <FastingCard />}
       <RhythmStepCard step={step} onAction={handleRhythmAction} />
 
       {/* Ana Metrikler: Kalori & Makrolar */}
@@ -245,12 +253,12 @@ export default function DashboardPage() {
 
       {/* F13: sıvı, kafein ve alkol · F15: takviyeler */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <DrinksCard date={todayStr} />
+        <DrinksCard date={todayStr} hideAlcohol={ramadanActive} />
         <SupplementsCard date={todayStr} />
       </div>
 
-      {/* F76 + F14: Ramazan vakitleri ve aralıklı oruç (açıksa) */}
-      <FastingCard />
+      {/* F76 + F14: Ramazan vakitleri ve aralıklı oruç (açıksa; Ramazan'da yukarıda) */}
+      {!ramadanActive && <FastingCard />}
 
       <TodayMealsList
         ramadan={ramadan}

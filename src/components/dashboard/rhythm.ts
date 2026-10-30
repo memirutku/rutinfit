@@ -1,11 +1,14 @@
 import { Coffee, Dumbbell, Moon, Sun, Utensils, type LucideIcon } from "lucide-react";
 import type { MealType } from "@/lib/schemas/enums";
 import type { DayPattern } from "@/lib/schemas/profile";
+import { formatDuration } from "./FastingCard";
 
 /** Gece rutini adımının kaydırdığı iyilik hali bölümü. */
 export const WELLBEING_SECTION_ID = "quick-wellbeing-section";
+/** B25: oruç adımının kaydırdığı Ramazan kartı. */
+export const FASTING_SECTION_ID = "fasting-section";
 
-export type RhythmAction = { kind: "quickAdd"; mealType: MealType } | { kind: "scrollToWellbeing" };
+export type RhythmAction = { kind: "quickAdd"; mealType: MealType } | { kind: "scrollToWellbeing" } | { kind: "scrollToFasting" };
 
 export interface RhythmStep {
   title: string;
@@ -102,6 +105,66 @@ export function getRhythmStep(hour: number, options: RhythmOptions = {}): Rhythm
     icon: Moon,
     badge: "Gece",
     actionText: "Uyku & İyilik Halini Kaydet",
+    action: { kind: "scrollToWellbeing" },
+  };
+}
+
+/** B25: Ramazan modunda (Ramazan günlerinde) ritim kartı imsak ve iftara göre. */
+export interface RamadanRhythmInput {
+  phase: "sahur" | "fasting" | "evening";
+  minutesLeft: number;
+  today: { imsak: string; iftar: string };
+  tomorrow: { imsak: string; iftar: string };
+  waterAdvice: string;
+}
+
+const toMin = (hhmm: string) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+};
+
+export function getRamadanRhythmStep(r: RamadanRhythmInput): RhythmStep {
+  if (r.phase === "sahur") {
+    return {
+      title: "Sahur",
+      time: `İmsak ${r.today.imsak}`,
+      description: `İmsaka ${formatDuration(r.minutesLeft)} kaldı. Protein ve lif tok tutar; suyu sahura bırakma, akşamdan yay.`,
+      icon: Moon,
+      badge: "Ramazan",
+      actionText: "Sahur Ekle",
+      action: { kind: "quickAdd", mealType: "breakfast" },
+    };
+  }
+  if (r.phase === "fasting") {
+    return {
+      title: "Oruç",
+      time: `${r.today.imsak} - ${r.today.iftar}`,
+      description: `İftara ${formatDuration(r.minutesLeft)} kaldı. Oruç saatlerinde yemek ve su önerisi yok.`,
+      icon: Moon,
+      badge: "Ramazan",
+      actionText: "Vakitleri Gör",
+      action: { kind: "scrollToFasting" },
+    };
+  }
+  const nowMin = 1440 + toMin(r.tomorrow.imsak) - r.minutesLeft;
+  if (nowMin - toMin(r.today.iftar) <= 150) {
+    return {
+      title: "İftar",
+      time: `${r.today.iftar} sonrası`,
+      description: "İftarı hafif başlat (su, çorba), sonra ana yemeğe geç. Kaydını eklemeyi unutma.",
+      icon: Utensils,
+      badge: "Ramazan",
+      actionText: "İftar Ekle",
+      action: { kind: "quickAdd", mealType: "dinner" },
+    };
+  }
+  return {
+    title: "Gece: Su ve Dinlenme",
+    time: `Sahura ${formatDuration(r.minutesLeft)}`,
+    description: r.waterAdvice,
+    icon: Moon,
+    badge: "Ramazan",
+    actionText: "Uykunu Kaydet",
     action: { kind: "scrollToWellbeing" },
   };
 }

@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import DashboardPage from "@/app/page";
-import { getRhythmStep } from "@/components/dashboard/rhythm";
+import { getRamadanRhythmStep, getRhythmStep } from "@/components/dashboard/rhythm";
 import { RhythmStepCard } from "@/components/dashboard/RhythmStepCard";
 import { CeilingAlert } from "@/components/dashboard/CeilingAlert";
 import { CalorieCard } from "@/components/dashboard/CalorieCard";
@@ -101,6 +101,26 @@ describe("getRhythmStep", () => {
     expect(getRhythmStep(20, office).time).toBe("20:00 - 21:30");
     expect(getRhythmStep(17, { dayPattern: "school", homeTime: "16:30" }).title).toBe("Okul Çıkışı & Ara Öğün");
     expect(getRhythmStep(17, { dayPattern: "shift", homeTime: "08:00" }).title).toBe("İkindi Ara Öğünü");
+  });
+});
+
+describe("B25: Ramazan ritmi", () => {
+  const status = (phase: "sahur" | "fasting" | "evening", minutesLeft: number) => ({
+    phase,
+    minutesLeft,
+    today: { date: today, imsak: "06:06", iftar: "18:35" },
+    tomorrow: { date: today, imsak: "06:05", iftar: "18:36" },
+    waterAdvice: "İftar ile sahur arasında 2.500 ml hedefle.",
+  });
+
+  it("aşamaya göre sahur, oruç ve iftar adımı verir; oruçta öğün önermez", () => {
+    expect(getRamadanRhythmStep(status("sahur", 90))).toMatchObject({ title: "Sahur", action: { kind: "quickAdd", mealType: "breakfast" } });
+    const fasting = getRamadanRhythmStep(status("fasting", 200));
+    expect(fasting).toMatchObject({ title: "Oruç", time: "06:06 - 18:35", action: { kind: "scrollToFasting" } });
+    expect(fasting.description).toContain("İftara 3 sa 20 dk");
+    // 18:35 iftar; kalan 1440 - 19:05 + 06:05 → iftardan 30 dk sonra
+    expect(getRamadanRhythmStep(status("evening", 1440 - (19 * 60 + 5) + (6 * 60 + 5)))).toMatchObject({ title: "İftar", action: { kind: "quickAdd", mealType: "dinner" } });
+    expect(getRamadanRhythmStep(status("evening", 300)).title).toBe("Gece: Su ve Dinlenme");
   });
 });
 
@@ -302,7 +322,7 @@ describe("WellbeingCard", () => {
 });
 
 describe("DashboardPage", () => {
-  function stubDashboard(opts: { progressPost?: () => Response | Promise<Response>; supplementPost?: () => Response | Promise<Response>; logs?: FoodLog[]; profile?: Record<string, unknown> } = {}) {
+  function stubDashboard(opts: { progressPost?: () => Response | Promise<Response>; supplementPost?: () => Response | Promise<Response>; logs?: FoodLog[]; profile?: Record<string, unknown>; fasting?: unknown } = {}) {
     let taken = false;
     const creatine = () => ({ id: "s1", name: "Kreatin Monohidrat", doseAmount: 5, doseUnit: "g", active: true, notes: null, takenToday: taken, takenLast7: taken ? 1 : 0 });
     const foodLogs = (): FoodLogsResponse => ({ date: today, logs: opts.logs ?? [log()], summary: summary(), targets });
@@ -319,6 +339,7 @@ describe("DashboardPage", () => {
       ["/api/profile", () => jsonResponse({ ...PROFILE_FIXTURE, workdayHomeTime: "20:15", ...opts.profile })],
       ["/api/supplements/log", () => (opts.supplementPost ? opts.supplementPost() : ((taken = !taken), jsonResponse({ success: true })))],
       ["/api/supplements", () => jsonResponse({ supplements: [creatine()] })],
+      ["/api/fasting", () => jsonResponse(opts.fasting ?? { ramadan: null, timer: { targetHours: null, active: null, recent: [] } })],
     ]);
     restore = s.restore;
     return s;
@@ -361,6 +382,31 @@ describe("DashboardPage", () => {
     fireEvent.change(screen.getByLabelText("Sabah Kilosu (kg)"), { target: { value: "110,5" } });
     fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
     expect(await screen.findByText(/Kilo kaydedildi\. Hedefine 12 kg kaldı\./)).toBeTruthy();
+  });
+
+  it("B25: Ramazan günlerinde vakit kartı en üstte, ritim oruca göre, alkol satırı yok", async () => {
+    const t = (date: string, imsak: string, iftar: string) => ({ date, imsak, iftar, fastMinutes: 749 });
+    stubDashboard({
+      fasting: {
+        ramadan: {
+          province: "Ankara",
+          today: t(today, "06:06", "18:35"),
+          tomorrow: t(today, "06:05", "18:36"),
+          phase: "fasting",
+          minutesLeft: 200,
+          progressPercent: 40,
+          waterAdvice: "su",
+          period: { inRamadan: true, day: 3, start: today, end: today, daysUntil: 0 },
+        },
+        timer: { targetHours: null, active: null, recent: [] },
+      },
+    });
+    renderWithQuery(<DashboardPage />);
+    const fastingCard = await screen.findByText("Ramazan · Ankara");
+    const rhythm = screen.getByRole("heading", { name: "Oruç" });
+    expect(fastingCard.compareDocumentPosition(rhythm) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText(/İftara 3 sa 20 dk kaldı/)).toBeTruthy();
+    expect(screen.queryByText("Alkol")).toBeNull();
   });
 
   it("B02: gün düzeni girilmemişse eve varış saati ve iş çıkışı bandı görünmez", async () => {
