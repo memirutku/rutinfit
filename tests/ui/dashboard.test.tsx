@@ -9,6 +9,7 @@ import { MacroBalanceCard } from "@/components/dashboard/MacroBalanceCard";
 import { TodayWorkoutCard } from "@/components/dashboard/TodayWorkoutCard";
 import { TodayMealsList, dashboardMealLabel } from "@/components/dashboard/TodayMealsList";
 import { WellbeingCard, toWellbeingValues } from "@/components/dashboard/WellbeingCard";
+import { WeightGoalCard } from "@/components/dashboard/WeightGoalCard";
 import { getLocalDateString } from "@/lib/date-utils";
 import type { DailySummary, FoodLog, FoodLogsResponse } from "@/lib/schemas/food";
 import type { ProgressResponse } from "@/lib/schemas/progress";
@@ -213,6 +214,28 @@ describe("dashboard kartları", () => {
   });
 });
 
+describe("B07: WeightGoalCard", () => {
+  const p = { startKg: 90, currentKg: 88, targetKg: 75, changedKg: 2, remainingKg: 13, percent: 13, weeksLeft: 26, etaDate: "2027-04-30", reached: false };
+
+  it("güncel kilo, verilen ve kalan kg ile tahmini varışı gösterir", () => {
+    render(<WeightGoalCard progress={p} goalType="lose" note="Kilo kaydedildi. Hedefine 13 kg kaldı." />);
+    const card = screen.getByRole("region", { name: "Kilo hedefim" });
+    expect(card.textContent).toContain("88 kg");
+    expect(card.textContent).toContain("2 kg verdin");
+    expect(card.textContent).toContain("13 kg kaldı");
+    expect(card.textContent).toContain("Tahmini varış: 30.04.2027");
+    expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe("13");
+    expect(screen.getByRole("status").textContent).toContain("13 kg kaldı");
+  });
+
+  it("sayıları gizle modunda kilo yazmaz, sözel ilerleme verir", () => {
+    render(<WeightGoalCard progress={p} goalType="lose" hideNumbers />);
+    const card = screen.getByRole("region", { name: "Kilo hedefim" });
+    expect(card.textContent).not.toMatch(/\d+ kg/);
+    expect(card.textContent).toContain("İlk adımları attın");
+  });
+});
+
 describe("WellbeingCard", () => {
   it("form değerlerini kayıt gövdesine çevirir", () => {
     expect(toWellbeingValues("112,5", "7,5", 4)).toEqual({ weightKg: 112.5, energy1to5: 4, sleepMinutes: 450 });
@@ -328,6 +351,16 @@ describe("DashboardPage", () => {
     expect(screen.getByText("Tahmini hedef")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Profilini tamamla" }));
     expect(await screen.findByRole("dialog", { name: /Hedeflerini birlikte kuralım/ })).toBeTruthy();
+  });
+
+  it("B07: hedef kilo varsa panoda ilerleme kartı; kilo kaydından sonra kalan kg mesajı", async () => {
+    stubDashboard({ profile: { currentWeightKg: 112, targetWeightKg: 100, goalType: "lose", goalRateKgPerWeek: 0.5 } });
+    renderWithQuery(<DashboardPage />);
+    const card = await screen.findByRole("region", { name: "Kilo hedefim" });
+    expect(card.textContent).toContain("12 kg kaldı");
+    fireEvent.change(screen.getByLabelText("Sabah Kilosu (kg)"), { target: { value: "110,5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(await screen.findByText(/Kilo kaydedildi\. Hedefine 12 kg kaldı\./)).toBeTruthy();
   });
 
   it("B02: gün düzeni girilmemişse eve varış saati ve iş çıkışı bandı görünmez", async () => {

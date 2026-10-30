@@ -34,6 +34,9 @@ import { NaturalLogModal } from "@/components/dashboard/NaturalLogModal";
 import { SupplementsCard } from "@/components/dashboard/SupplementsCard";
 import { FastingCard } from "@/components/dashboard/FastingCard";
 import { mealTypeForHour } from "@/lib/meal-time";
+import { weightGoalProgress } from "@/lib/weight-goal";
+import { formatNumberTr } from "@/lib/format";
+import { WeightGoalCard } from "@/components/dashboard/WeightGoalCard";
 
 interface UndoState {
   toast: UndoToastData;
@@ -76,6 +79,8 @@ export default function DashboardPage() {
   const saveProgress = useSaveProgress();
 
   const { message: actionError, show: flashError } = useTimedMessage<string>(5000);
+  // B07: kilo kaydından sonra hedef kartında kısa ilerleme mesajı.
+  const weightSaved = useTimedMessage<boolean>(8000);
   const showError = useCallback((e: unknown, fallback: string) => flashError(errorMessage(e, fallback)), [flashError]);
 
   // İlk yüklemede tam ekran yükleniyor; sonraki yenilemeler arka planda (titreme, kaydırma kaybı yok).
@@ -91,6 +96,7 @@ export default function DashboardPage() {
   async function handleSaveWellbeing(values: WellbeingValues): Promise<boolean> {
     try {
       await saveProgress.mutateAsync({ date: todayStr, ...values });
+      if (values.weightKg !== undefined) weightSaved.show(true);
       return true;
     } catch (e) {
       showError(e, "Kayıt güncellenemedi.");
@@ -173,6 +179,26 @@ export default function DashboardPage() {
   // F51: kaydedilmiş bugünkü durumdan hazır olma.
   const readiness = progress.data ? computeReadiness(progress.data.today) : null;
   const step = getRhythmStep(new Date().getHours(), { dayPattern, homeTime });
+  const goalType = profile.data?.goalType;
+  const weightGoal =
+    profile.data?.isOnboarded && (goalType === "lose" || goalType === "gain")
+      ? weightGoalProgress({
+          startKg: profile.data.currentWeightKg,
+          targetKg: profile.data.targetWeightKg ?? null,
+          goalType,
+          rateKgPerWeek: profile.data.goalRateKgPerWeek ?? 0.5,
+          latest: progress.data?.weights.at(-1) ?? null,
+          today: todayStr,
+        })
+      : null;
+  const weightNote =
+    weightSaved.message && weightGoal
+      ? hideNumbers
+        ? "Kilo kaydedildi."
+        : weightGoal.reached
+          ? "Kilo kaydedildi. Hedefine ulaştın!"
+          : `Kilo kaydedildi. Hedefine ${formatNumberTr(weightGoal.remainingKg)} kg kaldı.`
+      : null;
 
   return (
     <div className="space-y-6">
@@ -200,6 +226,11 @@ export default function DashboardPage() {
         <CalorieCard summary={summary} targets={targets} hideNumbers={hideNumbers} estimated={estimatedTargets} />
         <MacroBalanceCard summary={summary} targets={targets} hideNumbers={hideNumbers} />
       </div>
+
+      {/* B07: kilo hedefine ilerleme (hedef kilo girildiyse) */}
+      {weightGoal && (goalType === "lose" || goalType === "gain") && (
+        <WeightGoalCard progress={weightGoal} goalType={goalType} hideNumbers={hideNumbers} note={weightNote} />
+      )}
 
       {/* İkinci Sıra: Günün Antrenmanı & İyilik Hali */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
