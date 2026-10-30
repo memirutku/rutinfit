@@ -74,7 +74,6 @@ test.describe("Dalga 4", () => {
       await page.goto("/settings");
       await page.getByLabel("Ramazan modu").check();
       await page.getByLabel("İl", { exact: true }).selectOption("Ankara");
-      await page.getByRole("button", { name: "Oruç ayarlarını kaydet" }).click();
       await expect(page.getByText("Kaydedildi ✓")).toBeVisible();
       await page.goto("/");
       // B26: Ramazan dışında başlık "Ramazan modu" olur ve kalan gün gösterilir; vakitler her durumda görünür.

@@ -23,7 +23,9 @@ test("Emre: Ramazan, sahur/iftar ve su", async ({ page }) => {
   await step("Ramazan modunu açar", "Ramazan modunu açar, ili İstanbul seçer ve kaydeder", async () => {
     await page.getByLabel("Ramazan modu").check();
     await page.getByLabel("İl", { exact: true }).selectOption("İstanbul");
-    await page.getByRole("button", { name: "Oruç ayarlarını kaydet" }).click();
+    // B34: ayarlar dokununca kaydedilir (eski sürümde ayrı düğme vardı).
+    const saveBtn = page.getByRole("button", { name: "Oruç ayarlarını kaydet" });
+    if (await saveBtn.isVisible().catch(() => false)) await saveBtn.click();
     await expect(page.getByText("Kaydedildi ✓")).toBeVisible();
   });
   await step("Panoda geri sayım", "Ana panelde imsak/iftar vakitlerini ve iftara kalan süreyi görür", async () => {

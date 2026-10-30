@@ -134,7 +134,7 @@ describe("F76 + F14: oruç", () => {
     await waitFor(() => expect(posts).toEqual(["start", "stop"]));
   });
 
-  it("ayarlar: Ramazan modu, il, düzeltme ve oruç hedefi kaydedilir", async () => {
+  it("B34: ayarlar dokununca kaydedilir (ayrı 'Kaydet' düğmesi yok); sayı alanı alandan çıkınca", async () => {
     const puts: unknown[] = [];
     restore = stubFetch([
       ["/api/fasting/settings", (_u, init) => (puts.push(JSON.parse(String(init?.body))), jsonResponse({ ok: true }))],
@@ -142,13 +142,21 @@ describe("F76 + F14: oruç", () => {
     ]).restore;
     renderWithQuery(<FastingSection />);
     fireEvent.click(await screen.findByLabelText("Ramazan modu"));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]).toMatchObject({ ramadanMode: true });
+    expect(await screen.findByText("Kaydedildi ✓")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("İl"), { target: { value: "Konya" } });
-    fireEvent.change(screen.getByLabelText("İftar düzeltmesi (dk)"), { target: { value: "2" } });
+    await waitFor(() => expect(puts).toHaveLength(2));
+    const iftar = screen.getByLabelText("İftar düzeltmesi (dk)");
+    fireEvent.change(iftar, { target: { value: "2" } });
+    expect(puts).toHaveLength(2);
+    fireEvent.blur(iftar);
+    await waitFor(() => expect(puts).toHaveLength(3));
     fireEvent.click(screen.getByLabelText("Aralıklı oruç zamanlayıcısı"));
     fireEvent.change(screen.getByLabelText("Hedef süre"), { target: { value: "18" } });
-    fireEvent.click(screen.getByRole("button", { name: "Oruç ayarlarını kaydet" }));
-    await waitFor(() => expect(puts).toHaveLength(1));
-    expect(puts[0]).toEqual({ ramadanMode: true, ramadanProvince: "Konya", ramadanImsakAdjust: 0, ramadanIftarAdjust: 2, fastingTargetHours: 18 });
+    await waitFor(() => expect(puts).toHaveLength(5));
+    expect(puts[4]).toEqual({ ramadanMode: true, ramadanProvince: "Konya", ramadanImsakAdjust: 0, ramadanIftarAdjust: 2, fastingTargetHours: 18 });
+    expect(screen.queryByRole("button", { name: "Oruç ayarlarını kaydet" })).toBeNull();
   });
 
   it("Ramazan modunda kahvaltı Sahur, akşam yemeği İftar olarak adlandırılır", () => {
