@@ -26,6 +26,7 @@ export const queryKeys = {
   },
   pantry: ["pantry"] as const,
   savedMeals: ["saved-meals"] as const,
+  autoBackup: ["auto-backup"] as const,
   drinks: {
     all: ["drinks"] as const,
     byDate: (date: string) => ["drinks", date] as const,

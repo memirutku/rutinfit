@@ -314,6 +314,32 @@ describe("Ayarlar — yedekleme", () => {
     );
   });
 
+  it("F61: otomatik yedek klasörü, sıklık ve saklama sayısı kaydedilir; 'Şimdi yedekle' sonucu gösterilir", async () => {
+    const state = { enabled: false, folderPath: null as string | null, frequency: "daily", keepCount: 10, lastRunAt: null, lastStatus: null, lastMessage: null, lastFile: null, suggestedFolder: "/Users/ben/Documents/RutinFit Yedekleri" };
+    const { calls } = setup([
+      [
+        "/api/backup/auto",
+        (_u, init) => {
+          if (method(init) === "PUT") Object.assign(state, body(init));
+          if (method(init) === "POST") return jsonResponse({ ok: true, message: "Yedek alındı.", file: "/Users/ben/iCloud/rutinfit-otomatik-yedek-1.json" });
+          return jsonResponse(state);
+        },
+      ],
+    ]);
+    const folder = (await screen.findByLabelText("Yedek klasörü")) as HTMLInputElement;
+    expect(folder.placeholder).toBe("/Users/ben/Documents/RutinFit Yedekleri");
+    fireEvent.click(screen.getByRole("checkbox", { name: /Otomatik yedek açık/ }));
+    fireEvent.change(folder, { target: { value: "/Users/ben/iCloud" } });
+    fireEvent.change(screen.getByLabelText("Sıklık"), { target: { value: "weekly" } });
+    fireEvent.change(screen.getByLabelText("Saklanacak yedek sayısı"), { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Otomatik yedeği kaydet" }));
+    await waitFor(() => expect(callsTo(calls, "/api/backup/auto", "PUT")).toHaveLength(1));
+    expect(body(callsTo(calls, "/api/backup/auto", "PUT")[0].init)).toEqual({ enabled: true, folderPath: "/Users/ben/iCloud", frequency: "weekly", keepCount: 5 });
+
+    fireEvent.click(screen.getByRole("button", { name: "Şimdi yedekle" }));
+    expect(await screen.findByText(/Yedek alındı\. .*rutinfit-otomatik-yedek-1\.json/)).toBeTruthy();
+  });
+
   it("F60: CSV düğmesi doğru türü ister, dosyayı indirir ve kopyanın yolunu bildirir", async () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: vi.fn(() => "blob:csv"), revokeObjectURL: vi.fn() }));

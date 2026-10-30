@@ -3,6 +3,7 @@ import { Prisma } from "@/lib/db/client";
 import { datamodel } from "@/generated/datamodel";
 import { GET as exportBackup } from "@/app/api/backup/export/route";
 import { POST as importBackup } from "@/app/api/backup/import/route";
+import { EXCLUDED_TABLES } from "@/lib/services/backup";
 import { prisma } from "@/lib/prisma";
 import { callRoute } from "../helpers/route";
 import { resetDatabase } from "../helpers/db";
@@ -69,7 +70,7 @@ async function seedRichData() {
 async function snapshot() {
   const out: Record<string, unknown[]> = {};
   for (const name of Object.values(Prisma.ModelName)) {
-    if (name === "OpenFoodFactsCache") continue;
+    if ((EXCLUDED_TABLES as readonly string[]).includes(name)) continue;
     const rows = await (prisma as any)[delegateKey(name)].findMany({ orderBy: { id: "asc" } });
     out[name] = rows.map(({ updatedAt: _updatedAt, ...rest }: any) => rest);
   }
@@ -81,7 +82,9 @@ describe("Yedek v2 — tam kapsam", () => {
     const res = await callRoute(exportBackup);
     expect(res.status).toBe(200);
     expect(res.json.version).toBe("2.0");
-    const expected = Object.values(Prisma.ModelName).map(delegateKey).filter((k) => k !== "openFoodFactsCache");
+    // Önbellek ve makineye özgü ayarlar (otomatik yedek klasörü) yedeğe girmez.
+    const excluded = new Set<string>(EXCLUDED_TABLES);
+    const expected = Object.values(Prisma.ModelName).filter((m) => !excluded.has(m)).map(delegateKey);
     expect(Object.keys(res.json.data).sort()).toEqual(expected.sort());
   });
 

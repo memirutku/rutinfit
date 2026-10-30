@@ -5,6 +5,7 @@ import { AlertCircle, Check, Download, Upload } from "lucide-react";
 import { ApiError, errorMessage } from "@/lib/client/api";
 import { useImportBackup } from "@/lib/client/queries/system";
 import type { ConfirmOptions } from "@/components/ui/ConfirmDialog";
+import { AutoBackupPanel } from "./AutoBackupPanel";
 
 interface ImportResult {
   ok: boolean;
@@ -218,6 +219,8 @@ export function BackupSection({ confirm }: { confirm: (options: ConfirmOptions) 
           ))}
         </div>
       </div>
+
+      <AutoBackupPanel />
     </div>
   );
 }

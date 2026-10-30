@@ -45,8 +45,8 @@ export const BACKUP_TABLES = [
   'AuditEvent',
 ] as const;
 
-/** Yeniden üretilebilir önbellekler yedeğe alınmaz. */
-export const EXCLUDED_TABLES = ['OpenFoodFactsCache'] as const;
+/** Yeniden üretilebilir önbellekler ve makineye özgü ayarlar (otomatik yedek klasörü) yedeğe alınmaz. */
+export const EXCLUDED_TABLES = ['OpenFoodFactsCache', 'AutoBackupSettings'] as const;
 
 /**
  * Üst kayıt geri yüklenince alt kayıtları yedektekiyle birebir aynı olur

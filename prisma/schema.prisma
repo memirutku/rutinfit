@@ -419,6 +419,20 @@ model PantryItem {
   @@index([name])
 }
 
+/// F61: Seçilen klasöre zamanlanmış otomatik yedek. Makineye özgüdür; yedeğe girmez.
+model AutoBackupSettings {
+  id          String    @id @default("default")
+  enabled     Boolean   @default(false)
+  folderPath  String?
+  frequency   String    @default("daily") // daily, weekly
+  keepCount   Int       @default(10)
+  lastRunAt   DateTime?
+  lastStatus  String? // ok, error
+  lastMessage String?
+  lastFile    String?
+  updatedAt   DateTime  @updatedAt
+}
+
 model OpenFoodFactsCache {
   id        String   @id @default(cuid())
   queryKey  String   @unique // e.g. barcode:3017620422003 or search:yulaf
