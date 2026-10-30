@@ -7,6 +7,7 @@ import { DecimalInput } from "@/components/ui/DecimalInput";
 import { apiFetch, errorMessage } from "@/lib/client/api";
 import { useCreateFoodLog } from "@/lib/client/queries/nutrition";
 import { formatNumberTr, parseDecimalTr } from "@/lib/format";
+import { plannedMealLogTime } from "@/lib/meal-time";
 import type { MealType } from "@/lib/schemas/enums";
 import type { PlannedMeal } from "@/lib/schemas/meal-plan";
 import type { MatchRef, ParsedMealItem } from "@/lib/services/natural-log";
@@ -17,7 +18,8 @@ type Mode = "kcal" | "match";
 const INPUT = "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm";
 const LABEL = "block text-xs font-semibold text-slate-600 mb-1";
 const refKey = (r: MatchRef) => `${r.type}:${r.id}`;
-const nowTime = () => new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+// Recheck (Zeynep): kayıt saati öğünün saatidir (planlanan saat ya da öğünün olağan saati).
+const logTime = (meal: PlannedMeal) => plannedMealLogTime(meal.mealType as MealType, meal.plannedTime);
 
 /** Boş alan "verilmedi" demektir (0 değil); geçersiz ya da negatif giriş de yok sayılmaz, hata olur. */
 function optionalNumber(raw: string): number | undefined | null {
@@ -89,7 +91,7 @@ function LogPlannedMealForm({ meal, date, onClose, onLogged }: { meal: PlannedMe
     try {
       await createLog.mutateAsync({
         date,
-        time: nowTime(),
+        time: logTime(meal),
         mealType: meal.mealType as MealType,
         name,
         caloriesSnapshot: kcal as number,
@@ -110,7 +112,7 @@ function LogPlannedMealForm({ meal, date, onClose, onLogged }: { meal: PlannedMe
     setSaving(true);
     setError(null);
     try {
-      const time = nowTime();
+      const time = logTime(meal);
       for (const r of ready) {
         const chosen = [r.item.match!, ...r.item.alternatives].find((o) => refKey(o) === r.choice) ?? r.item.match!;
         await createLog.mutateAsync({

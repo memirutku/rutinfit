@@ -154,3 +154,13 @@ export function useSetAdherence() {
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mealPlans.all }),
   });
 }
+
+/** Recheck (Zeynep): "Yedim" ile günlüğe yazılan planlı öğün işaretlenir; kart ikinci kaydı engeller. */
+export function useMarkPlannedMealLogged() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (plannedMealId: string) =>
+      apiFetch(`/api/meal-plans/meals?id=${encodeURIComponent(plannedMealId)}`, { method: "PATCH", json: { logged: true } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mealPlans.all }),
+  });
+}

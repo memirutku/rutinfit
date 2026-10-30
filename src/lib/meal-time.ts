@@ -1,5 +1,16 @@
 import type { MealType } from "./schemas/enums";
 
+const USUAL_TIME: Partial<Record<MealType, string>> = { breakfast: "08:00", lunch: "12:30", workSnack: "16:00", dinner: "19:00" };
+
+/**
+ * Recheck (Zeynep): planlı öğün günlüğe yazılırken saat, kayıt anı değil öğünün saatidir:
+ * planlanan saat, yoksa öğün türünün olağan saati; "ekstra" için şimdiki saat.
+ */
+export function plannedMealLogTime(mealType: MealType, plannedTime?: string | null, now: Date = new Date()): string {
+  if (plannedTime && /^\d{2}:\d{2}$/.test(plannedTime)) return plannedTime;
+  return USUAL_TIME[mealType] ?? `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+}
+
 /** Günün saatine göre öğün (panodaki ritim kartıyla aynı sınırlar). */
 export function mealTypeForHour(hour: number): MealType {
   if (hour < 11) return "breakfast";

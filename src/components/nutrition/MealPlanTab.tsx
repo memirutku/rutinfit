@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { CalendarPlus } from "lucide-react";
 import { errorMessage } from "@/lib/client/api";
-import { useAdherenceSummary, useCreateFoodLog, useMealPlans, useSetAdherence } from "@/lib/client/queries/nutrition";
+import { useAdherenceSummary, useCreateFoodLog, useMarkPlannedMealLogged, useMealPlans, useSetAdherence } from "@/lib/client/queries/nutrition";
+import { plannedMealLogTime } from "@/lib/meal-time";
 import { addDaysToDateString, getLocalDateString, startOfWeek } from "@/lib/date-utils";
 import { formatDecimalTr, formatNumberTr } from "@/lib/format";
 import { MEAL_TYPES, mealTypeLabel, type MealType } from "@/lib/schemas/enums";
@@ -41,6 +42,7 @@ export function MealPlanTab({ selectedDate, onDateChange, multipliers, onMultipl
   const mealPlans = useMealPlans(selectedDate);
   const createFoodLog = useCreateFoodLog();
   const setAdherence = useSetAdherence();
+  const markLogged = useMarkPlannedMealLogged();
   const meals = sortPlannedMeals(mealPlans.data?.flatMap((p) => p.meals) ?? []);
   // F78: seçili günün haftası (Pazartesi–Pazar) için plana uyum.
   const weekFrom = startOfWeek(selectedDate);
@@ -49,9 +51,10 @@ export function MealPlanTab({ selectedDate, onDateChange, multipliers, onMultipl
   // B09: tarifsiz öğün "Yedim" ile kalori girilerek ya da katalogla eşlenerek kaydedilir.
   const [logging, setLogging] = useState<PlannedMeal | null>(null);
 
-  /** F78: işaretlenmemiş öğün yenince plana uygulandı sayılır. */
+  /** F78: işaretlenmemiş öğün yenince plana uygulandı sayılır. Recheck: öğün "günlüğe yazıldı" olarak da işaretlenir. */
   function markDone(meal: PlannedMeal) {
     if (!meal.adherence) setAdherence.mutate({ plannedMealId: meal.id, adherence: "done" });
+    markLogged.mutate(meal.id);
   }
 
   function handleFreeMealLogged(meal: PlannedMeal, kcal: number | null) {
@@ -72,7 +75,7 @@ export function MealPlanTab({ selectedDate, onDateChange, multipliers, onMultipl
     createFoodLog.mutate(
       {
         date: selectedDate,
-        time: new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }),
+        time: plannedMealLogTime(meal.mealType as MealType, meal.plannedTime),
         mealType: meal.mealType as MealType,
         recipeId: meal.recipeId,
         name,

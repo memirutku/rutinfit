@@ -110,9 +110,11 @@ export function FastingSection() {
         </div>
       )}
 
-      <p role="status" className="text-xs text-emerald-700 min-h-4">
-        {save.isPending ? "Kaydediliyor..." : saved ? "Kaydedildi ✓" : ""}
-      </p>
+      {(save.isPending || saved) && (
+        <p role="status" className="text-xs text-emerald-700">
+          {save.isPending ? "Kaydediliyor..." : "Kaydedildi ✓"}
+        </p>
+      )}
       {save.isError && (
         <p role="alert" className="text-xs text-rose-700">
           {errorMessage(save.error, "Kaydedilemedi.")}

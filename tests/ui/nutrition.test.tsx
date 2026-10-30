@@ -452,6 +452,14 @@ describe("PlannedMealCard", () => {
     expect(onLogEaten).toHaveBeenCalled();
   });
 
+  it("recheck (Zeynep): günlüğe yazılmış öğünde kaydet düğmesi 'Günlüğe yazıldı ✓' olur ve kapanır", () => {
+    const onLogEaten = vi.fn();
+    renderWithQuery(<PlannedMealCard meal={{ ...meal, loggedAt: "2026-10-30T08:10:00.000Z" } as typeof meal} label="Kahvaltı" multiplier={1} onMultiplierChange={vi.fn()} onLogEaten={onLogEaten} />);
+    const done = screen.getByRole("button", { name: /Günlüğe yazıldı ✓/ }) as HTMLButtonElement;
+    expect(done.disabled).toBe(true);
+    expect(screen.queryByRole("button", { name: /Yedim Olarak Kaydet/ })).toBeNull();
+  });
+
   it("planlanan saat varsa gösterir", () => {
     renderWithQuery(<PlannedMealCard meal={{ ...meal, plannedTime: "08:15" } as typeof meal} label="Kahvaltı" multiplier={1} onMultiplierChange={vi.fn()} onLogEaten={vi.fn()} />);
     expect(screen.getByText("08:15")).toBeTruthy();

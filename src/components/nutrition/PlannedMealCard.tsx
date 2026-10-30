@@ -140,13 +140,24 @@ export function PlannedMealCard({ meal, label, multiplier: mult, onMultiplierCha
         )}
 
         <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={onLogEaten}
-            className="flex-1 py-2 px-3 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-colors text-center shadow-2xs"
-          >
-            {macros && mult !== 1 ? `${mult}x Porsiyon Olarak Kaydet` : "Yedim Olarak Kaydet"}
-          </button>
+          {/* Recheck (Zeynep): günlüğe yazılan öğün ikinci kez yazılmasın. */}
+          {meal.loggedAt ? (
+            <button
+              type="button"
+              disabled
+              className="flex-1 py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold text-center"
+            >
+              Günlüğe yazıldı ✓
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onLogEaten}
+              className="flex-1 py-2 px-3 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-colors text-center shadow-2xs"
+            >
+              {macros && mult !== 1 ? `${mult}x Porsiyon Olarak Kaydet` : "Yedim Olarak Kaydet"}
+            </button>
+          )}
         </div>
       </div>
     </article>
