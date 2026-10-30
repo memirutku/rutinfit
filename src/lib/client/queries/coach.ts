@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/client/api";
 import { queryKeys } from "./keys";
 import type {
+  AIStatus,
   ActionRequest,
   ChatRequest,
   ChatResponse,
@@ -11,6 +12,18 @@ import type {
   ConversationSummary,
   UploadResponse,
 } from "@/lib/schemas/chat";
+
+/**
+ * B28: kayıtlı model sunucusu çalışıyor mu? Koç sayfası ve ayarlar açılınca denetlenir;
+ * sohbet bağlantı hatası verince yeniden denetlenir.
+ */
+export function useAIStatus() {
+  return useQuery({
+    queryKey: queryKeys.aiStatus,
+    queryFn: () => apiFetch<AIStatus>("/api/ai/status"),
+    staleTime: 0,
+  });
+}
 
 export function useConversations() {
   return useQuery({
@@ -36,9 +49,13 @@ export function useSendChat() {
   return useMutation({
     mutationFn: (input: ChatRequest) => apiFetch<ChatResponse>("/api/ai/chat", { method: "POST", json: input }),
     onSuccess: (data, input) => {
+      const work: Promise<void>[] = [];
+      // B28: modele ulaşılamadıysa sayfadaki durum satırı ve rozet tazelenir.
+      if (data.errorKind) work.push(qc.invalidateQueries({ queryKey: queryKeys.aiStatus }));
       if (data.conversationId && !input.conversationId) {
-        return qc.invalidateQueries({ queryKey: queryKeys.conversations.all, exact: true });
+        work.push(qc.invalidateQueries({ queryKey: queryKeys.conversations.all, exact: true }));
       }
+      return Promise.all(work);
     },
   });
 }

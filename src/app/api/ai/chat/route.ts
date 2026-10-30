@@ -123,9 +123,10 @@ export async function POST(req: Request) {
     const endpointCheck = checkAIBaseUrl(baseUrl);
     if (!endpointCheck.ok) {
       return NextResponse.json({
-        reply: `⚠️ Kayıtlı yapay zekâ adresi güvenli değil (${endpointCheck.reason}) Lütfen Ayarlar sekmesinden yeniden yapılandırın.`,
+        reply: `Kayıtlı yapay zekâ adresi güvenli değil (${endpointCheck.reason}) Ayarlar'daki yapay zekâ bölümünden yeniden yapılandırabilirsin.`,
         conversationId: convId,
         isError: true,
+        errorKind: 'invalid_url',
         ...safety,
       });
     }
@@ -174,9 +175,10 @@ export async function POST(req: Request) {
         const fallback = dataFallback(convId);
         if (fallback) return fallback;
         return NextResponse.json({
-          reply: `⚠️ Yerel yapay zekâ sunucusu hata verdi (${aiRes.status}). Lütfen Ayarlar sekmesinden model bağlantısını kontrol edin.`,
+          reply: `Yerel yapay zekâ sunucusu hata verdi (${aiRes.status}). Seçili model (${model}) yüklü olmayabilir; Ayarlar'daki yapay zekâ bölümünden bağlantıyı test edebilirsin.`,
           conversationId: convId,
           isError: true,
+          errorKind: 'server_error',
         });
       }
 
@@ -286,11 +288,13 @@ export async function POST(req: Request) {
       const fallback = dataFallback(convId);
       if (fallback) return fallback;
       return NextResponse.json({
-        reply: `🔌 Yerel yapay zekâ modeline ulaşılamadı (${baseUrl}).
-Lütfen bilgisayarınızda **Ollama** veya **LM Studio** uygulamasının açık ve modelin (${model}) yüklü olduğunu kontrol edin.
-Çevrimdışı olsanız bile RutinFit'in tüm takip özellikleri normal şekilde çalışmaya devam eder.`,
+        // B28: düz metin (balon markdown çizmez); çözüm adımları sayfadaki durum satırında.
+        reply: `Yerel yapay zekâ modeline ulaşılamadı (${baseUrl}).
+Ollama ya da LM Studio açık mı ve ${model} modeli yüklü mü? Ayarlar'daki yapay zekâ bölümünden bağlantıyı test edebilirsin.
+Model olmadan da takip özelliklerin çalışır; geçmiş soruların kayıtlarından yanıtlanır.`,
         conversationId: convId,
         isError: true,
+        errorKind: 'unreachable',
         ...safety,
       });
     }

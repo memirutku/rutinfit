@@ -153,6 +153,18 @@ export function welcomeMessage(targets: CoachTargets | null, hideNumbers: boolea
   return `Merhaba! Ben RutinFit yapay zekâ koçunum. ${goal}, bugün kalan makrolarına ve antrenman durumuna göre beslenme ya da antrenman önerileri verebilirim. PDF, Excel, Word veya metin biçiminde beslenme ya da antrenman programı da yükleyebilirsin.`;
 }
 
+/**
+ * B28: hata balonları düz metin çizilir; eski sunucu mesajlarındaki **kalın**, `kod` ve
+ * başlık işaretleri metinden ayıklanır.
+ */
+export function plainText(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/__(.+?)__/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "");
+}
+
 export const NEW_CHAT_MESSAGE =
   "Yeni bir sohbet başlattık. Size nasıl yardımcı olabilirim? Öğün önerisi, antrenman ayarlaması veya program dosyanızı yükleyebilirsiniz.";
 

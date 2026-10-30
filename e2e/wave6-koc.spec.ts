@@ -65,4 +65,34 @@ test.describe("Dalga 6 · AI koç", () => {
       await expect(page.getByText(/\d[\d.]*\s*kcal/)).toHaveCount(0);
     });
   });
+
+  test("B28: model yokken sayfa açılınca 'Koç kapalı' satırı, kurulum adımları ve Ayarlar'da test et görünür", async ({ page, mocks }) => {
+    await mocks.setLLMOffline(true);
+    try {
+      await page.goto("/coach");
+      const row = page.getByRole("alert").filter({ hasText: "Koç kapalı: yerel model bulunamadı" });
+      await expect(row).toBeVisible();
+      await expect(row).toContainText("Ollama");
+      await expect(row).toContainText("LM Studio");
+      await expect(page.getByTestId("ai-status-badge")).toHaveText(/Koç kapalı/);
+
+      // Hata balonu düz metindir (ham markdown yok).
+      await ask(page, "akşam ne yiyeyim?");
+      await expect(page.getByText(/modeline ulaşılamadı/)).toBeVisible();
+      await expect(page.getByText(/\*\*/)).toHaveCount(0);
+
+      await row.getByRole("link", { name: "Ayarlar'da test et" }).click();
+      await expect(page).toHaveURL(/\/settings#yapay-zeka/);
+      // Ayarlardaki rozet çalışmayan modeli "hazır" gibi göstermez.
+      await expect(page.getByTestId("ai-connection-badge")).toHaveText(/Ulaşılamıyor/);
+    } finally {
+      await mocks.setLLMOffline(false);
+    }
+  });
+
+  test("B28: model çalışıyorsa satır çıkmaz, rozet hazır der", async ({ page }) => {
+    await page.goto("/coach");
+    await expect(page.getByTestId("ai-status-badge")).toHaveText(/Model hazır · mock-llama/);
+    await expect(page.getByText("Koç kapalı: yerel model bulunamadı")).toHaveCount(0);
+  });
 });

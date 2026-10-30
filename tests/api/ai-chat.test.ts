@@ -143,8 +143,16 @@ describe("POST /api/ai/chat", () => {
   it("model sunucusu hata verirse kullanıcıya anlaşılır mesaj döner", async () => {
     llm.queueError(500);
     const res = await callRoute(POST, { body: { messages: [{ role: "user", content: "selam" }] } });
-    expect(res.json.isError).toBe(true);
+    expect(res.json).toMatchObject({ isError: true, errorKind: "server_error" });
     expect(res.json.reply).toContain("500");
+  });
+
+  it("B28: model sunucusuna ulaşılamazsa düz metin hata ve errorKind döner", async () => {
+    await prisma.aISettings.update({ where: { id: "default-ai" }, data: { baseUrl: "http://127.0.0.1:9/v1" } });
+    const res = await callRoute(POST, { body: { messages: [{ role: "user", content: "akşam ne yiyeyim" }] } });
+    expect(res.json).toMatchObject({ isError: true, errorKind: "unreachable" });
+    expect(res.json.reply).toMatch(/ulaşılamadı/);
+    expect(res.json.reply).not.toMatch(/\*\*/);
   });
 
   it("GET sohbet listesini döner", async () => {

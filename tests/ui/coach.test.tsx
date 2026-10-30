@@ -38,7 +38,11 @@ interface ChatStubOptions {
   upload?: () => Response | Promise<Response>;
   settings?: { coachEnabled: boolean; tone: string };
   profile?: Record<string, unknown>;
+  status?: Record<string, unknown> | (() => Record<string, unknown>);
 }
+
+const READY = { status: "ready", providerType: "ollama", baseUrl: "http://127.0.0.1:11434/v1", modelName: "llama3.2", models: ["llama3.2:latest"], message: "Model hazır: llama3.2" };
+const UNREACHABLE = { ...READY, status: "unreachable", models: [], message: "Yerel model bulunamadı: http://127.0.0.1:11434/v1 adresinde çalışan bir sunucu yok." };
 
 const PROFILE = { id: "default-user", calorieTarget: 1850, calorieCeiling: 1950, proteinTargetG: 140, fatTargetG: 60, carbTargetG: 200, isOnboarded: true, hideNumbers: false };
 
@@ -55,6 +59,7 @@ function stubCoach(opts: ChatStubOptions = {}) {
     ["/api/ai/actions", (_u, init) => (opts.actions ? opts.actions(JSON.parse(String(init?.body))) : jsonResponse({ success: true }))],
     ["/api/files/upload", () => (opts.upload ? opts.upload() : jsonResponse({ error: "yok" }, 500))],
     ["/api/profile", () => jsonResponse(opts.profile ?? PROFILE)],
+    ["/api/ai/status", () => jsonResponse(typeof opts.status === "function" ? opts.status() : (opts.status ?? READY))],
     ["/api/ai/settings", () => jsonResponse({ providerType: "ollama", baseUrl: "http://127.0.0.1:11434/v1", modelName: "m", endpointKind: "local", ...(opts.settings ?? { coachEnabled: true, tone: "supportive" }) })],
   ]);
   restore = s.restore;
@@ -448,5 +453,55 @@ describe("Koç sayfası", () => {
     fail = true;
     await user.upload(picker, new File(["x"], "bozuk.pdf", { type: "application/pdf" }));
     expect(await screen.findByText("Desteklenmeyen dosya")).toBeTruthy();
+  });
+});
+
+describe("B28: model yokken koç sayfası durumu söyler ve çözüm gösterir", () => {
+  it("bağlantı yoksa 'Koç kapalı' satırı, kurulum adımları ve Ayarlar'da test et bağlantısı; rozet gerçek durumu gösterir", async () => {
+    stubCoach({ status: UNREACHABLE });
+    renderWithQuery(<CoachPage />);
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Koç kapalı: yerel model bulunamadı");
+    expect(alert.textContent).toMatch(/Ollama/);
+    expect(alert.textContent).toMatch(/ollama pull llama3\.2/);
+    expect(alert.textContent).toMatch(/LM Studio/);
+    expect(screen.getByRole("link", { name: "Ayarlar'da test et" }).getAttribute("href")).toBe("/settings#yapay-zeka");
+    expect(screen.getByTestId("ai-status-badge").textContent).toMatch(/Koç kapalı/);
+    // Model gerektiren hazır sorular kapalı; geçmiş soruları için yazma alanı açık kalır.
+    expect((screen.getAllByRole("button", { name: /protein hedefimi/ })[0] as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByPlaceholderText(/Sorunuzu yazın/) as HTMLInputElement).disabled).toBe(false);
+  });
+
+  it("model hazırsa satır çıkmaz ve rozet 'Model hazır' der", async () => {
+    stubCoach();
+    renderWithQuery(<CoachPage />);
+    await waitFor(() => expect(screen.getByTestId("ai-status-badge").textContent).toMatch(/Model hazır · llama3\.2/));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("seçili model sunucuda yoksa hangi modellerin bulunduğunu söyler", async () => {
+    stubCoach({ status: { ...READY, status: "model_missing", modelName: "mistral", models: ["llama3.2:latest", "qwen2.5"], message: "x" } });
+    renderWithQuery(<CoachPage />);
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toMatch(/"mistral" modeli bulunamadı/);
+    expect(alert.textContent).toMatch(/llama3\.2:latest, qwen2\.5/);
+    expect(screen.getByRole("link", { name: "Ayarlar'da test et" })).toBeTruthy();
+  });
+
+  it("hata yanıtı ham markdown olmadan düz metin gösterilir ve bağlantı durumu yeniden denetlenir", async () => {
+    let calls = 0;
+    const s = stubCoach({
+      status: () => (++calls === 1 ? READY : UNREACHABLE),
+      reply: () =>
+        jsonResponse({ reply: "Ulaşılamadı. **Ollama** veya **LM Studio** açık mı?", conversationId: "c1", isError: true, errorKind: "unreachable" }),
+    });
+    const user = userEvent.setup();
+    renderWithQuery(<CoachPage />);
+    await waitFor(() => expect(screen.getByTestId("ai-status-badge").textContent).toMatch(/Model hazır/));
+    await ask(user, "akşam ne yiyeyim");
+    expect(await screen.findByText("Ulaşılamadı. Ollama veya LM Studio açık mı?")).toBeTruthy();
+    expect(screen.queryByText(/\*\*/)).toBeNull();
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(s.calls.filter((c) => c.url.includes("/api/ai/status")).length).toBeGreaterThanOrEqual(2);
   });
 });

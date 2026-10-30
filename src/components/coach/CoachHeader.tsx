@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Plus } from "lucide-react";
 import type { ConversationSummary } from "@/lib/schemas/chat";
 
@@ -8,10 +9,12 @@ interface CoachHeaderProps {
   conversationId: string | null;
   onSelect: (id: string) => void;
   onNew: () => void;
+  /** B28: model sunucusunun gerçek durumunu gösteren rozet. */
+  statusBadge?: ReactNode;
 }
 
 /** Sayfa başlığı, geçmiş sohbet seçici ve "Yeni Sohbet" düğmesi. */
-export function CoachHeader({ conversations, conversationId, onSelect, onNew }: CoachHeaderProps) {
+export function CoachHeader({ conversations, conversationId, onSelect, onNew, statusBadge }: CoachHeaderProps) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
       <div className="min-w-0">
@@ -19,9 +22,7 @@ export function CoachHeader({ conversations, conversationId, onSelect, onNew }: 
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
             AI Sağlık & Beslenme Koçu 🤖
           </h2>
-          <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
-            Yerel-First & Güvenli Eylem
-          </span>
+          {statusBadge}
         </div>
         <p className="text-sm text-slate-500 mt-0.5">
           Ollama / LM Studio ile yerel çalışır; çok formatlı dosya yükleme ve 2 aşamalı onaylı eylem motoru içerir.

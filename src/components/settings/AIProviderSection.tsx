@@ -1,9 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Bot, RefreshCw } from "lucide-react";
 import { ApiError, errorMessage } from "@/lib/client/api";
 import { useAISettings, useSaveAISettings, useTestAIConnection } from "@/lib/client/queries/system";
+import { useAIStatus } from "@/lib/client/queries/coach";
+import { queryKeys } from "@/lib/client/queries/keys";
+import type { AIStatus } from "@/lib/schemas/chat";
 import { COACH_TONES, COACH_TONE_KEYS, type CoachTone } from "@/lib/coach-tone";
 import type { AISettingsView, TestConnectionInput, TestConnectionResult } from "@/lib/schemas/system";
 
@@ -23,7 +27,7 @@ function failureResult(error: unknown): TestConnectionResult {
   return { success: false, message };
 }
 
-/** F67: kayıtlı (kullanılan) uç noktanın yeri. */
+/** F67: kayıtlı (kullanılan) uç noktanın yeri. B28: yer bilgisidir, "hazır" anlamı taşımaz (nötr renk). */
 function EndpointBadge({ settings }: { settings: AISettingsView | undefined }) {
   if (!settings) return null;
   let host = settings.baseUrl;
@@ -34,17 +38,46 @@ function EndpointBadge({ settings }: { settings: AISettingsView | undefined }) {
   }
   const [label, tone] =
     settings.endpointKind === "local"
-      ? [`Bu bilgisayarda · ${host}`, "bg-emerald-50 text-emerald-700"]
+      ? [`Bu bilgisayarda · ${host}`, "bg-slate-100 text-slate-700"]
       : settings.endpointKind === "cloud"
         ? [`Bulut · ${host}`, "bg-amber-50 text-amber-800"]
         : ["Geçersiz adres", "bg-rose-50 text-rose-700"];
   return <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${tone}`}>{label}</span>;
 }
 
+const CONNECTION_LABELS: Record<AIStatus["status"], [string, string]> = {
+  ready: ["Bağlı", "bg-emerald-50 text-emerald-700"],
+  model_missing: ["Model bulunamadı", "bg-amber-50 text-amber-800"],
+  no_models: ["Model yüklü değil", "bg-amber-50 text-amber-800"],
+  unreachable: ["Ulaşılamıyor", "bg-rose-50 text-rose-700"],
+  server_error: ["Sunucu hatası", "bg-rose-50 text-rose-700"],
+  invalid_url: ["Geçersiz adres", "bg-rose-50 text-rose-700"],
+  disabled: ["Koç kapalı", "bg-slate-100 text-slate-600"],
+};
+
+/** B28: kayıtlı ayarla model sunucusunun gerçek durumu (yeşil yalnız model gerçekten hazırsa). */
+function ConnectionBadge({ status, failed }: { status: AIStatus | undefined; failed: boolean }) {
+  const [label, tone] = status
+    ? CONNECTION_LABELS[status.status]
+    : [failed ? "Durum bilinmiyor" : "Denetleniyor…", "bg-slate-100 text-slate-600"];
+  const text = status?.status === "ready" ? `${label} · ${status.modelName}` : label;
+  return (
+    <span data-testid="ai-connection-badge" title={status?.message} className={`text-xs font-semibold px-2.5 py-1 rounded-full ${tone}`}>
+      {text}
+    </span>
+  );
+}
+
 /** Yerel yapay zekâ sağlayıcısı: adres/model seçimi ve bağlantı testi. */
 export function AIProviderSection() {
   const saved = useAISettings();
   const saveSettings = useSaveAISettings();
+  const status = useAIStatus();
+  const qc = useQueryClient();
+  // B28: koç sayfasındaki "Ayarlar'da test et" bağlantısı bu bölüme iner (sayfa veriyle geç çizilir).
+  useEffect(() => {
+    if (window.location.hash === "#yapay-zeka") document.getElementById("yapay-zeka")?.scrollIntoView?.({ block: "start" });
+  }, []);
   const [provider, setProvider] = useState<Provider>("ollama");
   const [baseUrl, setBaseUrl] = useState("http://127.0.0.1:11434/v1");
   const [model, setModel] = useState("llama3.2");
@@ -62,13 +95,16 @@ export function AIProviderSection() {
   const result: TestConnectionResult | null = test.data ?? (test.isError ? failureResult(test.error) : null);
 
   return (
-    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+    <div id="yapay-zeka" className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6 scroll-mt-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
         <div className="flex items-center gap-2">
           <Bot className="w-5 h-5 text-indigo-600" />
           <h3 className="font-bold text-slate-900 text-base">Yerel Yapay Zekâ Sağlayıcısı</h3>
         </div>
-        <EndpointBadge settings={saved.data} />
+        <div className="flex flex-wrap items-center gap-1.5">
+          <EndpointBadge settings={saved.data} />
+          <ConnectionBadge status={status.data} failed={status.isError} />
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -126,7 +162,13 @@ export function AIProviderSection() {
         <div className="flex items-center gap-3 pt-2">
           <button
             type="button"
-            onClick={() => test.mutate({ providerType: provider, baseUrl, modelName: model })}
+            onClick={() =>
+              test.mutate(
+                { providerType: provider, baseUrl, modelName: model },
+                // Test ayarı kaydedebilir: rozet ve koç sayfasının durumu yeniden denetlenir.
+                { onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.aiStatus }) }
+              )
+            }
             disabled={test.isPending}
             className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1.5"
           >

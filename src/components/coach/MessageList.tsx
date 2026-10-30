@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { Bot, X } from "lucide-react";
 import { ActionProposalCard, type ProposalActionState } from "./ActionProposalCard";
-import type { CardProposal, CoachMessage } from "./types";
+import { plainText, type CardProposal, type CoachMessage } from "./types";
 import { Explanation } from "@/components/ui/Explanation";
 
 export interface MessageActionState extends ProposalActionState {
@@ -49,7 +49,7 @@ export function MessageBubble({ message: m, state, onApprove, onReject, onToggle
               : "bg-slate-100/80 text-slate-800 rounded-tl-none border border-slate-200/50"
           }`}
         >
-          <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">{m.content}</div>
+          <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">{m.isError ? plainText(m.content) : m.content}</div>
         </div>
         {m.aiGenerated && <p className="text-[10px] text-slate-400 pl-1">AI tarafından üretildi · hatalı olabilir</p>}
 

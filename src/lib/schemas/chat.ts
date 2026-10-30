@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MacrosSchema } from "./food";
+import { AI_STATUS_KINDS } from "../ai-status";
 
 /** İstemci yalnız user/assistant rolü gönderebilir; "system" rolü enjekte edilemez. */
 export const ChatMessageSchema = z.object({
@@ -79,6 +80,8 @@ export const ChatResponseSchema = z.object({
   safetyNotice: z.string().optional(),
   /** F58: koç ayarlardan kapatılmış. */
   coachDisabled: z.boolean().optional(),
+  /** B28: modele ulaşılamadı / sunucu hata verdi / adres izinsiz (istemci durumu yeniden denetler). */
+  errorKind: z.enum(["unreachable", "server_error", "invalid_url"]).optional(),
   /** F50: veritabanından hesaplanan yanıt kartı. */
   dataAnswer: z
     .object({
@@ -139,3 +142,16 @@ export type UploadResponse = z.infer<typeof UploadResponseSchema>;
 
 /** POST /api/ai/actions action=reissue yanıtı */
 export const ReissueResponseSchema = z.object({ approvalToken: z.string() });
+
+/** B28: GET /api/ai/status — kayıtlı model sunucusunun gerçek durumu. */
+export const AIStatusSchema = z.object({
+  status: z.enum(AI_STATUS_KINDS),
+  providerType: z.string(),
+  baseUrl: z.string(),
+  modelName: z.string(),
+  /** Sunucunun bildirdiği modeller (ulaşılamazsa boş). */
+  models: z.array(z.string()),
+  /** Düz metin açıklama. */
+  message: z.string(),
+});
+export type AIStatus = z.infer<typeof AIStatusSchema>;
