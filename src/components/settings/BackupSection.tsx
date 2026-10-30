@@ -27,15 +27,15 @@ function importErrorText(error: unknown): string {
  * Sayfayı JSON adresine götürmek masaüstü görünümünde (WKWebView) dosyayı indirmek yerine
  * ham JSON'u pencerede açıyordu ve geri dönüş yolu yoktu. Yedek blob olarak indirilir.
  */
-async function downloadBackup(): Promise<string> {
-  const res = await fetch("/api/backup/export");
+async function downloadFile(endpoint: string, fallbackName: string, pathHeader: string): Promise<{ name: string; savedPath: string | null }> {
+  const res = await fetch(endpoint);
   if (!res.ok) {
     const data: { error?: string } = await res.json().catch(() => ({}));
-    throw new Error(data.error || "Yedek dışa aktarılamadı");
+    throw new Error(data.error || "Dışa aktarılamadı");
   }
   const blob = await res.blob();
-  const name = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ?? "rutinfit-backup.json";
-  const savedPath = res.headers.get("X-RutinFit-Backup-Path");
+  const name = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ?? fallbackName;
+  const savedPath = res.headers.get(pathHeader);
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -46,11 +46,24 @@ async function downloadBackup(): Promise<string> {
   a.remove();
   // WebKit indirmeyi başlatmadan adres iptal edilirse indirme düşer; kısa gecikmeyle bırakılır.
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  return { name, savedPath: savedPath ? decodeURIComponent(savedPath) : null };
+}
 
-  return (
-    `Yedek indirildi: ${name}.` +
-    (savedPath ? ` Bir kopyası uygulama klasörüne de kaydedildi: ${decodeURIComponent(savedPath)}` : "")
-  );
+async function downloadBackup(): Promise<string> {
+  const { name, savedPath } = await downloadFile("/api/backup/export", "rutinfit-backup.json", "X-RutinFit-Backup-Path");
+  return `Yedek indirildi: ${name}.` + (savedPath ? ` Bir kopyası uygulama klasörüne de kaydedildi: ${savedPath}` : "");
+}
+
+/** F60: diğer uygulamalarda ve tablolama programlarında açılabilen CSV dosyaları. */
+const CSV_EXPORTS = [
+  { type: "food-log", label: "Besin günlüğü (CSV)" },
+  { type: "workouts", label: "Antrenmanlar (CSV, Strong biçimi)" },
+  { type: "body", label: "Kilo ve bel ölçüsü (CSV)" },
+] as const;
+
+async function downloadCsv(type: string): Promise<string> {
+  const { name, savedPath } = await downloadFile(`/api/export/csv?type=${type}`, `rutinfit-${type}.csv`, "X-RutinFit-Export-Path");
+  return `CSV indirildi: ${name}.` + (savedPath ? ` Bir kopyası uygulama klasörüne de kaydedildi: ${savedPath}` : "");
 }
 
 /** Tam veritabanı yedeği: JSON indirme ve onaylı geri yükleme (akıllı birleştirme). */
@@ -65,6 +78,15 @@ export function BackupSection({ confirm }: { confirm: (options: ConfirmOptions) 
       setExportMessage(await downloadBackup());
     } catch (err) {
       setExportMessage(`Hata: ${errorMessage(err, "Yedek dışa aktarılamadı")}`);
+    }
+  }
+
+  async function handleCsv(type: string) {
+    setExportMessage(null);
+    try {
+      setExportMessage(await downloadCsv(type));
+    } catch (err) {
+      setExportMessage(`Hata: ${errorMessage(err, "CSV dışa aktarılamadı")}`);
     }
   }
 
@@ -175,6 +197,26 @@ export function BackupSection({ confirm }: { confirm: (options: ConfirmOptions) 
           <span>{importBackup.isPending ? "Geri yükleniyor..." : "Yedekten Geri Yükle (JSON Seç)"}</span>
           <input type="file" accept=".json" disabled={importBackup.isPending} onChange={handleImport} className="hidden" />
         </label>
+      </div>
+
+      <div className="pt-3 border-t border-slate-100 space-y-2">
+        <p className="text-xs font-bold text-slate-700">CSV olarak dışa aktar</p>
+        <p className="text-[11px] text-slate-500">
+          Tablolama programlarında ve diğer uygulamalarda açılır. Antrenman dosyası Strong biçimindedir; RutinFit'e geri içe
+          aktarılabilir. Biçimler: docs/CSV_FORMATS.md
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {CSV_EXPORTS.map((c) => (
+            <button
+              key={c.type}
+              type="button"
+              onClick={() => handleCsv(c.type)}
+              className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50"
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

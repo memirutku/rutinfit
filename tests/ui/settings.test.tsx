@@ -314,6 +314,29 @@ describe("Ayarlar — yedekleme", () => {
     );
   });
 
+  it("F60: CSV düğmesi doğru türü ister, dosyayı indirir ve kopyanın yolunu bildirir", async () => {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: vi.fn(() => "blob:csv"), revokeObjectURL: vi.fn() }));
+    const { calls } = setup([
+      [
+        "/api/export/csv",
+        () =>
+          new Response("date,time\n", {
+            headers: {
+              "Content-Type": "text/csv",
+              "Content-Disposition": 'attachment; filename="rutinfit-antrenmanlar-2026-10-30.csv"',
+              "X-RutinFit-Export-Path": encodeURIComponent("/data/exports/rutinfit-antrenmanlar-2026-10-30.csv"),
+            },
+          }),
+      ],
+    ]);
+    fireEvent.click(await screen.findByRole("button", { name: "Antrenmanlar (CSV, Strong biçimi)" }));
+    expect(await screen.findByText(/CSV indirildi: rutinfit-antrenmanlar-2026-10-30\.csv/)).toBeTruthy();
+    expect(screen.getByText(/\/data\/exports\//)).toBeTruthy();
+    expect(calls.some((c) => c.url.includes("/api/export/csv?type=workouts"))).toBe(true);
+    expect(click).toHaveBeenCalled();
+  });
+
   it("dışa aktarma dosyayı indirir ve kaydedilen kopyanın yolunu bildirir; hata durumunda uyarı verir", async () => {
     let failExport = false;
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
