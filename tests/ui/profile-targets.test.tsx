@@ -85,3 +85,26 @@ describe("B15: kalori hedefi değişince makrolar", () => {
     expect(value("Yağ Hedefi (g)")).toBe(String(DEFAULT_TARGETS.fatTargetG));
   });
 });
+
+describe("B02/B06: gün düzeni ayarlardan değişir", () => {
+  it("gün düzeni seçilir ve kaydedilir; eve varış saati yalnız ofis/okulda sorulur", async () => {
+    const s = stubFetch([["/api/profile", (_u, init) => jsonResponse({ ...PROFILE, ...JSON.parse(String(init?.body)) })]]);
+    restore = s.restore;
+    renderWithQuery(<ProfileTargetsSection profile={{ ...PROFILE, dayPattern: null }} />);
+    expect((screen.getByLabelText("Gün düzeni") as HTMLSelectElement).value).toBe("");
+    expect(screen.queryByLabelText("Eve varış saati")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Gün düzeni"), { target: { value: "school" } });
+    expect(value("Eve varış saati")).toBe("18:00");
+    fireEvent.click(screen.getByRole("button", { name: "Hedefleri Güncelle" }));
+    await waitFor(() => expect(s.calls.some((c) => c.init?.method === "PUT")).toBe(true));
+    const body = JSON.parse(String(s.calls.find((c) => c.init?.method === "PUT")!.init!.body));
+    expect(body).toMatchObject({ dayPattern: "school" });
+  });
+
+  it("profil yoksa kişisel değer değil nötr varsayılanlar görünür", () => {
+    restore = stubFetch([]).restore;
+    renderWithQuery(<ProfileTargetsSection profile={undefined} />);
+    expect(value("Güncel Kilo (kg)")).not.toContain("112");
+    expect(value("Boy (cm)")).not.toContain("181");
+  });
+});

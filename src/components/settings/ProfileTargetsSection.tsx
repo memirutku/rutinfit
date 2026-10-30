@@ -5,11 +5,11 @@ import { User } from "lucide-react";
 import { errorMessage } from "@/lib/client/api";
 import { useSaveProfile } from "@/lib/client/queries/system";
 import { useTimedMessage } from "@/hooks/useTimedMessage";
-import type { Profile, ProfileInput } from "@/lib/schemas/profile";
+import { DAY_PATTERNS, DAY_PATTERN_LABELS, type DayPattern, type Profile, type ProfileInput } from "@/lib/schemas/profile";
 import { DecimalInput } from "@/components/ui/DecimalInput";
 import { calorieFloor } from "@/lib/safety";
 import { formatNumberTr } from "@/lib/format";
-import { DEFAULT_TARGETS } from "@/lib/constants";
+import { DEFAULT_TARGETS, NEW_PROFILE_DEFAULTS } from "@/lib/constants";
 import { macroMismatch, redistributeMacros } from "@/lib/macro-balance";
 import { SetupWizard } from "@/components/onboarding/SetupWizard";
 
@@ -46,13 +46,13 @@ const INPUT = "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl t
 const int = (raw: string) => parseInt(raw, 10);
 const CALORIE_FALLBACK = DEFAULT_TARGETS.calorieTarget;
 
-const HEIGHT: NumberFieldDef = { id: "settings-field-1", label: "Boy (cm)", key: "heightCm", fallback: 181, parse: parseFloat, decimal: true };
-const AGE: NumberFieldDef = { id: "settings-field-2", label: "Yaş", key: "age", fallback: 25, parse: int };
+const HEIGHT: NumberFieldDef = { id: "settings-field-1", label: "Boy (cm)", key: "heightCm", fallback: NEW_PROFILE_DEFAULTS.heightCm, parse: parseFloat, decimal: true };
+const AGE: NumberFieldDef = { id: "settings-field-2", label: "Yaş", key: "age", fallback: NEW_PROFILE_DEFAULTS.age, parse: int };
 const WEIGHT: NumberFieldDef = {
   id: "settings-field-4",
   label: "Güncel Kilo (kg)",
   key: "currentWeightKg",
-  fallback: 112,
+  fallback: NEW_PROFILE_DEFAULTS.currentWeightKg,
   parse: parseFloat,
   step: "0.1",
   decimal: true,
@@ -275,8 +275,36 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-slate-100">
           <NumberField field={FAT} draft={draft} onChange={set} />
-          <TimeField id="settings-field-10" label="Hedef Uyanış Saati" field="wakeTime" fallback="06:00" draft={draft} onChange={set} />
-          <TimeField id="settings-field-11" label="İşten Eve Varış Saati" field="workdayHomeTime" fallback="19:30" draft={draft} onChange={set} />
+          <TimeField id="settings-field-10" label="Hedef Uyanış Saati" field="wakeTime" fallback={NEW_PROFILE_DEFAULTS.wakeTime} draft={draft} onChange={set} />
+          {/* B02/B06: gün düzeni; rutin bandı ve eve varış saati yalnız ofis/okulda kullanılır. */}
+          <div>
+            <label htmlFor="settings-day-pattern" className={LABEL}>
+              Gün düzeni
+            </label>
+            <select
+              id="settings-day-pattern"
+              value={draft.dayPattern ?? ""}
+              onChange={(e) => set("dayPattern", (e.target.value || null) as DayPattern | null)}
+              className={INPUT}
+            >
+              <option value="">Belirtilmedi</option>
+              {DAY_PATTERNS.map((p) => (
+                <option key={p} value={p}>
+                  {DAY_PATTERN_LABELS[p]}
+                </option>
+              ))}
+            </select>
+          </div>
+          {(draft.dayPattern === "office" || draft.dayPattern === "school") && (
+            <TimeField
+              id="settings-field-11"
+              label="Eve varış saati"
+              field="workdayHomeTime"
+              fallback={NEW_PROFILE_DEFAULTS.workdayHomeTime}
+              draft={draft}
+              onChange={set}
+            />
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

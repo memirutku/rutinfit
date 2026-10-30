@@ -97,7 +97,10 @@ describe("Ayarlar — profil ve hedefler", () => {
     const calories = await screen.findByLabelText<HTMLInputElement>("Kalori Hedefi (kcal)");
     expect(calories.value).toBe("2080");
     expect(screen.getByLabelText<HTMLSelectElement>("Cinsiyet").value).toBe("male");
-    expect(screen.getByLabelText<HTMLInputElement>("İşten Eve Varış Saati").value).toBe("19:30");
+    // B02: eve varış saati yalnız ofis/okul düzeninde sorulur.
+    expect(screen.queryByLabelText("Eve varış saati")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Gün düzeni"), { target: { value: "office" } });
+    expect(screen.getByLabelText<HTMLInputElement>("Eve varış saati").value).toBe("19:30");
   });
 
   it("kaydedince düzenlenen hedefi gönderir ve başarı mesajı gösterir", async () => {
