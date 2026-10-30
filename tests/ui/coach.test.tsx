@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import CoachPage from "@/app/coach/page";
@@ -39,7 +39,16 @@ interface ChatStubOptions {
   settings?: { coachEnabled: boolean; tone: string };
   profile?: Record<string, unknown>;
   status?: Record<string, unknown> | (() => Record<string, unknown>);
+  suggestions?: Record<string, unknown>;
 }
+
+const SUGGESTIONS = {
+  remaining: { calories: 700, proteinG: 60, carbsG: 80, fatG: 25 },
+  suggestions: [
+    { id: "s1", source: "saved_meal", name: "Tavuk ve pilav", calories: 450, proteinG: 49, carbsG: 44, fatG: 7, kcalShare: 0.643, proteinShare: 0.817, score: 0.7 },
+    { id: "r1", source: "recipe", name: "Mercimek çorbası", calories: 340, proteinG: 24, carbsG: 50, fatG: 1.5, kcalShare: 0.486, proteinShare: 0.4, score: 0.4 },
+  ],
+};
 
 const READY = { status: "ready", providerType: "ollama", baseUrl: "http://127.0.0.1:11434/v1", modelName: "llama3.2", models: ["llama3.2:latest"], message: "Model hazır: llama3.2" };
 const UNREACHABLE = { ...READY, status: "unreachable", models: [], message: "Yerel model bulunamadı: http://127.0.0.1:11434/v1 adresinde çalışan bir sunucu yok." };
@@ -59,6 +68,7 @@ function stubCoach(opts: ChatStubOptions = {}) {
     ["/api/ai/actions", (_u, init) => (opts.actions ? opts.actions(JSON.parse(String(init?.body))) : jsonResponse({ success: true }))],
     ["/api/files/upload", () => (opts.upload ? opts.upload() : jsonResponse({ error: "yok" }, 500))],
     ["/api/profile", () => jsonResponse(opts.profile ?? PROFILE)],
+    ["/api/ai/meal-suggestions", () => jsonResponse(opts.suggestions ?? SUGGESTIONS)],
     ["/api/ai/status", () => jsonResponse(typeof opts.status === "function" ? opts.status() : (opts.status ?? READY))],
     ["/api/ai/settings", () => jsonResponse({ providerType: "ollama", baseUrl: "http://127.0.0.1:11434/v1", modelName: "m", endpointKind: "local", ...(opts.settings ?? { coachEnabled: true, tone: "supportive" }) })],
   ]);
@@ -591,5 +601,45 @@ describe("B29: öneri kartı", () => {
     await user.selectOptions(await screen.findByLabelText("Geçmiş sohbetler"), "c9");
     expect(await screen.findByText("Önerim:")).toBeTruthy();
     expect(screen.queryByText(/meal_proposal/)).toBeNull();
+  });
+});
+
+describe("B42: model yokken yapay zekâsız öğün önerisi", () => {
+  it("model yoksa kalan kalori ve makroya göre kayıtlı öğün ve tarifler sayılarla, 'yapay zekâ değil' etiketiyle gösterilir", async () => {
+    stubCoach({ status: UNREACHABLE });
+    renderWithQuery(<CoachPage />);
+    const section = await screen.findByRole("region", { name: "Model olmadan öneri" });
+    expect(section.textContent).toMatch(/Yapay zekâ değil/);
+    await waitFor(() => expect(section.textContent).toMatch(/Bugün kalan: 700 kcal · P 60 g · K 80 g · Y 25 g/));
+    const items = within(section).getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+    expect(items[0].textContent).toMatch(/Tavuk ve pilav/);
+    expect(items[0].textContent).toMatch(/Kayıtlı öğün/);
+    expect(items[0].textContent).toMatch(/450 kcal · P 49 g · K 44 g · Y 7 g/);
+    expect(items[0].textContent).toMatch(/Kalan kalori payı %64 · kalan protein payı %82/);
+    expect(items[1].textContent).toMatch(/Tarif/);
+    expect(items[1].textContent).toMatch(/Y 1,5 g/);
+  });
+
+  it("model hazırken gösterilmez ve istek atılmaz", async () => {
+    const s = stubCoach();
+    renderWithQuery(<CoachPage />);
+    await waitFor(() => expect(screen.getByTestId("ai-status-badge").textContent).toMatch(/Model hazır/));
+    expect(screen.queryByRole("region", { name: "Model olmadan öneri" })).toBeNull();
+    expect(s.calls.some((c) => c.url.includes("/api/ai/meal-suggestions"))).toBe(false);
+  });
+
+  it("'sayıları gizle' açıkken sayısız; aday yoksa ne yapılacağını söyler", async () => {
+    stubCoach({ status: UNREACHABLE, profile: { ...PROFILE, hideNumbers: true } });
+    renderWithQuery(<CoachPage />);
+    const section = await screen.findByRole("region", { name: "Model olmadan öneri" });
+    await waitFor(() => expect(within(section).getAllByRole("listitem")).toHaveLength(2));
+    expect(section.textContent).not.toMatch(/\d/);
+    cleanup();
+
+    stubCoach({ status: UNREACHABLE, suggestions: { remaining: SUGGESTIONS.remaining, suggestions: [], reason: "no_candidates" } });
+    renderWithQuery(<CoachPage />);
+    const empty = await screen.findByRole("region", { name: "Model olmadan öneri" });
+    await waitFor(() => expect(empty.textContent).toMatch(/kayıtlı öğün ya da tarif yok/));
   });
 });

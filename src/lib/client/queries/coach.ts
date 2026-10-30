@@ -6,6 +6,7 @@ import { queryKeys } from "./keys";
 import type {
   AIStatus,
   ActionRequest,
+  MealSuggestions,
   ChatRequest,
   ChatResponse,
   ConversationDetail,
@@ -21,6 +22,16 @@ export function useAIStatus() {
   return useQuery({
     queryKey: queryKeys.aiStatus,
     queryFn: () => apiFetch<AIStatus>("/api/ai/status"),
+    staleTime: 0,
+  });
+}
+
+/** B42: yalnız model kullanılamıyorken istenir (yapay zekâsız öneri). */
+export function useMealSuggestions(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.mealSuggestions,
+    queryFn: () => apiFetch<MealSuggestions>("/api/ai/meal-suggestions"),
+    enabled,
     staleTime: 0,
   });
 }

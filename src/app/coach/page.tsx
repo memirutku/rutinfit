@@ -5,7 +5,8 @@ import { CoachHeader } from "@/components/coach/CoachHeader";
 import { QuickPrompts, quickPrompts } from "@/components/coach/QuickPrompts";
 import { coachTargetsFrom, welcomeMessage } from "@/components/coach/types";
 import { AIStatusBadge, ModelUnavailableNotice } from "@/components/coach/CoachStatus";
-import { useAIStatus } from "@/lib/client/queries/coach";
+import { useAIStatus, useMealSuggestions } from "@/lib/client/queries/coach";
+import { RuleBasedSuggestions } from "@/components/coach/RuleBasedSuggestions";
 import { isCoachUnavailable } from "@/lib/ai-status";
 import { MessageList } from "@/components/coach/MessageList";
 import { AttachmentBar, UploadStatus } from "@/components/coach/AttachmentBar";
@@ -26,6 +27,9 @@ export default function CoachPage() {
   // B28: sayfa açılınca model sunucusu denetlenir; rozet ve uyarı satırı gerçek duruma bağlı.
   const aiStatus = useAIStatus();
   const modelUnavailable = isCoachUnavailable(aiStatus.data?.status);
+  // B42: model kullanılamıyorsa (ya da koç kapalıysa) yapay zekâsız öneri gösterilir.
+  const showRuleBased = coachDisabled || (!!aiStatus.data && aiStatus.data.status !== "ready");
+  const suggestions = useMealSuggestions(showRuleBased);
 
   return (
     <div className="space-y-6 min-w-0">
@@ -41,6 +45,8 @@ export default function CoachPage() {
       {aiStatus.data && !coachDisabled && (
         <ModelUnavailableNotice status={aiStatus.data} onRetry={() => aiStatus.refetch()} retrying={aiStatus.isFetching} />
       )}
+
+      {showRuleBased && <RuleBasedSuggestions data={suggestions.data} failed={suggestions.isError} hideNumbers={hideNumbers} />}
 
       {/* Bildirim Mesajları */}
       {chat.successMessage && (

@@ -155,3 +155,22 @@ export const AIStatusSchema = z.object({
   message: z.string(),
 });
 export type AIStatus = z.infer<typeof AIStatusSchema>;
+
+const MacroTotalsSchema = z.object({ calories: z.number(), proteinG: z.number(), carbsG: z.number(), fatG: z.number() });
+
+/** B42: GET /api/ai/meal-suggestions — model olmadan kural tabanlı öneri (yapay zekâ değil). */
+export const MealSuggestionsSchema = z.object({
+  remaining: MacroTotalsSchema,
+  suggestions: z.array(
+    MacroTotalsSchema.extend({
+      id: z.string(),
+      source: z.enum(["saved_meal", "recipe"]),
+      name: z.string(),
+      kcalShare: z.number(),
+      proteinShare: z.number(),
+      score: z.number(),
+    })
+  ),
+  reason: z.enum(["no_remaining", "no_candidates", "none_fit"]).optional(),
+});
+export type MealSuggestions = z.infer<typeof MealSuggestionsSchema>;

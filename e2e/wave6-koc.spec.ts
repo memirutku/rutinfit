@@ -155,4 +155,18 @@ test.describe("Dalga 6 · AI koç", () => {
     await send.click();
     await expect(page.getByText("Kreatin günün herhangi bir saatinde alınabilir.")).toBeVisible();
   });
+
+  test("B42: model yokken kayıtlı öğün ve tariflerden yapay zekâsız öneri görünür", async ({ page, mocks }) => {
+    await mocks.setLLMOffline(true);
+    try {
+      await page.goto("/coach");
+      const section = page.getByRole("region", { name: "Model olmadan öneri" });
+      await expect(section).toBeVisible();
+      await expect(section).toContainText("Yapay zekâ değil");
+      // Ya en az bir öneri ya da neden öneri olmadığı yazılır; hiçbir durumda boş kalmaz.
+      await expect(section.getByRole("listitem").first().or(section.getByText(/kayıtlı öğün ya da tarif yok|hedefine ulaştın|sığmıyor/))).toBeVisible();
+    } finally {
+      await mocks.setLLMOffline(false);
+    }
+  });
 });
