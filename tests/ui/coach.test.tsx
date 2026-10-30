@@ -359,6 +359,8 @@ describe("Koç sayfası", () => {
     expect(screen.getByText("Bu ay 2 antrenman tamamladın.")).toBeTruthy();
     expect(screen.getByText("Kaynak kayıtlar")).toBeTruthy();
     expect(screen.getByText("A · 6 set")).toBeTruthy();
+    // B31: kartın sayıları modelden değil kayıtlardan.
+    expect(screen.getByText("Kayıtlarından hesaplandı")).toBeTruthy();
   });
 
   it("F56: yanıt güvenlik notu taşıyorsa mesajın altında not olarak gösterilir", async () => {

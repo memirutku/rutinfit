@@ -56,7 +56,11 @@ export function MessageBubble({ message: m, state, onApprove, onReject, onToggle
         {/* F50: kayıtlardan hesaplanan yanıt; sayılar modelden değil veritabanından */}
         {m.dataAnswer && (
           <div className="p-3 rounded-xl border border-sky-200 bg-sky-50/60 text-xs space-y-2">
-            <p className="font-bold text-slate-900">{m.dataAnswer.title}</p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-bold text-slate-900">{m.dataAnswer.title}</p>
+              {/* B31: sayılar modelden değil kullanıcının kayıtlarından */}
+              <span className="text-[10px] font-semibold text-sky-800 bg-sky-100 px-1.5 py-0.5 rounded">Kayıtlarından hesaplandı</span>
+            </div>
             <p className="text-slate-700">{m.dataAnswer.answer}</p>
             {m.dataAnswer.rows.length > 0 && <Explanation title="Kaynak kayıtlar" items={m.dataAnswer.rows} />}
           </div>

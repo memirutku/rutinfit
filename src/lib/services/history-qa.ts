@@ -6,6 +6,7 @@ import { detectHistoryQuery, type DateRange, type HistoryQueryType } from "../hi
 import { exerciseHistory, personalRecords } from "../strength";
 import { EXERCISE_LIBRARY } from "../exercise-library";
 import { summarizeDrinks } from "../drinks";
+import { CARDIO_KINDS, type CardioKind } from "../cardio";
 
 export interface DataAnswer {
   type: HistoryQueryType;
@@ -39,10 +40,22 @@ async function dailyTotals(range: DateRange) {
   return rows.map((r) => ({ date: r.date, kcal: r._sum.caloriesSnapshot ?? 0, protein: r._sum.proteinSnapshot ?? 0 }));
 }
 
+/** Kardiyo kayıtlarını türe göre gruplar (ilk görülme sırasıyla). */
+function summarizeByKind(logs: Array<{ kind: string; distanceKm: number | null }>) {
+  const groups = new Map<string, { kind: string; count: number; km: number }>();
+  for (const l of logs) {
+    const g = groups.get(l.kind) ?? { kind: l.kind, count: 0, km: 0 };
+    g.count += 1;
+    g.km += l.distanceKm ?? 0;
+    groups.set(l.kind, g);
+  }
+  return [...groups.values()];
+}
+
 export async function answerHistoryQuestion(question: string, today: string): Promise<DataAnswer | null> {
   const q = detectHistoryQuery(question, today);
   if (!q) return null;
-  const { type, range } = q;
+  const { type, range, cardioKind } = q;
   const base = { type, range, title: `${TITLES[type]} · ${range.label}` };
   const empty = (): DataAnswer => ({ ...base, answer: `${range.label} için kayıt yok.`, rows: [] });
   const where = { date: { gte: range.from, lte: range.to } };
@@ -132,14 +145,29 @@ export async function answerHistoryQuestion(question: string, today: string): Pr
       };
     }
     case "cardio_total": {
-      const logs = await prisma.cardioLog.findMany({ where, orderBy: { date: "asc" } });
-      if (!logs.length) return empty();
+      const all = await prisma.cardioLog.findMany({ where, orderBy: { date: "asc" } });
+      // B31: "kaç km koştum" yalnız koşuyu toplar; tür belirtilmemişse toplam türlere ayrılır.
+      const logs = cardioKind ? all.filter((l) => l.kind === cardioKind) : all;
+      const kindName = (kind: string) => CARDIO_KINDS[kind as CardioKind] ?? CARDIO_KINDS.other;
+      const lower = (kind: string) => kindName(kind).toLocaleLowerCase("tr-TR");
+      const km = (ls: typeof all) => ls.reduce((a, l) => a + (l.distanceKm ?? 0), 0);
+      const title = cardioKind ? `${kindName(cardioKind)} · ${range.label}` : base.title;
+      if (!logs.length) {
+        if (!cardioKind || !all.length) return { ...empty(), title };
+        const others = summarizeByKind(all).map((g) => `${g.count} ${lower(g.kind)} · ${n(g.km)} km`).join(", ");
+        return { ...base, title, answer: `${range.label} ${lower(cardioKind)} kaydı yok. Diğer kardiyo: ${others}.`, rows: [] };
+      }
       const minutes = logs.reduce((a, l) => a + l.durationMin, 0);
-      const km = logs.reduce((a, l) => a + (l.distanceKm ?? 0), 0);
+      const what = cardioKind ? lower(cardioKind) : "kardiyo";
+      const byKind = cardioKind ? "" : ` (${summarizeByKind(logs).map((g) => `${kindName(g.kind)} ${n(g.km)} km`).join(" · ")})`;
       return {
         ...base,
-        answer: `${range.label}: ${logs.length} kardiyo · ${n(minutes)} dk · ${n(km)} km.`,
-        rows: logs.map((l) => ({ label: formatDateTr(l.date), value: `${n(l.durationMin)} dk${l.distanceKm ? ` · ${n(l.distanceKm)} km` : ""}` })),
+        title,
+        answer: `${range.label}: ${logs.length} ${what} · ${n(minutes)} dk · ${n(km(logs))} km${byKind}.`,
+        rows: logs.map((l) => ({
+          label: formatDateTr(l.date),
+          value: `${kindName(l.kind)} · ${n(l.durationMin)} dk${l.distanceKm ? ` · ${n(l.distanceKm)} km` : ""}`,
+        })),
       };
     }
   }
