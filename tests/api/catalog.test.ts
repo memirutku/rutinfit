@@ -117,6 +117,12 @@ describe("/api/profile", () => {
     expect(ok.json).not.toHaveProperty("acknowledgeLowCalorie");
   });
 
+  it("F52: koça notlar kaydedilir; 1000 karakteri aşan not 400", async () => {
+    const res = await callRoute(profilePut, { method: "PUT", body: { ...valid, coachNotes: "Fıstık alerjim var. Sol diz menisküs." } });
+    expect(res.json.coachNotes).toBe("Fıstık alerjim var. Sol diz menisküs.");
+    expect((await callRoute(profilePut, { method: "PUT", body: { ...valid, coachNotes: "x".repeat(1001) } })).status).toBe(400);
+  });
+
   it("F56: sayıları gizleme tercihi kaydedilir", async () => {
     const res = await callRoute(profilePut, { method: "PUT", body: { ...valid, hideNumbers: true } });
     expect(res.json.hideNumbers).toBe(true);

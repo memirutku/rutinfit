@@ -41,6 +41,7 @@ model UserProfile {
   targetWeightKg    Float?
   waterTargetMl     Int    @default(2500) // F13: günlük sıvı hedefi
   householdSize     Int    @default(1) // F31: alışveriş listesi kaç kişilik
+  coachNotes        String? // F52: alerji, sakatlık, ekipman, çalışma düzeni (koça bilgi)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }

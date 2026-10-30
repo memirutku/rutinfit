@@ -37,6 +37,8 @@ export const UpdateProfileSchema = z.object({
   waterTargetMl: z.number().int().min(500).max(8000).optional(),
   /** F31: alışveriş listesi kaç kişilik. */
   householdSize: z.number().int().min(1).max(12).optional(),
+  /** F52: koça notlar (alerji, sakatlık, ekipman). */
+  coachNotes: z.string().max(1000).nullable().optional(),
   /** F56: tabanın altındaki hedef bilerek (sağlık profesyoneliyle) seçildi. Saklanmaz. */
   acknowledgeLowCalorie: z.boolean().optional(),
 });

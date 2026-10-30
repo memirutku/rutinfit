@@ -212,6 +212,22 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
           <NumberField field={HOUSEHOLD} draft={draft} onChange={set} />
         </div>
 
+        <div className="pt-3 border-t border-slate-100">
+          <label htmlFor="settings-coach-notes" className={LABEL}>
+            Koça notlar (alerji, sakatlık, ekipman, çalışma düzeni)
+          </label>
+          <textarea
+            id="settings-coach-notes"
+            rows={3}
+            maxLength={1000}
+            value={draft.coachNotes ?? ""}
+            placeholder="Örn: Fıstık alerjim var. Sol dizimde menisküs sorunu var. Evde bir çift dambıl var."
+            onChange={(e) => set("coachNotes", e.target.value || null)}
+            className={INPUT}
+          />
+          <p className="mt-1 text-[11px] text-slate-500">Koç bu notları her yanıtta dikkate alır. Notlar yalnız seçtiğin yapay zekâ sağlayıcısına gönderilir.</p>
+        </div>
+
         <label className="flex items-start gap-2 pt-3 border-t border-slate-100 text-xs text-slate-700">
           <input
             type="checkbox"

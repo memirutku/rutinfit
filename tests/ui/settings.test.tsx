@@ -131,6 +131,16 @@ describe("Ayarlar — profil ve hedefler", () => {
     expect(await screen.findByRole("dialog", { name: /Hedeflerini birlikte kuralım/ })).toBeTruthy();
   });
 
+  it("F52: koça notlar profil formundan kaydedilir", async () => {
+    const { calls } = setup([
+      ["/api/profile", (_u, init) => (method(init) === "PUT" ? jsonResponse({ ...PROFILE, ...body(init) }) : jsonResponse(PROFILE))],
+    ]);
+    fireEvent.change(await screen.findByLabelText(/Koça notlar/), { target: { value: "Glutensiz besleniyorum." } });
+    fireEvent.click(screen.getByRole("button", { name: "Hedefleri Güncelle" }));
+    await screen.findByText("Profil ve hedefler başarıyla güncellendi! ✓");
+    expect(body(callsTo(calls, "/api/profile", "PUT")[0].init)).toMatchObject({ coachNotes: "Glutensiz besleniyorum." });
+  });
+
   it("F31: hane büyüklüğü profil formundan kaydedilir", async () => {
     const { calls } = setup([
       ["/api/profile", (_u, init) => (method(init) === "PUT" ? jsonResponse({ ...PROFILE, ...body(init) }) : jsonResponse(PROFILE))],
