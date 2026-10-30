@@ -49,7 +49,7 @@ async function main() {
         RUTINFIT_DATA_DIR: dataDir,
         OPENFOODFACTS_BASE_URL: mocks.offBaseUrl,
         OPENGYM_BASE_URL: "http://127.0.0.1:9",
-      } as NodeJS.ProcessEnv,
+      } as unknown as NodeJS.ProcessEnv,
     });
     children.push(child);
   }
