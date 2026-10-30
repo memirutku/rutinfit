@@ -94,6 +94,20 @@ export function AIProviderSection() {
   const test = useTestAIConnection();
   const result: TestConnectionResult | null = test.data ?? (test.isError ? failureResult(test.error) : null);
 
+  /** Bağlantıyı test eder; başarılı test ayarı kaydeder, rozet ve koç durumu yeniden denetlenir. */
+  function runTest(modelName: string) {
+    test.mutate(
+      { providerType: provider, baseUrl, modelName },
+      { onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.aiStatus }) }
+    );
+  }
+
+  /** B30: algılanan model seçilince o modelle test edilip kaydedilir. */
+  function chooseModel(name: string) {
+    setModel(name);
+    runTest(name);
+  }
+
   return (
     <div id="yapay-zeka" className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6 scroll-mt-4">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
@@ -162,13 +176,7 @@ export function AIProviderSection() {
         <div className="flex items-center gap-3 pt-2">
           <button
             type="button"
-            onClick={() =>
-              test.mutate(
-                { providerType: provider, baseUrl, modelName: model },
-                // Test ayarı kaydedebilir: rozet ve koç sayfasının durumu yeniden denetlenir.
-                { onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.aiStatus }) }
-              )
-            }
+            onClick={() => runTest(model)}
             disabled={test.isPending}
             className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1.5"
           >
@@ -214,14 +222,36 @@ export function AIProviderSection() {
 
         {result && (
           <div
+            role="status"
             className={`p-4 rounded-xl border text-xs leading-relaxed ${
               result.success ? "bg-emerald-50 border-emerald-200 text-emerald-900" : "bg-amber-50 border-amber-200 text-amber-900"
             }`}
           >
             <p className="font-bold">{result.message}</p>
             {result.models && result.models.length > 0 && (
-              <div className="mt-2 pt-2 border-t border-emerald-200/60">
-                <span className="font-semibold">Algılanan Modeller:</span> {result.models.join(", ")}
+              <div className="mt-2 pt-2 border-t border-emerald-200/60 space-y-1.5">
+                <p className="font-semibold">Algılanan modeller (seçince test edilip kaydedilir):</p>
+                <div role="group" aria-label="Algılanan modeller" className="flex flex-wrap gap-1.5">
+                  {result.models.map((name) => {
+                    const selected = name === model;
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        aria-pressed={selected}
+                        disabled={test.isPending}
+                        onClick={() => chooseModel(name)}
+                        className={`px-2.5 py-1 rounded-lg border font-mono text-[11px] transition-colors disabled:opacity-50 ${
+                          selected
+                            ? "bg-emerald-600 border-emerald-600 text-white"
+                            : "bg-white border-slate-200 text-slate-700 hover:border-emerald-500"
+                        }`}
+                      >
+                        {name}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

@@ -123,4 +123,25 @@ test.describe("Dalga 6 · AI koç", () => {
     await expect(page.getByText("Onaylandı", { exact: true })).toBeVisible();
     await expect(page.getByText("Onay Bekliyor")).toHaveCount(0);
   });
+
+  test("B30: başarılı test 'kaydedildi' der; algılanan model seçilebilir ve rozet bağlı gösterir", async ({ page, api }) => {
+    const original = await (await api.get("/api/ai/settings")).json();
+    try {
+      await page.goto("/settings#yapay-zeka");
+      await page.getByLabel("Sağlayıcı").selectOption("lmstudio");
+      await page.getByLabel("Base URL").fill(original.baseUrl);
+      await page.getByLabel("Model Adı").fill("");
+      await page.getByRole("button", { name: "Bağlantıyı Test Et" }).first().click();
+      await expect(page.getByText(/^Bağlantı başarılı ve kaydedildi\. Kullanılan model: mock-llama/)).toBeVisible();
+      const choice = page.getByRole("group", { name: "Algılanan modeller" }).getByRole("button", { name: "mock-llama" });
+      await expect(choice).toHaveAttribute("aria-pressed", "true");
+      await choice.click();
+      await expect(page.getByTestId("ai-connection-badge")).toHaveText("Bağlı · mock-llama");
+      expect((await (await api.get("/api/ai/settings")).json()).providerType).toBe("lmstudio");
+    } finally {
+      await api.post("/api/ai/test-connection", {
+        data: { providerType: original.providerType, baseUrl: original.baseUrl, modelName: original.modelName },
+      });
+    }
+  });
 });
