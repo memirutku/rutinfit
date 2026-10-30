@@ -7,7 +7,7 @@ import { ReminderRunner } from "@/components/ReminderRunner";
 export const metadata: Metadata = {
   title: "RutinFit — Kişisel Beslenme ve Antrenman Takibi",
   description:
-    "Yerel-first, gizlilik odaklı, iş hayatıyla uyumlu sürdürülebilir fitness ve beslenme yönetim sistemi.",
+    "Yerel çalışan, gizlilik odaklı fitness ve beslenme takibi.",
 };
 
 export default function RootLayout({
