@@ -4,7 +4,8 @@ import Link from "next/link";
 import { Plus, Sparkles } from "lucide-react";
 
 interface DashboardHeaderProps {
-  homeTime: string;
+  /** B02: yalnız kullanıcı gün düzenini (ofis/okul) girdiyse gösterilir. */
+  homeTime?: string;
   onQuickAdd: () => void;
 }
 
@@ -20,8 +21,8 @@ export function DashboardHeader({ homeTime, onQuickAdd }: DashboardHeaderProps) 
             weekday: "long",
             day: "numeric",
             month: "long",
-          })}{" "}
-          · Eve tahmini varış: {homeTime}
+          })}
+          {homeTime && <> · Eve tahmini varış: {homeTime}</>}
         </p>
       </div>
       <div className="flex items-center gap-2">

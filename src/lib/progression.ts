@@ -1,3 +1,5 @@
+import { formatDecimalTr } from "./format";
+
 export interface SetPerformance {
   setNumber: number;
   weightKg: number;
@@ -38,12 +40,13 @@ export function evaluateExerciseProgression(
   const isTargetMetAllSets = sets.every((s) => s.reps >= s.targetRepMax);
 
   if (isTargetMetAllSets) {
-    const nextWeight = Math.round((currentMaxWeight + incrementKg) * 10) / 10;
+    // 1,25 kg'lık artışlar kaybolmasın diye iki ondalık.
+    const nextWeight = Math.round((currentMaxWeight + incrementKg) * 100) / 100;
     return {
       isTargetMetAllSets: true,
       currentMaxWeight,
       recommendedNextWeightKg: nextWeight,
-      message: `Tüm çalışma setlerinde üst tekrar sınırına (${sets[0].targetRepMax} tekrar) ulaştınız! Bir sonraki seans için kontrollü bir şekilde +${incrementKg} kg (${nextWeight} kg) artırmayı deneyebilirsiniz.`,
+      message: `Tüm çalışma setlerinde üst tekrar sınırına (${sets[0].targetRepMax} tekrar) ulaştınız! Bir sonraki seans için kontrollü bir şekilde +${formatDecimalTr(incrementKg)} kg (${formatDecimalTr(nextWeight)} kg) artırmayı deneyebilirsiniz.`,
       badge: "progression",
     };
   }
@@ -54,7 +57,7 @@ export function evaluateExerciseProgression(
       isTargetMetAllSets: false,
       currentMaxWeight,
       recommendedNextWeightKg: currentMaxWeight,
-      message: `Harika bir efor! Belirlenen tekrar aralığı içindesiniz. Bir sonraki seansta aynı ağırlıkla (${currentMaxWeight} kg) devam edip tekrarları kademeli artırmaya odaklanabilirsiniz.`,
+      message: `Harika bir efor! Belirlenen tekrar aralığı içindesiniz. Bir sonraki seansta aynı ağırlıkla (${formatDecimalTr(currentMaxWeight)} kg) devam edip tekrarları kademeli artırmaya odaklanabilirsiniz.`,
       badge: "maintain",
     };
   }
@@ -63,7 +66,7 @@ export function evaluateExerciseProgression(
     isTargetMetAllSets: false,
     currentMaxWeight,
     recommendedNextWeightKg: currentMaxWeight,
-    message: `Vücudunu dinlemek gelişimin en önemli parçasıdır. Bir sonraki seansta aynı ağırlığı (${currentMaxWeight} kg) koruyarak hareket formuna ve dinlenmeye odaklanmak en güvenli yoldur.`,
+    message: `Vücudunu dinlemek gelişimin en önemli parçasıdır. Bir sonraki seansta aynı ağırlığı (${formatDecimalTr(currentMaxWeight)} kg) koruyarak hareket formuna ve dinlenmeye odaklanmak en güvenli yoldur.`,
     badge: "maintain",
   };
 }

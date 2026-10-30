@@ -56,6 +56,18 @@ describe("F17: şablon editörü", () => {
     await waitFor(() => expect(s.onClose).toHaveBeenCalled());
   });
 
+  it("B21: 5/3/1 hareketinin yüklemesi korunur; antrenman maksimumu düzenlenebilir", async () => {
+    const s = setup({ ...TPL, exercises: [{ ...ex("e1", "Squat", 0), loadingScheme: "531", trainingMaxKg: 140, incrementKg: 5 }, ex("e2", "Bench Press", 1)] });
+    const dialog = screen.getByRole("dialog", { name: "Şablonu düzenle" });
+    expect(within(dialog).queryByLabelText("Bench Press antrenman maksimumu (kg)")).toBeNull();
+    fireEvent.change(within(dialog).getByLabelText("Squat antrenman maksimumu (kg)"), { target: { value: "142,5" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Şablonu kaydet" }));
+    await waitFor(() => expect(req(s, "PUT")).toBeTruthy());
+    const body = JSON.parse(String(req(s, "PUT")!.init?.body));
+    expect(body.exercises[0]).toMatchObject({ exerciseName: "Squat", loadingScheme: "531", trainingMaxKg: 142.5, incrementKg: 5 });
+    expect(body.exercises[1].loadingScheme ?? null).toBeNull();
+  });
+
   it("yeni şablon seçilen günle başlar ve POST ile oluşturulur; boş adlı egzersiz gönderilmez", async () => {
     const s = setup(null, 6);
     const dialog = screen.getByRole("dialog", { name: "Yeni şablon" });

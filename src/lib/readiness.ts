@@ -2,6 +2,7 @@
  * F51: Hazır olma skoru (giyilebilir cihaz gerektirmez). Günlük durum girdilerinden 0–100 puan:
  * uyku %30, enerji %25, kas ağrısı %20, stres %15, ruh hâli %10. Girilmeyen alan ağırlıktan düşer.
  * Bant: <45 düşük, 45–69 orta, ≥70 yüksek. Tıbbi bir ölçüm değildir.
+ * En az iki girdi gerekir: tek bir değerden (ör. yalnız uyku) skor ve bant çıkarılmaz.
  */
 import { formatNumberTr } from "./format";
 
@@ -39,7 +40,7 @@ export function computeReadiness(input: ReadinessInput): Readiness | null {
   if (input.soreness1to5 != null) parts.push({ key: "soreness", label: `Kas ağrısı ${input.soreness1to5}/5`, score: down(input.soreness1to5), weight: 0.2 });
   if (input.stress1to5 != null) parts.push({ key: "stress", label: `Stres ${input.stress1to5}/5`, score: down(input.stress1to5), weight: 0.15 });
   if (input.mood1to5 != null) parts.push({ key: "mood", label: `Ruh hâli ${input.mood1to5}/5`, score: up(input.mood1to5), weight: 0.1 });
-  if (!parts.length) return null;
+  if (parts.length < 2) return null;
 
   const totalWeight = parts.reduce((a, p) => a + p.weight, 0);
   const score = Math.round(parts.reduce((a, p) => a + p.score * p.weight, 0) / totalWeight);

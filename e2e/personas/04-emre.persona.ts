@@ -13,25 +13,28 @@ test("Emre: Ramazan, sahur/iftar ve su", async ({ page }) => {
 
   await step("İlk açılış ve sihirbaz", "Profilini girer; kilosunu korumak ister", async () => {
     await page.goto(BASE);
-    await fillWizard(page, { sex: "Erkek", age: 30, height: 178, weight: 82, activity: /Hafif hareketli/, goal: "Kiloyu koru" });
+    await fillWizard(page, { sex: "Erkek", age: 30, height: 178, weight: 82, activity: /Hafif hareketli/, goal: "Kiloyu koru", dayPattern: "Evden / esnek", ramadanProvince: "İstanbul", program: /Tam vücut başlangıç/ });
     await saveWizard(page);
   });
   await step("Ramazan ayarını arar", "Ayarlarda Ramazan/oruç seçeneğini bulmaya çalışır", async () => {
-    await page.getByRole("link", { name: "Ayarlar" }).click();
+    await page.getByRole("link", { name: "Ayarlar", exact: true }).first().click();
     await expect(page.getByRole("heading", { name: "Oruç ve Ramazan" })).toBeVisible();
   });
   await step("Ramazan modunu açar", "Ramazan modunu açar, ili İstanbul seçer ve kaydeder", async () => {
     await page.getByLabel("Ramazan modu").check();
     await page.getByLabel("İl", { exact: true }).selectOption("İstanbul");
-    await page.getByRole("button", { name: "Oruç ayarlarını kaydet" }).click();
+    // B34: ayarlar dokununca kaydedilir (eski sürümde ayrı düğme vardı).
+    const saveBtn = page.getByRole("button", { name: "Oruç ayarlarını kaydet" });
+    if (await saveBtn.isVisible().catch(() => false)) await saveBtn.click();
     await expect(page.getByText("Kaydedildi ✓")).toBeVisible();
   });
   await step("Panoda geri sayım", "Ana panelde imsak/iftar vakitlerini ve iftara kalan süreyi görür", async () => {
-    await page.getByRole("link", { name: "Ana Panel" }).click();
-    await expect(page.getByText("Ramazan · İstanbul")).toBeVisible();
+    await page.getByRole("link", { name: "Ana Panel", exact: true }).first().click();
+    // Dalga 6 (B26): Ramazan dışında başlık "Ramazan modu" olur ve Ramazan'a kalan gün yazar.
+    await expect(page.getByText(/^Ramazan( modu)? · İstanbul$/).first()).toBeVisible();
   });
-  await step("Hurmayı elle ekler", "Katalogda hurma olmadığı için elle ekler (100 g: 282 kcal, 2,5 P, 75 K, 0,4 Y)", async () => {
-    await page.getByRole("link", { name: "Besin & Tarif" }).click();
+  await step("Hurmayı elle ekler", "Etiketteki değerlerle kendi hurmasını ekler (100 g: 282 kcal, 2,5 P, 75 K, 0,4 Y)", async () => {
+    await page.getByRole("link", { name: "Besin & Tarif", exact: true }).first().click();
     await page.getByRole("button", { name: "Yeni Besin" }).click();
     const d = page.getByRole("dialog", { name: "Yeni Besin Ekle" });
     await d.getByLabel("Besin Adı").fill("Hurma");
@@ -43,7 +46,7 @@ test("Emre: Ramazan, sahur/iftar ve su", async ({ page }) => {
     await d.waitFor({ state: "hidden" });
   });
   await step("İftarı kaydeder", "Hızlı öğünde 'İftar' seçip 3 hurma (30 g) ekler", async () => {
-    await page.getByRole("link", { name: "Ana Panel" }).click();
+    await page.getByRole("link", { name: "Ana Panel", exact: true }).first().click();
     await page.getByRole("button", { name: "Hızlı Öğün Ekle" }).click();
     const d = page.getByRole("dialog", { name: "Hızlı Öğün Kaydı" });
     await d.getByLabel("Öğün Türü").selectOption({ label: "İftar" });
@@ -63,21 +66,21 @@ test("Emre: Ramazan, sahur/iftar ve su", async ({ page }) => {
     await page.keyboard.press("Escape");
   });
   await step("Su hatırlatması kurar", "Akşam için 21:00'de su hatırlatması kurar", async () => {
-    await page.getByRole("link", { name: "Ayarlar" }).click();
+    await page.getByRole("link", { name: "Ayarlar", exact: true }).first().click();
     await page.locator("#rem-kind").selectOption("water");
     await page.locator("#rem-time").fill("21:00");
     await page.getByRole("button", { name: "Hatırlatma ekle" }).click();
     await expect(page.getByText(/21:00 · Su iç/)).toBeVisible();
   });
   await step("Koça iftar menüsü sorar", "AI koçuna 'İftarda kilomu korumak için ne yemeliyim?' diye sorar", async () => {
-    await page.getByRole("link", { name: "AI Koçu" }).click();
+    await page.getByRole("link", { name: "AI Koçu", exact: true }).first().click();
     await page.getByPlaceholder(/Sorunuzu yazın/).fill("İftarda kilomu korumak için ne yemeliyim?");
     await page.getByRole("button", { name: /Gönder/ }).click();
     await page.waitForTimeout(3000);
     await expect(page.getByText(/iftar/i).nth(1)).toBeVisible();
   });
   await step("Panoda gün sonu", "İftar sonrası panodaki toplamlara ve su önerisine bakar", async () => {
-    await page.getByRole("link", { name: "Ana Panel" }).click();
+    await page.getByRole("link", { name: "Ana Panel", exact: true }).first().click();
     await expect(page.getByText(/İftar/).first()).toBeVisible();
   });
 });

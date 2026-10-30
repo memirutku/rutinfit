@@ -28,6 +28,9 @@ interface Row {
   repMax: number;
   restSeconds: number;
   incrementKg: number;
+  /** B21: %1RM'e bağlı yükleme korunur; 5/3/1'de antrenman maksimumu düzenlenir. */
+  loadingScheme?: string | null;
+  trainingMaxKg?: number | null;
 }
 
 const LABEL = "block text-xs font-semibold text-slate-600 mb-1";
@@ -83,13 +86,14 @@ export function TemplateEditor({ open, template, dayOfWeek, onClose }: TemplateE
       // Adı boş satırlar (yeni eklenip doldurulmamış) gönderilmez.
       exercises: form.rows
         .filter((r) => r.exerciseName.trim())
-        .map(({ exerciseName, targetSets, repMin, repMax, restSeconds, incrementKg }) => ({
+        .map(({ exerciseName, targetSets, repMin, repMax, restSeconds, incrementKg, loadingScheme, trainingMaxKg }) => ({
           exerciseName: exerciseName.trim(),
           targetSets,
           repMin,
           repMax,
           restSeconds,
           incrementKg,
+          ...(loadingScheme === "531" ? { loadingScheme: "531" as const, trainingMaxKg: trainingMaxKg && trainingMaxKg > 0 ? trainingMaxKg : null } : {}),
         })),
     };
     save.mutate({ id: template?.id, input }, { onSuccess: onClose });
@@ -184,6 +188,20 @@ export function TemplateEditor({ open, template, dayOfWeek, onClose }: TemplateE
                         onChange={(e) => setRow(r.key, { exerciseName: e.target.value })}
                         className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
                       />
+                      {r.loadingScheme === "531" && (
+                        <div className="mt-1 flex items-center gap-1.5 text-[11px] text-brand-700 font-semibold">
+                          <span>5/3/1 · TM</span>
+                          <DecimalInput
+                            aria-label={`${label} antrenman maksimumu (kg)`}
+                            value={r.trainingMaxKg ?? null}
+                            emptyValue={Number.NaN}
+                            placeholder="kg"
+                            onValueChange={(v) => setRow(r.key, { trainingMaxKg: Number.isNaN(v) || v <= 0 ? null : v })}
+                            className="w-16 px-1.5 py-1 bg-white border border-slate-200 rounded-md text-xs text-center"
+                          />
+                          <span className="font-normal text-slate-500">kg (1RM × 0,9)</span>
+                        </div>
+                      )}
                     </td>
                     <td className="py-1 px-0.5">
                       <input aria-label={`${label} set sayısı`} type="number" value={r.targetSets} onChange={(e) => setRow(r.key, { targetSets: int(e.target.value, 3) })} className={CELL} />

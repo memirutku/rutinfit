@@ -1,6 +1,7 @@
 "use client";
 
-import { BookOpen, Calculator, Dumbbell, HeartPulse, Layers, type LucideIcon } from "lucide-react";
+import Link from "next/link";
+import { BookOpen, Calculator, Dumbbell, HeartPulse, Layers, TrendingUp, type LucideIcon } from "lucide-react";
 
 export type WorkoutSubTab = "workouts" | "cardio" | "library" | "heatmap" | "plates";
 
@@ -23,6 +24,14 @@ export function WorkoutTabs({ tab, onChange }: { tab: WorkoutSubTab; onChange: (
         <p className="text-sm text-slate-500 mt-0.5">
           Haftalık plan, egzersiz kütüphanesi, kas haritası ve plaka hesabı
         </p>
+        {/* B24: güç gelişimi İlerleme'nin altında; buradan tek tıkla */}
+        <Link
+          href="/progress#guc"
+          className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-brand-700 hover:text-brand-800"
+        >
+          <TrendingUp className="w-3.5 h-3.5" />
+          Güç gelişimi ve rekorlar →
+        </Link>
       </div>
 
       <div className="flex flex-wrap items-center bg-slate-100 p-1 rounded-xl text-xs font-bold">

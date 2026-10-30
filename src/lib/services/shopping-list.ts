@@ -1,6 +1,7 @@
 import { prisma } from '../prisma';
 import { addDaysToDateString, startOfWeek } from '../date-utils';
-import { aggregateShoppingList, type PlannedRecipeItem } from '../shopping-aggregator';
+import { aggregateShoppingList, resolveShoppingCategory, type PlannedRecipeItem } from '../shopping-aggregator';
+import { HttpError } from '../api-error';
 import { calculateNetShoppingList } from '../pantry-service';
 import { normalizeName } from '../text';
 
@@ -11,16 +12,39 @@ export interface ShoppingNeed {
   category: string;
 }
 
-/** Haftanın (Pazartesi–Pazar) planlı tariflerinden porsiyona göre toplam ihtiyaç. */
-export async function collectWeeklyNeeds(weekStart: string): Promise<ShoppingNeed[]> {
-  const plans = await prisma.mealPlan.findMany({
+const weekPlans = (weekStart: string) =>
+  prisma.mealPlan.findMany({
     where: { date: { gte: weekStart, lt: addDaysToDateString(weekStart, 7) } },
+    orderBy: { date: 'asc' },
     include: {
       meals: {
         include: { recipe: { include: { ingredients: { include: { foodItem: true } } } } },
       },
     },
   });
+
+export interface WeekPlanCoverage {
+  /** Haftadaki planlı öğün sayısı. */
+  plannedMeals: number;
+  /** B09: tarife bağlı olmadığı için malzemesi bilinmeyen öğünlerin adları (tekrarsız, plan sırasıyla). */
+  unlinkedMeals: string[];
+}
+
+/** B09: listenin neden boş ya da eksik olabileceğini açıklamak için haftanın plan kapsamı. */
+export async function weekPlanCoverage(weekStart: string): Promise<WeekPlanCoverage> {
+  const plans = await prisma.mealPlan.findMany({
+    where: { date: { gte: weekStart, lt: addDaysToDateString(weekStart, 7) } },
+    orderBy: { date: 'asc' },
+    select: { meals: { select: { recipeId: true, customName: true, mealType: true } } },
+  });
+  const meals = plans.flatMap((p) => p.meals);
+  const unlinked = meals.filter((m) => !m.recipeId).map((m) => m.customName?.trim() || 'Adsız öğün');
+  return { plannedMeals: meals.length, unlinkedMeals: [...new Set(unlinked)] };
+}
+
+/** Haftanın (Pazartesi–Pazar) planlı tariflerinden porsiyona göre toplam ihtiyaç. */
+export async function collectWeeklyNeeds(weekStart: string): Promise<ShoppingNeed[]> {
+  const plans = await weekPlans(weekStart);
 
   const planned: PlannedRecipeItem[] = [];
   for (const plan of plans) {
@@ -54,14 +78,47 @@ function groupByCategory<T extends { category: string }>(items: T[]): Record<str
   return grouped;
 }
 
-/** Kaydedilmiş listeyi okur; hiçbir şey yazmaz. */
+/**
+ * Kaydedilmiş listeyi okur; hiçbir şey yazmaz. Yalnız elle eklenen kalemler varsa liste plandan
+ * henüz kurulmamış sayılır (istemci bir kez kurar; elle kalemler korunur).
+ */
 export async function getShoppingList(dateInWeek: string) {
   const weekStart = startOfWeek(dateInWeek);
-  const items = await prisma.shoppingListItem.findMany({
-    where: { weekStart },
-    orderBy: [{ category: 'asc' }, { name: 'asc' }],
+  const [items, coverage] = await Promise.all([
+    prisma.shoppingListItem.findMany({
+      where: { weekStart },
+      orderBy: [{ category: 'asc' }, { name: 'asc' }],
+    }),
+    weekPlanCoverage(weekStart),
+  ]);
+  return { weekStart, items, grouped: groupByCategory(items), generated: items.some((i) => !i.manual), ...coverage };
+}
+
+/** B09: kullanıcının elle eklediği kalem. Aynı hafta aynı ad (büyük/küçük harf farkı dahil) ikinci kez eklenmez. */
+export async function addManualShoppingItem(input: { weekStart: string; name: string; amount: number; unit: string; category?: string }) {
+  const weekStart = startOfWeek(input.weekStart);
+  const existing = await prisma.shoppingListItem.findMany({ where: { weekStart }, select: { name: true } });
+  if (existing.some((e) => normalizeName(e.name) === normalizeName(input.name))) {
+    throw new HttpError(`"${input.name}" bu haftanın listesinde zaten var.`, 409);
+  }
+  return prisma.shoppingListItem.create({
+    data: {
+      weekStart,
+      name: input.name,
+      amount: input.amount,
+      unit: input.unit,
+      category: input.category ? resolveShoppingCategory(input.category, input.name) : resolveShoppingCategory(input.name),
+      manual: true,
+    },
   });
-  return { weekStart, items, grouped: groupByCategory(items), generated: items.length > 0 };
+}
+
+/** B09: elle eklenen kalemi siler. Plandan gelen kalem silinmez (yenilemede geri gelirdi); işaretlenir. */
+export async function deleteManualShoppingItem(id: string) {
+  const item = await prisma.shoppingListItem.findUnique({ where: { id } });
+  if (!item) throw new HttpError('Alışveriş kalemi bulunamadı.', 404);
+  if (!item.manual) throw new HttpError('Plandan gelen kalem silinemez; aldıysan işaretleyebilirsin.', 400);
+  await prisma.shoppingListItem.delete({ where: { id } });
 }
 
 /**
@@ -84,11 +141,14 @@ export async function generateShoppingList(dateInWeek: string, opts: { deductPan
   const items = await prisma.$transaction(async (tx) => {
     const previous = await tx.shoppingListItem.findMany({ where: { weekStart } });
     const checkedNames = new Set(previous.filter((p) => p.checked).map((p) => normalizeName(p.name)));
+    // B09: elle eklenen kalemler kalır; aynı adlı plan kalemi onların yerine geçmez.
+    const manualNames = new Set(previous.filter((p) => p.manual).map((p) => normalizeName(p.name)));
+    const planned = toSave.filter((item) => !manualNames.has(normalizeName(item.name)));
 
-    await tx.shoppingListItem.deleteMany({ where: { weekStart } });
-    if (toSave.length > 0) {
+    await tx.shoppingListItem.deleteMany({ where: { weekStart, manual: false } });
+    if (planned.length > 0) {
       await tx.shoppingListItem.createMany({
-        data: toSave.map((item) => ({
+        data: planned.map((item) => ({
           weekStart,
           category: item.category,
           name: item.name,
@@ -104,5 +164,5 @@ export async function generateShoppingList(dateInWeek: string, opts: { deductPan
     });
   });
 
-  return { weekStart, items, grouped: groupByCategory(items), pantrySummary };
+  return { weekStart, items, grouped: groupByCategory(items), pantrySummary, ...(await weekPlanCoverage(weekStart)) };
 }

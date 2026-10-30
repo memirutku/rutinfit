@@ -8,6 +8,7 @@ import { HttpError } from "../api-error";
 import { addDaysToDateString, getLocalDateString, getLocalTimeString } from "../date-utils";
 import { fastingTimes, findProvince, PROVINCES, type FastingTimes } from "../prayer-times";
 import { formatNumberTr } from "../format";
+import { ramadanInfo, type RamadanInfo } from "../ramadan-calendar";
 
 const TR = "Europe/Istanbul";
 const PROVINCE_NAMES = PROVINCES.map((p) => p.name) as [string, ...string[]];
@@ -32,6 +33,8 @@ export interface RamadanStatus {
   minutesLeft: number;
   progressPercent: number | null;
   waterAdvice: string;
+  /** B26: bugün Ramazan mı; değilse sıradakine kaç gün var (takvim hesaplanamazsa null). */
+  period: RamadanInfo | null;
 }
 
 export interface FastingTimerStatus {
@@ -75,14 +78,15 @@ export function ramadanStatus(profile: RamadanProfile, now = new Date()): Ramada
   const windowHours = (1440 - iftar + toMin(tomorrow.imsak)) / 60;
   const perHour = Math.round(profile.waterTargetMl / windowHours / 50) * 50;
   const waterAdvice = `İftar ile sahur arasında ${formatNumberTr(profile.waterTargetMl)} ml hedefle: saatte yaklaşık ${formatNumberTr(perHour)} ml, bir kerede çok değil.`;
-  return { province: province.name, today, tomorrow, phase, minutesLeft, progressPercent, waterAdvice };
+  return { province: province.name, today, tomorrow, phase, minutesLeft, progressPercent, waterAdvice, period: ramadanInfo(date) };
 }
 
-/** F83 ile: Ramazan modunda oruç saatlerinde su ve öğün hatırlatması gelmez. */
+/** F83 ile: Ramazan modunda oruç saatlerinde su ve öğün hatırlatması gelmez (B26: yalnız Ramazan günlerinde). */
 export async function isRamadanFastingNow(now = new Date()): Promise<boolean> {
   const profile = await prisma.userProfile.findFirst();
   if (!profile?.ramadanMode) return false;
-  return ramadanStatus(profile, now)?.phase === "fasting";
+  const status = ramadanStatus(profile, now);
+  return status?.phase === "fasting" && status.period?.inRamadan !== false;
 }
 
 export async function getFastingStatus(now = new Date()): Promise<{ ramadan: RamadanStatus | null; timer: FastingTimerStatus }> {

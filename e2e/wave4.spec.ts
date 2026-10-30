@@ -74,11 +74,11 @@ test.describe("Dalga 4", () => {
       await page.goto("/settings");
       await page.getByLabel("Ramazan modu").check();
       await page.getByLabel("İl", { exact: true }).selectOption("Ankara");
-      await page.getByRole("button", { name: "Oruç ayarlarını kaydet" }).click();
       await expect(page.getByText("Kaydedildi ✓")).toBeVisible();
       await page.goto("/");
-      await expect(page.getByText("Ramazan · Ankara")).toBeVisible();
-      await expect(page.getByText(/İmsak \d{2}:\d{2} · İftar \d{2}:\d{2}/)).toBeVisible();
+      // B26: Ramazan dışında başlık "Ramazan modu" olur ve kalan gün gösterilir; vakitler her durumda görünür.
+      await expect(page.getByText(/^Ramazan( modu)? · Ankara$/)).toBeVisible();
+      await expect(page.getByText(/(İmsak|imsak) \d{2}:\d{2} · (İftar|iftar) \d{2}:\d{2}/)).toBeVisible();
     } finally {
       await api.put("/api/fasting/settings", { data: { ramadanMode: false } });
     }

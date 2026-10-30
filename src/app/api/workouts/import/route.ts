@@ -102,7 +102,8 @@ export async function POST(req: NextRequest) {
               date: workout.date,
               name: workout.name,
               templateId: template?.id ?? null,
-              durationMinutes: workout.durationMinutes || 45,
+              // Süre dosyada yoksa uydurulmaz: 0 = girilmedi (geçmişte "—").
+              durationMinutes: workout.durationMinutes || 0,
               rpe: sessionRpe(workout),
               completed: true,
               notes: workout.notes || "CSV aktarımı",

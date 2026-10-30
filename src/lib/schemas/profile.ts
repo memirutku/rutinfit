@@ -3,6 +3,16 @@ import { ACTIVITY_LEVEL_KEYS, GOAL_TYPES, type GoalType } from "../energy";
 
 const GOAL_TYPE_KEYS = Object.keys(GOAL_TYPES) as [GoalType, ...GoalType[]];
 
+/** B02/B06: gün düzeni. Panodaki rutin bandı (iş/okul çıkışı, eve varış) yalnız bu girildiyse görünür. */
+export const DAY_PATTERNS = ["office", "school", "shift", "flexible"] as const;
+export type DayPattern = (typeof DAY_PATTERNS)[number];
+export const DAY_PATTERN_LABELS: Record<DayPattern, string> = {
+  office: "Ofis / iş yeri",
+  school: "Okul",
+  shift: "Vardiyalı",
+  flexible: "Evden / esnek",
+};
+
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Saat SS:DD biçiminde olmalıdır.");
 // Hedef sütunları tam sayıdır: kesirli girişler yuvarlanır.
 const intTarget = (min = 0) =>
@@ -41,6 +51,8 @@ export const UpdateProfileSchema = z.object({
   coachNotes: z.string().max(1000).nullable().optional(),
   /** F82: günlük ritimde isteğe bağlı döngü notu. */
   cycleTracking: z.boolean().optional(),
+  /** B06: gün düzeni; null girilmedi. */
+  dayPattern: z.enum(DAY_PATTERNS).nullable().optional(),
   /** F56: tabanın altındaki hedef bilerek (sağlık profesyoneliyle) seçildi. Saklanmaz. */
   acknowledgeLowCalorie: z.boolean().optional(),
 });

@@ -8,11 +8,13 @@ import { jsonResponse, stubFetch } from "../helpers/fetch";
 let restore: (() => void) | undefined;
 afterEach(() => restore?.());
 
+const none = { caloriesPerDose: null, proteinPerDose: null };
 const list = [
-  { id: "s1", name: "Kreatin Monohidrat", doseAmount: 5, doseUnit: "g", active: true, notes: null, takenToday: true, takenLast7: 6 },
-  { id: "s2", name: "D Vitamini", doseAmount: 1000, doseUnit: "IU", active: true, notes: "Kahvaltıyla", takenToday: false, takenLast7: 2 },
-  { id: "s3", name: "Eski Takviye", doseAmount: 1, doseUnit: "tablet", active: false, notes: null, takenToday: false, takenLast7: 0 },
+  { id: "s1", name: "Kreatin Monohidrat", doseAmount: 5, doseUnit: "g", active: true, notes: null, takenToday: true, takenLast7: 6, ...none },
+  { id: "s2", name: "D Vitamini", doseAmount: 1000, doseUnit: "IU", active: true, notes: "Kahvaltıyla", takenToday: false, takenLast7: 2, ...none },
+  { id: "s3", name: "Eski Takviye", doseAmount: 1, doseUnit: "tablet", active: false, notes: null, takenToday: false, takenLast7: 0, ...none },
 ];
+const whey = { id: "s4", name: "Whey Protein", doseAmount: 30, doseUnit: "g", active: true, notes: null, takenToday: false, takenLast7: 0, caloriesPerDose: 120, proteinPerDose: 24 };
 
 describe("F15: takviyeler", () => {
   it("panoda yalnız aktif takviyeler görünür; işaretleme günü ve durumu gönderir", async () => {
@@ -65,5 +67,55 @@ describe("F15: takviyeler", () => {
     expect(calls[1]).toMatchObject({ method: "DELETE" });
     expect(calls[2]).toMatchObject({ method: "POST", body: { name: "Omega 3", doseAmount: 2, doseUnit: "kapsül" } });
     expect(within(screen.getByText("Eski Takviye").closest("li")!).getByText("pasif")).toBeTruthy();
+  });
+
+  it("B12: panodaki kartta liste doluyken de '+ Takviye / Düzenle' bağlantısı ve günlüğe yazılan değer görünür", async () => {
+    restore = stubFetch([["/api/supplements", () => jsonResponse({ supplements: [...list, whey] })]]).restore;
+    renderWithQuery(<SupplementsCard date="2026-10-30" />);
+    const link = await screen.findByRole("link", { name: "+ Takviye / Düzenle" });
+    expect(link.getAttribute("href")).toBe("/settings#takviyeler");
+    expect(await screen.findByText(/30 g · 24 g protein · 0\/7 gün/)).toBeTruthy();
+  });
+
+  it("B12: işaretleme günlük öğün özetini de tazeler", async () => {
+    restore = stubFetch([
+      ["/api/supplements/log", () => jsonResponse({ ok: true })],
+      ["/api/supplements", () => jsonResponse({ supplements: [whey] })],
+    ]).restore;
+    const { client } = renderWithQuery(<SupplementsCard date="2026-10-30" />);
+    client.setQueryData(["food-logs", "2026-10-30"], { logs: [] });
+    fireEvent.click(await screen.findByRole("button", { name: /Whey Protein/ }));
+    await waitFor(() => expect(client.getQueryState(["food-logs", "2026-10-30"])?.isInvalidated).toBe(true));
+  });
+
+  it("B12: ayarlarda doz başına kalori ve protein girilir; var olan takviye düzenlenir", async () => {
+    const calls: Array<{ url: string; method: string; body?: unknown }> = [];
+    restore = stubFetch([
+      ["/api/supplements", (url, init) => {
+        const method = init?.method ?? "GET";
+        if (method !== "GET") calls.push({ url, method, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+        return method === "GET" ? jsonResponse({ supplements: [whey] }) : jsonResponse({ ok: true });
+      }],
+    ]).restore;
+    renderWithQuery(<SupplementsSection />);
+    expect(document.getElementById("takviyeler")).not.toBeNull();
+    const row = (await screen.findByText("Whey Protein")).closest("li")!;
+    expect(row.textContent).toContain("120 kcal · 24 g protein günlüğe yazılır");
+
+    fireEvent.change(screen.getByLabelText("Takviye adı"), { target: { value: "Kazein" } });
+    fireEvent.change(screen.getByLabelText("Doz"), { target: { value: "30" } });
+    fireEvent.change(screen.getByLabelText("Kalori (doz başına)"), { target: { value: "110" } });
+    fireEvent.change(screen.getByLabelText("Protein (g, doz başına)"), { target: { value: "24" } });
+    fireEvent.click(screen.getByRole("button", { name: "Takviye ekle" }));
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0]).toMatchObject({ method: "POST", body: { name: "Kazein", doseAmount: 30, caloriesPerDose: 110, proteinPerDose: 24 } });
+
+    fireEvent.click(within(row).getByRole("button", { name: "Whey Protein düzenle" }));
+    expect(screen.getByLabelText<HTMLInputElement>("Takviye adı").value).toBe("Whey Protein");
+    fireEvent.change(screen.getByLabelText("Protein (g, doz başına)"), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Değişiklikleri kaydet" }));
+    await waitFor(() => expect(calls).toHaveLength(2));
+    expect(calls[1].url).toContain("id=s4");
+    expect(calls[1]).toMatchObject({ method: "PATCH", body: { name: "Whey Protein", doseAmount: 30, caloriesPerDose: 120, proteinPerDose: null } });
   });
 });

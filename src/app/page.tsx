@@ -13,7 +13,7 @@ import type { FoodLog } from "@/lib/schemas/food";
 import { useProfile } from "@/lib/client/queries/system";
 import { useCreateFoodLog, useDeleteFoodLog, useFoodLogs, useFoods, useQuickAddFood } from "@/lib/client/queries/nutrition";
 import { useWorkouts } from "@/lib/client/queries/workouts";
-import { useProgress, useSaveProgress, useToggleCreatine } from "@/lib/client/queries/progress";
+import { useProgress, useSaveProgress } from "@/lib/client/queries/progress";
 import { UndoToast, type UndoToastData } from "@/components/dashboard/UndoToast";
 import { QuickAddModal, type QuickAddValues } from "@/components/dashboard/QuickAddModal";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -24,7 +24,8 @@ import { MacroBalanceCard } from "@/components/dashboard/MacroBalanceCard";
 import { TodayWorkoutCard } from "@/components/dashboard/TodayWorkoutCard";
 import { WellbeingCard, type WellbeingValues } from "@/components/dashboard/WellbeingCard";
 import { TodayMealsList } from "@/components/dashboard/TodayMealsList";
-import { getRhythmStep, WELLBEING_SECTION_ID, type RhythmAction } from "@/components/dashboard/rhythm";
+import { FASTING_SECTION_ID, getRamadanRhythmStep, getRhythmStep, WELLBEING_SECTION_ID, type RhythmAction } from "@/components/dashboard/rhythm";
+import { useFasting } from "@/lib/client/queries/fasting";
 import { SetupWizard } from "@/components/onboarding/SetupWizard";
 import { DrinksCard } from "@/components/dashboard/DrinksCard";
 import { SavedMealsModal } from "@/components/dashboard/SavedMealsModal";
@@ -34,6 +35,9 @@ import { NaturalLogModal } from "@/components/dashboard/NaturalLogModal";
 import { SupplementsCard } from "@/components/dashboard/SupplementsCard";
 import { FastingCard } from "@/components/dashboard/FastingCard";
 import { mealTypeForHour } from "@/lib/meal-time";
+import { weightGoalProgress } from "@/lib/weight-goal";
+import { formatNumberTr } from "@/lib/format";
+import { WeightGoalCard } from "@/components/dashboard/WeightGoalCard";
 
 interface UndoState {
   toast: UndoToastData;
@@ -57,6 +61,10 @@ export default function DashboardPage() {
   const foodLogs = useFoodLogs(todayStr);
   const workouts = useWorkouts(todayStr);
   const progress = useProgress();
+  // B25: Ramazan günlerinde pano imsak/iftara göre düzenlenir.
+  const fasting = useFasting();
+  const ramadanStatus = fasting.data?.ramadan ?? null;
+  const ramadanActive = !!ramadanStatus && ramadanStatus.period?.inRamadan !== false;
 
   // Hızlı yemek ekleme modalı: besin listesi ilk açılışta bir kez yüklenir.
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
@@ -74,9 +82,10 @@ export default function DashboardPage() {
   const createFoodLog = useCreateFoodLog();
   const deleteFoodLog = useDeleteFoodLog();
   const saveProgress = useSaveProgress();
-  const toggleCreatine = useToggleCreatine();
 
   const { message: actionError, show: flashError } = useTimedMessage<string>(5000);
+  // B07: kilo kaydından sonra hedef kartında kısa ilerleme mesajı.
+  const weightSaved = useTimedMessage<boolean>(8000);
   const showError = useCallback((e: unknown, fallback: string) => flashError(errorMessage(e, fallback)), [flashError]);
 
   // İlk yüklemede tam ekran yükleniyor; sonraki yenilemeler arka planda (titreme, kaydırma kaybı yok).
@@ -89,18 +98,10 @@ export default function DashboardPage() {
     if (foodsError) showError(foodsError, "Besin listesi yüklenemedi.");
   }, [foodsError, showError]);
 
-  function handleToggleCreatine() {
-    const today = progress.data?.today;
-    if (!today) return;
-    toggleCreatine.mutate(
-      { date: todayStr, taken: !today.creatineTaken },
-      { onError: (e) => showError(e, "Kreatin kaydı güncellenemedi.") }
-    );
-  }
-
   async function handleSaveWellbeing(values: WellbeingValues): Promise<boolean> {
     try {
       await saveProgress.mutateAsync({ date: todayStr, ...values });
+      if (values.weightKg !== undefined) weightSaved.show(true);
       return true;
     } catch (e) {
       showError(e, "Kayıt güncellenemedi.");
@@ -109,15 +110,16 @@ export default function DashboardPage() {
   }
 
   function handleOpenQuickAdd(preferredMealType?: MealType) {
-    if (preferredMealType) setQuickAddMealType(preferredMealType);
+    // B13: öğün verilmediyse günün saatine göre seçilir.
+    setQuickAddMealType(preferredMealType ?? mealTypeForHour(new Date().getHours()));
     setIsQuickAddOpen(true);
     setQuickAddRequested(true);
     if (foods.isError) foods.refetch();
   }
 
   function handleRhythmAction(action: RhythmAction) {
-    if (action.kind === "creatine") handleToggleCreatine();
-    else if (action.kind === "quickAdd") handleOpenQuickAdd(action.mealType);
+    if (action.kind === "quickAdd") handleOpenQuickAdd(action.mealType);
+    else if (action.kind === "scrollToFasting") document.getElementById(FASTING_SECTION_ID)?.scrollIntoView({ behavior: "smooth" });
     else document.getElementById(WELLBEING_SECTION_ID)?.scrollIntoView({ behavior: "smooth" });
   }
 
@@ -127,11 +129,12 @@ export default function DashboardPage() {
       date: todayStr,
       time: new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }),
       mealType: values.mealType,
-      foodItemId: values.foodItemId,
+      // B01: hızlı eklemede tarif de seçilebilir.
+      ...(values.recipeId ? { recipeId: values.recipeId } : { foodItemId: values.foodItemId }),
       name: values.name,
       grams: values.grams,
     });
-    setRecentFoods((prev) => pushRecentFood(prev, { id: values.foodItemId, name: values.name, defaultGrams: values.grams }));
+    if (!values.recipeId) setRecentFoods((prev) => pushRecentFood(prev, { id: values.foodItemId, name: values.name, defaultGrams: values.grams }));
     setUndo({ toast: { key: `add-${created.id}`, name: created.name, action: "added" }, logId: created.id });
     setIsQuickAddOpen(false);
   }
@@ -168,44 +171,98 @@ export default function DashboardPage() {
     );
   }
 
-  const homeTime = profile.data?.workdayHomeTime;
+  // B02: rutin bandı (eve varış, iş/okul çıkışı) yalnız kullanıcı gün düzenini girdiyse.
+  const dayPattern = profile.data?.dayPattern ?? null;
+  const homeTime = dayPattern === "office" || dayPattern === "school" ? profile.data?.workdayHomeTime : undefined;
+  // B02: sihirbaz tamamlanmadıysa hedefler tahminidir; kalıcı şerit sihirbazı yeniden açar.
+  const estimatedTargets = profile.data?.isOnboarded === false;
+  const lastWeightKg = progress.data?.weights.at(-1)?.weightKg ?? (profile.data?.isOnboarded ? profile.data.currentWeightKg : null);
   const summary = foodLogs.data?.summary;
   const targets = foodLogs.data?.targets || DEFAULT_TARGETS;
 
-  // Haftanın gününe göre günün şablonunu belirle (1: Pazartesi ... 7: Pazar)
-  const currentDayOfWeek = new Date().getDay() || 7;
-  const todayTemplate = workouts.data?.templates.find((t) => t.dayOfWeek === currentDayOfWeek);
-  const isWorkoutCompleted = !!workouts.data?.sessions.some((s) => s.date === todayStr && s.completed);
   // F51: kaydedilmiş bugünkü durumdan hazır olma.
   const readiness = progress.data ? computeReadiness(progress.data.today) : null;
-  const step = getRhythmStep(new Date().getHours(), homeTime, !!progress.data?.today.creatineTaken);
+  const step = ramadanActive && ramadanStatus ? getRamadanRhythmStep(ramadanStatus) : getRhythmStep(new Date().getHours(), { dayPattern, homeTime });
+  const goalType = profile.data?.goalType;
+  const weightGoal =
+    profile.data?.isOnboarded && (goalType === "lose" || goalType === "gain")
+      ? weightGoalProgress({
+          startKg: profile.data.currentWeightKg,
+          targetKg: profile.data.targetWeightKg ?? null,
+          goalType,
+          rateKgPerWeek: profile.data.goalRateKgPerWeek ?? 0.5,
+          latest: progress.data?.weights.at(-1) ?? null,
+          today: todayStr,
+        })
+      : null;
+  const weightNote =
+    weightSaved.message && weightGoal
+      ? hideNumbers
+        ? "Kilo kaydedildi."
+        : weightGoal.reached
+          ? "Kilo kaydedildi. Hedefine ulaştın!"
+          : `Kilo kaydedildi. 7 günlük ortalamana göre hedefine ${formatNumberTr(weightGoal.remainingKg)} kg kaldı.`
+      : null;
 
   return (
     <div className="space-y-6">
-      <DashboardHeader homeTime={homeTime || "19:30"} onQuickAdd={() => handleOpenQuickAdd()} />
+      <DashboardHeader homeTime={homeTime} onQuickAdd={() => handleOpenQuickAdd()} />
+      {estimatedTargets && !showWizard && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-amber-200 bg-amber-50 text-amber-900">
+          <p className="text-sm">
+            <span className="font-bold">Hedeflerin tahmini.</span> Boy, kilo ve hedefini girersen kalori ve makrolar sana göre
+            hesaplanır.
+          </p>
+          <button
+            type="button"
+            onClick={() => setWizardDismissed(false)}
+            className="shrink-0 px-3.5 py-2 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700"
+          >
+            Profilini tamamla
+          </button>
+        </div>
+      )}
       <CeilingAlert alert={summary?.ceilingAlert} hideNumbers={hideNumbers} />
+      {/* B25: Ramazan'da vakit kartı en üstte */}
+      {ramadanActive && <FastingCard />}
       <RhythmStepCard step={step} onAction={handleRhythmAction} />
 
       {/* Ana Metrikler: Kalori & Makrolar */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <CalorieCard summary={summary} targets={targets} hideNumbers={hideNumbers} />
+        <CalorieCard summary={summary} targets={targets} hideNumbers={hideNumbers} estimated={estimatedTargets} />
         <MacroBalanceCard summary={summary} targets={targets} hideNumbers={hideNumbers} />
       </div>
 
+      {/* B07: kilo hedefine ilerleme (hedef kilo girildiyse) */}
+      {weightGoal && (goalType === "lose" || goalType === "gain") && (
+        <WeightGoalCard
+          progress={weightGoal}
+          goalType={goalType}
+          hideNumbers={hideNumbers}
+          note={weightNote}
+          todayWeightKg={progress.data?.today.weightKg ?? null}
+        />
+      )}
+
       {/* İkinci Sıra: Günün Antrenmanı & İyilik Hali */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <TodayWorkoutCard template={todayTemplate} isCompleted={isWorkoutCompleted} readiness={readiness} />
-        <WellbeingCard today={progress.data?.today} onSave={handleSaveWellbeing} cycleTracking={profile.data?.cycleTracking ?? false} />
+        <TodayWorkoutCard readiness={readiness} />
+        <WellbeingCard
+          today={progress.data?.today}
+          onSave={handleSaveWellbeing}
+          cycleTracking={profile.data?.cycleTracking ?? false}
+          lastWeightKg={lastWeightKg}
+        />
       </div>
 
       {/* F13: sıvı, kafein ve alkol · F15: takviyeler */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <DrinksCard date={todayStr} />
+        <DrinksCard date={todayStr} hideAlcohol={ramadanActive} />
         <SupplementsCard date={todayStr} />
       </div>
 
-      {/* F76 + F14: Ramazan vakitleri ve aralıklı oruç (açıksa) */}
-      <FastingCard />
+      {/* F76 + F14: Ramazan vakitleri ve aralıklı oruç (açıksa; Ramazan'da yukarıda) */}
+      {!ramadanActive && <FastingCard />}
 
       <TodayMealsList
         ramadan={ramadan}
@@ -215,8 +272,8 @@ export default function DashboardPage() {
         hideNumbers={hideNumbers}
         onOpenSavedMeals={() => setSavedMealsOpen(true)}
         onOpenNaturalLog={() => setNaturalLogOpen(true)}
-        onQuickFood={(item, count) =>
-          quickFood.mutate({ item, count, date: todayStr }, { onError: (e) => showError(e, "Eklenemedi.") })
+        onQuickFood={(item, count, mealType) =>
+          quickFood.mutate({ item, count, date: todayStr, mealType }, { onError: (e) => showError(e, "Eklenemedi.") })
         }
       />
 

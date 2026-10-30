@@ -33,6 +33,12 @@ export function FastingSection() {
     setForm(initial);
   }
   const [saved, setSaved] = useState(false);
+  // B34: her değişiklik hemen kaydedilir (sayı alanları alandan çıkınca).
+  function persist(next: typeof form) {
+    setForm(next);
+    setSaved(false);
+    save.mutate(next, { onSuccess: () => setSaved(true) });
+  }
   // Profil gelmeden form gösterilmez: erken yapılan seçim yüklemeyle silinmesin.
   if (!p && !profile.isError) return null;
 
@@ -44,7 +50,7 @@ export function FastingSection() {
       </div>
 
       <label className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-        <input type="checkbox" checked={form.ramadanMode} onChange={(e) => setForm({ ...form, ramadanMode: e.target.checked })} aria-label="Ramazan modu" />
+        <input type="checkbox" checked={form.ramadanMode} onChange={(e) => persist({ ...form, ramadanMode: e.target.checked })} aria-label="Ramazan modu" />
         Ramazan modu
         <span className="font-normal text-xs text-slate-500">(imsak/iftar geri sayımı, sahur ve iftar öğünleri, oruç saatlerinde su hatırlatması yok)</span>
       </label>
@@ -54,7 +60,7 @@ export function FastingSection() {
             <label htmlFor="fast-province" className={LABEL}>
               İl
             </label>
-            <select id="fast-province" value={form.ramadanProvince} onChange={(e) => setForm({ ...form, ramadanProvince: e.target.value })} className={INPUT}>
+            <select id="fast-province" value={form.ramadanProvince} onChange={(e) => persist({ ...form, ramadanProvince: e.target.value })} className={INPUT}>
               {PROVINCES.map((pr) => (
                 <option key={pr.name} value={pr.name}>
                   {pr.name}
@@ -66,13 +72,13 @@ export function FastingSection() {
             <label htmlFor="fast-imsak" className={LABEL}>
               İmsak düzeltmesi (dk)
             </label>
-            <input id="fast-imsak" type="number" min={-30} max={30} value={form.ramadanImsakAdjust} onChange={(e) => setForm({ ...form, ramadanImsakAdjust: int(e.target.value) })} className={INPUT} />
+            <input id="fast-imsak" type="number" min={-30} max={30} value={form.ramadanImsakAdjust} onChange={(e) => setForm({ ...form, ramadanImsakAdjust: int(e.target.value) })} onBlur={() => persist(form)} className={INPUT} />
           </div>
           <div>
             <label htmlFor="fast-iftar" className={LABEL}>
               İftar düzeltmesi (dk)
             </label>
-            <input id="fast-iftar" type="number" min={-30} max={30} value={form.ramadanIftarAdjust} onChange={(e) => setForm({ ...form, ramadanIftarAdjust: int(e.target.value) })} className={INPUT} />
+            <input id="fast-iftar" type="number" min={-30} max={30} value={form.ramadanIftarAdjust} onChange={(e) => setForm({ ...form, ramadanIftarAdjust: int(e.target.value) })} onBlur={() => persist(form)} className={INPUT} />
           </div>
           <p className="sm:col-span-3 text-[11px] text-slate-500">
             Vakitler il merkezine göre internetsiz hesaplanır. İlçende Diyanet takviminden farklıysa dakika düzeltmesi gir.
@@ -84,7 +90,7 @@ export function FastingSection() {
         <input
           type="checkbox"
           checked={form.fastingTargetHours !== null}
-          onChange={(e) => setForm({ ...form, fastingTargetHours: e.target.checked ? 16 : null })}
+          onChange={(e) => persist({ ...form, fastingTargetHours: e.target.checked ? 16 : null })}
           aria-label="Aralıklı oruç zamanlayıcısı"
         />
         Aralıklı oruç zamanlayıcısı
@@ -94,7 +100,7 @@ export function FastingSection() {
           <label htmlFor="fast-target" className={LABEL}>
             Hedef süre
           </label>
-          <select id="fast-target" value={form.fastingTargetHours} onChange={(e) => setForm({ ...form, fastingTargetHours: Number(e.target.value) })} className={INPUT}>
+          <select id="fast-target" value={form.fastingTargetHours} onChange={(e) => persist({ ...form, fastingTargetHours: Number(e.target.value) })} className={INPUT}>
             {TARGET_HOURS.map((h) => (
               <option key={h} value={h}>
                 {h} saat ({h}:{24 - h})
@@ -104,17 +110,11 @@ export function FastingSection() {
         </div>
       )}
 
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          disabled={save.isPending}
-          onClick={() => save.mutate(form, { onSuccess: () => setSaved(true) })}
-          className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold disabled:opacity-50"
-        >
-          Oruç ayarlarını kaydet
-        </button>
-        {saved && !save.isPending && <span className="text-xs text-emerald-700">Kaydedildi ✓</span>}
-      </div>
+      {(save.isPending || saved) && (
+        <p role="status" className="text-xs text-emerald-700">
+          {save.isPending ? "Kaydediliyor..." : "Kaydedildi ✓"}
+        </p>
+      )}
       {save.isError && (
         <p role="alert" className="text-xs text-rose-700">
           {errorMessage(save.error, "Kaydedilemedi.")}

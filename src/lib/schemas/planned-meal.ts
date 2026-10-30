@@ -24,6 +24,8 @@ export const PlannedMealUpdateSchema = z.object({
   recipeId: z.string().min(1).optional().nullable(),
   customName: z.string().trim().min(1).max(120).optional().nullable(),
   servings: servings.optional(),
+  /** Recheck: "Yedim" ile günlüğe yazıldı (true) ya da işaret kaldırıldı (false). */
+  logged: z.boolean().optional(),
 });
 
 /** F30: POST /api/meal-plans/meals/copy */

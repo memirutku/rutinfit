@@ -4,6 +4,9 @@ import { Bookmark, PenLine, Plus, Trash2, Utensils } from "lucide-react";
 import type { FoodLog } from "@/lib/schemas/food";
 import { formatNumberTr } from "@/lib/format";
 import type { QuickFoodId } from "@/lib/quick-foods";
+import type { MealType } from "@/lib/schemas/enums";
+import { MealBadgeMenu } from "@/components/foods/MealBadgeMenu";
+import { QuickFoodChips } from "@/components/foods/QuickFoodChips";
 
 /** Ana paneldeki kısa öğün etiketleri (Hızlı Ekle penceresindeki uzun adlardan farklıdır). */
 export function dashboardMealLabel(mealType: string, ramadan = false): string {
@@ -16,7 +19,7 @@ export function dashboardMealLabel(mealType: string, ramadan = false): string {
     case "lunch":
       return "Öğle Yemeği";
     case "workSnack":
-      return "İş Çıkışı";
+      return "İkindi";
     case "dinner":
       return "Akşam Yemeği";
     default:
@@ -33,20 +36,14 @@ interface TodayMealsListProps {
   onOpenSavedMeals?: () => void;
   /** F06: yazarak öğün ekleme penceresi. */
   onOpenNaturalLog?: () => void;
-  /** F79: Türk sofrası hızlı ekleme (simit, ekmek dilimi). */
-  onQuickFood?: (item: QuickFoodId, count: number) => void;
+  /** F79: Türk sofrası hızlı ekleme (simit, ekmek dilimi). B13: öğün saate göre ya da sorularak seçilir. */
+  onQuickFood?: (item: QuickFoodId, count: number, mealType: MealType) => void;
   onDelete: (log: FoodLog) => void;
   /** F76: Ramazan modunda sahur/iftar etiketleri. */
   ramadan?: boolean;
 }
 
 /** Bugün Kaydedilen Öğünler ve Hızlı Yönetim */
-const QUICK_CHIPS: Array<{ label: string; item: QuickFoodId; count: number }> = [
-  { label: "+ Simit", item: "simit", count: 1 },
-  { label: "+ 1 dilim ekmek", item: "ekmek-dilimi", count: 1 },
-  { label: "+ 2 dilim ekmek", item: "ekmek-dilimi", count: 2 },
-];
-
 export function TodayMealsList({ logs, onAdd, onDelete, hideNumbers = false, onOpenSavedMeals, onQuickFood, onOpenNaturalLog, ramadan = false }: TodayMealsListProps) {
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -93,21 +90,7 @@ export function TodayMealsList({ logs, onAdd, onDelete, hideNumbers = false, onO
         </div>
       </div>
 
-      {onQuickFood && (
-        <div className="flex flex-wrap items-center gap-1.5 mb-4">
-          <span className="text-[11px] font-bold text-slate-400 uppercase">Hızlı</span>
-          {QUICK_CHIPS.map((c) => (
-            <button
-              key={c.label}
-              type="button"
-              onClick={() => onQuickFood(c.item, c.count)}
-              className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:border-emerald-400 hover:text-emerald-700"
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {onQuickFood && <QuickFoodChips onQuickFood={onQuickFood} ramadan={ramadan} />}
 
       {logs.length === 0 ? (
         <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
@@ -125,17 +108,18 @@ export function TodayMealsList({ logs, onAdd, onDelete, hideNumbers = false, onO
               className="py-3 flex items-center justify-between gap-3 group hover:bg-slate-50/50 px-2 rounded-xl transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 shrink-0">
-                  {dashboardMealLabel(log.mealType, ramadan)}
-                </span>
+                {/* B13: rozete dokunarak öğün değiştirilir. */}
+                <MealBadgeMenu log={log} label={dashboardMealLabel(log.mealType, ramadan)} ramadan={ramadan} />
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-800 truncate">{log.name}</p>
                   <p className="text-xs text-slate-400">
+                    {/* B09: kaloriyle girilen serbest kayıtta gram bilinmez (0); gösterilmez. */}
                     {hideNumbers ? (
-                      `${formatNumberTr(log.grams)}g`
+                      log.grams > 0 ? `${formatNumberTr(log.grams)}g` : ""
                     ) : (
                       <>
-                        {formatNumberTr(log.grams)}g · {formatNumberTr(log.caloriesSnapshot)} kcal · P: {formatNumberTr(log.proteinSnapshot)}g · K:{" "}
+                        {log.grams > 0 && `${formatNumberTr(log.grams)}g · `}
+                        {formatNumberTr(log.caloriesSnapshot)} kcal · P: {formatNumberTr(log.proteinSnapshot)}g · K:{" "}
                         {formatNumberTr(log.carbsSnapshot)}g · Y: {formatNumberTr(log.fatSnapshot)}g
                       </>
                     )}

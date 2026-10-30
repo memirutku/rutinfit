@@ -63,6 +63,12 @@ async function seedRichData() {
   await prisma.cardioLog.create({ data: { date: "2026-10-19", kind: "run", durationMin: 30, distanceKm: 5, avgHr: 150, kcal: 380 } });
   // F15: takviye listesi ve birimli günlük kayıt.
   await prisma.supplement.create({ data: { name: "D Vitamini", doseAmount: 1000, doseUnit: "IU", notes: "Kahvaltıyla" } });
+  // B12: doz başına besin değeri ve günlüğe yazılan öğün bağlantısı
+  const wheyLog = await prisma.foodLog.create({
+    data: { date: "2026-10-19", time: "09:00", mealType: "breakfast", name: "Whey (30 g)", grams: 30, caloriesSnapshot: 120, proteinSnapshot: 24, carbsSnapshot: 0, fatSnapshot: 0 },
+  });
+  await prisma.supplement.create({ data: { name: "Whey", doseAmount: 30, doseUnit: "g", caloriesPerDose: 120, proteinPerDose: 24 } });
+  await prisma.supplementLog.create({ data: { date: "2026-10-19", name: "Whey", doseGrams: 30, doseUnit: "g", foodLogId: wheyLog.id } });
   await prisma.supplementLog.create({ data: { date: "2026-10-19", name: "D Vitamini", doseGrams: 1000, doseUnit: "IU" } });
   // F83: hatırlatma.
   await prisma.reminder.create({ data: { kind: "water", title: "Su iç", time: "10:00", days: "12345", lastFiredOn: "2026-10-19" } });
@@ -139,7 +145,7 @@ describe("Yedek v2 — tam kapsam", () => {
     const backup = (await callRoute(exportBackup)).json;
     await callRoute(importBackup, { body: backup });
     await callRoute(importBackup, { body: backup });
-    expect(await prisma.foodLog.count()).toBe(2); // öğün + biranın kalori kaydı
+    expect(await prisma.foodLog.count()).toBe(3); // öğün + biranın kalori kaydı + whey (B12)
     expect(await prisma.drinkLog.count()).toBe(2);
     expect(await prisma.setLog.count()).toBe(1);
     expect(await prisma.aIMessage.count()).toBe(2);

@@ -26,7 +26,8 @@ test.describe("Dalga 1", () => {
   });
 
   test("F67 + F60: şeffaflık paneli görünür; CSV dosyası iner", async ({ page }) => {
-    await page.goto("/settings");
+    // B34: şeffaflık paneli Gelişmiş altında katlı durur; adres onu doğrudan açar.
+    await page.goto("/settings#seffaflik");
     await expect(page.getByRole("heading", { name: /Hesap yok, bulut yok/ })).toBeVisible();
     const download = page.waitForEvent("download");
     await page.getByRole("button", { name: "Kilo ve bel ölçüsü (CSV)" }).click();

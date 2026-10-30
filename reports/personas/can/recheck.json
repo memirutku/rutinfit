@@ -1,0 +1,131 @@
+{
+  "persona": "can",
+  "findings": [
+    {
+      "id": "B01",
+      "status": "kapandı",
+      "step": 6,
+      "screenshot": "06-koctan-aksam-yemegi-onerisi.png",
+      "evidence": "Temiz kurulumda katalog artık dolu: tanılama (adım 3) Besinler 43, Tarifler 16, Tarif malzemeleri 86 gösteriyor; panoda Simit/ekmek hızlı çipleri var ve koçun önerisinde Bulgur katalogdan bulunup 0 kcal yerine 204 kcal hesaplandı. Kalan pürüz: Somon katalogda yok, öğün plana somonsuz 204 kcal ile giriyor (model tahmini 600 kcal kullanılmıyor)."
+    },
+    {
+      "id": "B02",
+      "status": "kapandı",
+      "step": 2,
+      "screenshot": "02-varsayilan-panoyu-inceler.png",
+      "evidence": "Sihirbaz atlanınca pano nötr değerlerle (2000 kcal, 100 g protein) 'Tahmini hedef' rozeti ve kalıcı 'Hedeflerin tahmini… Profilini tamamla' şeridiyle açılıyor; 'iş çıkışı / eve varış 19:30' bandı, kreatin kartı ve 'Örn: 112,0' yok (yerine 'Örn: 70,5', takviye listesi boş). Ayarlar'daki profil alanları (170 cm / 30 / 70 kg) ise 'tahmini' işareti olmadan dolu görünüyor."
+    },
+    {
+      "id": "B03",
+      "status": "kapandı",
+      "step": 5,
+      "screenshot": "05-koca-gecmisini-sorar.png",
+      "evidence": "Koçun karşılaması 'Hedefine (tahmini: günlük 2.000 kcal, 100 g protein; profilini tamamlayınca kişiselleşir)' diyor, hazır soru da 'günlük 2.000 kcal hedefime' oldu; sabit '2.080 kcal' metni Can'ın yolunda hiçbir yerde görünmüyor."
+    },
+    {
+      "id": "B04",
+      "status": "kapandı",
+      "step": 2,
+      "screenshot": "02-varsayilan-panoyu-inceler.png",
+      "evidence": "Panoda enerji '— / 5', uyku alanı boş ('Örn: 7,5' yer tutucu) ve 'Hazır olma' skoru yok; İlerleme'de (adım 10–11) 'Haftalık kilo farkı —  İki haftalık tartı olunca görünür' ve 'Ortalama enerji — / 5' yazıyor. Kayıt tarafı bu koşuda sınanmadı ama önceden dolu değer kalmadı."
+    },
+    {
+      "id": "B27",
+      "status": "kapandı",
+      "step": 5,
+      "screenshot": "05-koca-gecmisini-sorar.png",
+      "evidence": "Koç sayfası artık 1360 px genişlikte (önce 1536 px); başlık, yanıt ve 'Kaynak kayıtlar' kartı kenar çubuğunun altında kalmıyor, hazır soru şeridi kendi içinde yatay kayıyor. Adım 6'da da aynı."
+    },
+    {
+      "id": "B29",
+      "status": "kapandı",
+      "step": 6,
+      "screenshot": "06-koctan-aksam-yemegi-onerisi.png",
+      "evidence": "Balonda ham JSON yok, onaydan sonra rozet 'Onaylandı'; 'Hesaplandı' yerine 'Eksik malzeme' rozeti, '(eksik malzemeler hariç)' notu ve 'Eksikleri kataloğa ekle' bağlantısı var. Küçük artık: balonda yalnız 'Öneri:' kalıyor ve model tahminini kullanma seçeneği sunulmuyor."
+    },
+    {
+      "id": "B30",
+      "status": "kapandı",
+      "step": 4,
+      "screenshot": "04-lm-studio-yu-baglar.png",
+      "evidence": "Mesaj 'Bağlantı başarılı ve kaydedildi. Kullanılan model: mock-llama. 1 model algılandı.' diyor; algılanan modeller 'seçince test edilip kaydedilir' notuyla tıklanabilir çip olarak geliyor, başlıkta 'Bağlı · mock-llama' rozeti var."
+    },
+    {
+      "id": "B31",
+      "status": "kapandı",
+      "step": 5,
+      "screenshot": "05-koca-gecmisini-sorar.png",
+      "evidence": "Kart artık 'Koşu · Bu hafta' başlığıyla '4 koşu · 120 dk · 21 km' diyor ve 'Kayıtlarından hesaplandı' etiketi taşıyor. Not: bu koşudaki tohum veride yalnız koşu kaydı olduğundan yürüyüş/bisikletin dışarıda tutulması ekranda ayrıca sınanmış değil."
+    },
+    {
+      "id": "B35",
+      "status": "kapandı",
+      "step": 10,
+      "screenshot": "10-apple-saglik-verisini-ice-aktarir.png",
+      "evidence": "Dosya alanları Türkçe düğmeli ('Dosya seç', 'Fotoğraf seç', 'Yedek dosyası seç (JSON)'); kenar çubuğu 'Yerel çalışıyor', koç alt başlığı 'Ollama / LM Studio ile bu bilgisayarda çalışır… senin onayınla uygulanır' oldu. Dar ekran taşmaları Can'ın 1366 px yolunda sınanmıyor."
+    },
+    {
+      "id": "B36",
+      "status": "kapandı",
+      "step": 8,
+      "screenshot": "08-otomatik-yedek-kurar.png",
+      "evidence": "Mesajlar '(İndirilenler klasörü)' diyor, 'Finder'da göster' ve 'Yolu kopyala' düğmeleri var; uygulama klasörüne kopya açıkça yazılıyor ve Gelişmiş › Yedek ayrıntıları'ndan kapatılabiliyor; 'Klasör seç…' penceresi eklenmiş; dosya adı yerel saatte (20-35-43 ↔ 'Son yedek 20:35'). Elle ve otomatik yedek adları hâlâ farklı ('rutinfit-backup-' / 'rutinfit-otomatik-yedek-')."
+    },
+    {
+      "id": "B37",
+      "status": "kapandı",
+      "step": 10,
+      "screenshot": "10-apple-saglik-verisini-ice-aktarir.png",
+      "evidence": "Sonucun altında 'Çift sayım önlemi — Adım: 14 günde birden çok kaynak vardı; aynı gün için yalnız yüksek kaynak alındı (Can's Apple Watch)' kutusu ve açılabilir 'Kaynak dökümü' var; 6.700 ortalaması Watch değerleriyle tutarlı."
+    },
+    {
+      "id": "B38",
+      "status": "kapandı",
+      "step": 12,
+      "screenshot": "12-tanilama-bolumu.png",
+      "evidence": "Tanılama sürümü (RutinFit 0.1.0, Node, RAM), 'Son güncelleme … 30 sn'de bir yenilenir' satırını, veritabanı/yedek/otomatik yedek/dışa aktarma/yükleme/günlük dosyası tam yollarını Finder ve kopyala düğmeleriyle, iki yedek klasörünün sayısını ve kardiyo, Apple Sağlık, koç tabloları dâhil tüm kayıt sayılarını gösteriyor; 'Tanılamayı kopyala' düğmesi var."
+    },
+    {
+      "id": "B39",
+      "status": "kapandı",
+      "step": 3,
+      "screenshot": "03-seffaflik-tablosu.png",
+      "evidence": "Sunucu yokken başlıkta kırmızı 'Ulaşılamıyor' rozeti ve 'Yerel model sunucusu yanıt vermiyor (port 11434); ağa açık olup olmadığı kontrol yapılmadı… Yeniden kontrol et' satırı çıkıyor, yeşil onay ancak LM Studio bağlanınca (adım 4, port 3300) geliyor. Yerel ve OpenAI satırları aynı veri listesini veriyor; yedek satırı ve otomatik yedek bölümü yedeğin şifresiz olduğunu ve iCloud seçilirse Apple'a gideceğini yazıyor."
+    }
+  ],
+  "newIssues": [
+    {
+      "title": "Otomatik yedek anahtarı tek tıkla Belgeler klasörünü seçip kaydediyor",
+      "severity": "orta",
+      "step": 8,
+      "screenshot": "08-otomatik-yedek-kurar.png",
+      "observed": "Adım 7'de klasör alanı boş ve 'Önerilen: /Users/memir/Documents/RutinFit Yedekleri (henüz seçilmedi)' yazıyor. Yalnız 'Otomatik yedek açık' işaretlenince alan bu yolla doluyor ve hemen 'Kaydedildi ✓' çıkıyor; klasör onayı istenmiyor. Aynı bölüm 'yedek şifrelenmez' ve 'Belgeler iCloud ile eşitleniyorsa önerilen klasör de iCloud'a gider' diyor, ama uygulama Belgeler'in eşitlenip eşitlenmediğini söylemiyor. Dokununca kaydetme değişikliğiyle eski 'Otomatik yedeği kaydet' onay adımı da kalktı.",
+      "suggestion": "Klasör seçilmemişken anahtar açılınca önce 'Klasör seç…' penceresini aç ya da 'Önerilen klasörü kullan' onayı iste; klasör onaylanmadan ayarı kaydetme ve yedek yazma. Belgeler/Masaüstü iCloud eşitlemesi açıksa bunu algılayıp önerilen yolun yanında açık bir uyarı göster ya da yerel, eşitlenmeyen bir klasör öner."
+    },
+    {
+      "title": "Tanılamada onaylanmış koç önerisi 'onay bekleyen' sayılıyor",
+      "severity": "düşük",
+      "step": 12,
+      "screenshot": "12-tanilama-bolumu.png",
+      "observed": "Adım 6'da öneri 'Onaylandı' ve 'Plana Eklendi ✓' olduğu hâlde tanılamadaki 'Koç önerileri (onay bekleyen)' satırı 1 diyor. Sayı tablodaki tüm öneri satırlarını sayıyor, etiket ise yalnız bekleyenleri söylüyor. Doğrulamak için bu ekrana bakan bir sistem yöneticisi onayın kaydedilmediğini düşünebilir.",
+      "suggestion": "Satırı ya yalnız durumu bekleyen önerileri sayacak şekilde süz ya da etiketi 'Koç önerileri' yapıp yanında 'x bekleyen · y onaylı' dökümü ver."
+    },
+    {
+      "title": "Şeffaflık tablosunun 'Nereye' sütununda kelimeler ve IP adresi ortadan bölünüyor",
+      "severity": "düşük",
+      "step": 3,
+      "screenshot": "03-seffaflik-tablosu.png",
+      "observed": "Tablo Gelişmiş kartının içine taşınınca 'Nereye' sütunu daraldı. Eş aralıklı metin harf harf kırılıyor: 'bilgisayard / aki model sunu / cusu (127.0.0. / 1)' ve '(iCloud Driv / e seçiliyse Ap / ple)'. Önceki sürümde aynı sütun 'Dışarı çıkmaz (127.0.0.1)' olarak düzgün okunuyordu. Can için tablonun en önemli sütunu bu.",
+      "suggestion": "Sütuna en az genişlik ver ya da 'Ne gider' sütununu daralt; kelime içinden bölmeyi (break-all) kaldırıp normal kelime sarmaya dön, IP:port ve alan adlarını bölünmeyen birim olarak göster. Dar kapta 'Nereye' bilgisini satırın altına taşı."
+    },
+    {
+      "title": "Apple Sağlık verisi silindikten sonra dosya seçicide 'export.zip' adı kalıyor",
+      "severity": "düşük",
+      "step": 11,
+      "screenshot": "11-apple-saglik-verisini-kaldirir.png",
+      "observed": "Kaldırma onaylanınca kart 'Henüz Apple Sağlık verisi yok' diyor, ama yeni Türkçe 'Dosya seç' düğmesinin yanında hâlâ 'export.zip' yazıyor. Eski sürümde alan 'no file selected' durumuna dönüyordu. Silmeyi doğrulamak isteyen kullanıcıya dosya hâlâ yüklüymüş izlenimi veriyor; kaç kaydın silindiğini söyleyen bir onay da yok.",
+      "suggestion": "Kaldırmadan sonra dosya girişini ve etiketini 'Dosya seçilmedi' durumuna sıfırla; '15 kayıt kaldırıldı' gibi kısa bir onay satırı göster."
+    }
+  ],
+  "summary": "Bu sürüm bir sistem yöneticisi olarak beni ikna ediyor: sihirbazı atlayınca artık başkasının profili değil açıkça 'tahmini' işaretli nötr hedefler var, koç sayfası taşmıyor, şeffaflık tablosu sunucu yokken yeşil onay vermiyor ve yedeğin şifresiz olduğunu, iCloud'a gidebileceğini dürüstçe söylüyor. Dosya yolları, Finder düğmeleri, tam tanılama ve çift sayım açıklaması tam aradığım türden kanıtlar. Yine de otomatik yedek anahtarı tek tıkla Belgeler klasörünü onaysız seçip kaydediyor; tanılamadaki 'onay bekleyen' sayısı da onayladığım öneriyle çelişiyor. Somonsuz 204 kcal'lik akşam yemeği de plana eksik giriyor."
+}

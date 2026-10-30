@@ -11,6 +11,8 @@ const UpdateSchema = z
     folderPath: z.string().max(1000).nullable().optional(),
     frequency: z.enum(["daily", "weekly"]).optional(),
     keepCount: z.number().int().min(1).max(100).optional(),
+    /** B36: dışa aktarma kopyası. */
+    exportCopies: z.boolean().optional(),
   })
   .strict();
 
@@ -23,6 +25,7 @@ const view = (s: Awaited<ReturnType<typeof getAutoBackupSettings>>) => ({
   lastStatus: s.lastStatus,
   lastMessage: s.lastMessage,
   lastFile: s.lastFile,
+  exportCopies: s.exportCopies,
   suggestedFolder: suggestedBackupFolder(),
 });
 

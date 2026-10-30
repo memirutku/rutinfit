@@ -347,10 +347,11 @@ export async function verifyAndApplyActionDraft(
             where: { date: targetDate },
             create: {
               date: targetDate,
-              energy1to5: Number(energy1to5) || 3,
-              hunger1to5: Number(hunger1to5) || 3,
-              sleepMinutes: Number(sleepMinutes) || 420,
-              stress1to5: Number(stress1to5) || 3,
+              // B04: önerilmeyen alan boş kalır.
+              energy1to5: energy1to5 !== undefined ? Number(energy1to5) : null,
+              hunger1to5: hunger1to5 !== undefined ? Number(hunger1to5) : null,
+              sleepMinutes: sleepMinutes !== undefined ? Number(sleepMinutes) : null,
+              stress1to5: stress1to5 !== undefined ? Number(stress1to5) : null,
               notes,
             },
             update: {

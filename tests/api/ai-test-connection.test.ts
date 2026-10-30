@@ -26,6 +26,10 @@ describe("POST /api/ai/test-connection", () => {
     expect(res.status).toBe(200);
     expect(res.json.success).toBe(true);
     expect(res.json.models).toEqual(["llama3.2", "qwen2.5"]);
+    // B30: kaydedildiği açıkça söylenir.
+    expect(res.json).toMatchObject({ saved: true, modelName: "qwen2.5" });
+    expect(res.json.message).toMatch(/^Bağlantı başarılı ve kaydedildi/);
+    expect(res.json.message).toMatch(/qwen2\.5/);
 
     const saved = await prisma.aISettings.findUnique({ where: { id: "default-ai" } });
     expect(saved).toMatchObject({ baseUrl: llm.baseUrl, modelName: "qwen2.5", connectionStatus: "connected" });
@@ -51,6 +55,8 @@ describe("POST /api/ai/test-connection", () => {
       body: { providerType: "ollama", baseUrl: "http://127.0.0.1:9/v1" }, // kapalı port
     });
     expect(res.json.success).toBe(false);
+    expect(res.json.saved).toBe(false);
+    expect(res.json.message).toMatch(/Ayar kaydedilmedi/);
 
     const saved = await prisma.aISettings.findUnique({ where: { id: "default-ai" } });
     expect(saved).toMatchObject({ providerType: "lmstudio", baseUrl: llm.baseUrl, modelName: "qwen2.5" });
@@ -61,5 +67,18 @@ describe("POST /api/ai/test-connection", () => {
     await callRoute(POST, { body: { providerType: "openai", baseUrl: llm.baseUrl } });
     const sent = llm.requests.find((r) => r.path.endsWith("/models"));
     expect(sent?.headers.authorization).toBeUndefined();
+  });
+
+  it("B30: model adı boşsa ilk algılanan model kaydedilir ve söylenir", async () => {
+    const res = await callRoute(POST, { body: { providerType: "lmstudio", baseUrl: llm.baseUrl, modelName: "" } });
+    expect(res.json).toMatchObject({ success: true, saved: true, modelName: "llama3.2" });
+    expect(res.json.message).toMatch(/Kullanılan model: llama3\.2/);
+  });
+
+  it("B30: yazılan model sunucuda yoksa bağlantı kaydedilir ama model uyarısı verilir", async () => {
+    const res = await callRoute(POST, { body: { providerType: "ollama", baseUrl: llm.baseUrl, modelName: "mistral" } });
+    expect(res.json).toMatchObject({ success: true, saved: true, modelName: "mistral" });
+    expect(res.json.message).toMatch(/"mistral" modeli bu sunucuda yok/);
+    expect(res.json.message).toMatch(/algılanan modellerden birini seç/i);
   });
 });

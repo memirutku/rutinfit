@@ -13,6 +13,15 @@ export async function register() {
     console.error("[migrate] Veritabanı şeması güncellenemedi:", error);
     throw error;
   }
+  // B01: ilk açılışta başlangıç kataloğu (bir kez). Hata uygulamayı durdurmaz; kullanıcı
+  // boş katalogda "Başlangıç kataloğunu yükle" düğmesini görür.
+  try {
+    const { ensureStarterCatalog } = await import("./lib/services/starter-catalog");
+    const r = await ensureStarterCatalog();
+    if (r.installed) console.log(`[catalog] Başlangıç kataloğu kuruldu: ${r.foodsCreated} besin, ${r.recipesCreated} tarif.`);
+  } catch (error) {
+    console.error("[catalog] Başlangıç kataloğu kurulamadı:", error);
+  }
   // F61: zamanı gelen otomatik yedekler sunucu açıkken alınır.
   const { startAutoBackupScheduler } = await import("./lib/services/auto-backup");
   startAutoBackupScheduler();

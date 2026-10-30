@@ -12,7 +12,7 @@ import {
   useSavedMeals,
 } from "@/lib/client/queries/saved-meals";
 import { addDaysToDateString } from "@/lib/date-utils";
-import { formatDateTr } from "@/lib/format";
+import { formatDateTr, formatNumberTr } from "@/lib/format";
 import { MEAL_TYPES, MEAL_TYPE_LABELS, type MealType } from "@/lib/schemas/enums";
 import type { FoodLog } from "@/lib/schemas/food";
 import type { SavedMealSummary } from "@/lib/schemas/saved-meals";
@@ -39,7 +39,7 @@ function SavedMealRow({ meal, date, hideNumbers, onDone }: { meal: SavedMealSumm
         <div>
           <p className="text-sm font-bold text-slate-900">{meal.name}</p>
           <p className="text-xs text-slate-500">
-            {meal.itemCount} kalem{hideNumbers ? "" : ` · ${meal.totalCalories} kcal`} · {meal.items.map((i) => i.name).join(", ")}
+            {meal.itemCount} kalem{hideNumbers ? "" : ` · ${formatNumberTr(meal.totalCalories)} kcal`} · {meal.items.map((i) => i.name).join(", ")}
           </p>
         </div>
         <button

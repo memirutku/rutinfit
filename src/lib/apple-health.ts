@@ -91,6 +91,33 @@ function toMin(v: number, unit: string | undefined) {
   return unit === "s" ? v / 60 : unit === "hr" || unit === "h" ? v * 60 : v;
 }
 
+/** B37: çift sayım önleminin dökümü (yalnız içe aktarma sırasında, tarayıcıda hesaplanır). */
+export interface SourceUsage {
+  source: string;
+  /** Bu kaynağın veri verdiği gün sayısı. */
+  days: number;
+  /** Bu kaynağın en yüksek toplamla seçildiği gün sayısı. */
+  chosenDays: number;
+}
+
+export interface MetricBreakdown {
+  type: "steps" | "active_kcal";
+  /** Verinin geldiği gün sayısı. */
+  days: number;
+  /** Birden çok kaynağın aynı günü saydığı gün sayısı. */
+  overlapDays: number;
+  /** Çakışan günlerde en çok seçilen kaynak (çakışma yoksa null). */
+  overlapWinner: string | null;
+  overlapWinnerDays: number;
+  sources: SourceUsage[];
+}
+
+export interface SourceBreakdown {
+  metrics: MetricBreakdown[];
+  /** Başka kaynaktan gelen ve bir kez sayılan antrenman kopyaları. */
+  duplicateWorkouts: number;
+}
+
 interface OpenWorkout {
   start: string;
   activityKey: string;
@@ -108,6 +135,7 @@ export class HealthAggregator {
   private workouts = new Map<string, HealthRecordInput>();
   private open: OpenWorkout | null = null;
   readonly stats = { lines: 0, records: 0, skipped: 0, workouts: 0 };
+  private duplicateWorkouts = 0;
 
   push(rawLine: string) {
     this.stats.lines++;
@@ -174,7 +202,10 @@ export class HealthAggregator {
     const date = w.start.slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !(w.durationMin > 0)) return;
     const key = `workout:${w.start}:${w.activityKey}`;
-    if (this.workouts.has(key)) return; // başka kaynaktan aynı antrenman
+    if (this.workouts.has(key)) {
+      this.duplicateWorkouts++; // başka kaynaktan aynı antrenman
+      return;
+    }
     this.stats.workouts++;
     const durationMin = r2(w.durationMin);
     this.workouts.set(key, {
@@ -211,6 +242,49 @@ export class HealthAggregator {
     for (const [date, w] of this.weight) out.push({ key: `weight_kg:${date}`, type: "weight_kg", date, value: r2(w.value), unit: "kg", source: w.source });
     out.push(...this.workouts.values());
     return out.sort((a, b) => (a.date === b.date ? a.key.localeCompare(b.key) : a.date.localeCompare(b.date)));
+  }
+
+  /**
+   * B37: adım ve aktif enerjide her gün için hangi kaynakların veri verdiği ve hangisinin
+   * (en yüksek toplamla) alındığı. `result()` ile aynı seçim kuralı: eşitlikte ilk gelen.
+   */
+  breakdown(): SourceBreakdown {
+    const metrics = (["steps", "active_kcal"] as const).map((type): MetricBreakdown => {
+      const perDay = new Map<string, Array<{ source: string; value: number }>>();
+      for (const [k, value] of this.sums) {
+        const [t, date, source] = k.split("|");
+        if (t !== type) continue;
+        const list = perDay.get(date) ?? [];
+        list.push({ source, value });
+        perDay.set(date, list);
+      }
+      const usage = new Map<string, SourceUsage>();
+      const wins = new Map<string, number>();
+      let overlapDays = 0;
+      for (const list of perDay.values()) {
+        const best = list.reduce((a, b) => (b.value > a.value ? b : a));
+        for (const e of list) {
+          const u = usage.get(e.source) ?? { source: e.source, days: 0, chosenDays: 0 };
+          u.days++;
+          if (e === best) u.chosenDays++;
+          usage.set(e.source, u);
+        }
+        if (list.length > 1) {
+          overlapDays++;
+          wins.set(best.source, (wins.get(best.source) ?? 0) + 1);
+        }
+      }
+      const [winner] = [...wins.entries()].sort((a, b) => b[1] - a[1]);
+      return {
+        type,
+        days: perDay.size,
+        overlapDays,
+        overlapWinner: winner?.[0] ?? null,
+        overlapWinnerDays: winner?.[1] ?? 0,
+        sources: [...usage.values()].sort((a, b) => b.chosenDays - a.chosenDays || b.days - a.days),
+      };
+    });
+    return { metrics, duplicateWorkouts: this.duplicateWorkouts };
   }
 }
 
@@ -332,7 +406,7 @@ async function forEachLine(stream: ReadableStream<Uint8Array>, onLine: (line: st
 export async function readAppleHealthExport(
   file: Blob,
   onProgress?: (read: number, total: number) => void
-): Promise<{ records: HealthRecordInput[]; stats: HealthAggregator["stats"] }> {
+): Promise<{ records: HealthRecordInput[]; stats: HealthAggregator["stats"]; breakdown: SourceBreakdown }> {
   const head = new Uint8Array(await file.slice(0, 512).arrayBuffer());
   const agg = new HealthAggregator();
   let read = 0;
@@ -360,5 +434,6 @@ export async function readAppleHealthExport(
     );
     await forEachLine(counted, (l) => agg.push(l));
   }
-  return { records: agg.result(), stats: agg.stats };
+  const records = agg.result();
+  return { records, stats: agg.stats, breakdown: agg.breakdown() };
 }

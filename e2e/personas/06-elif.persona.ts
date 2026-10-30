@@ -17,23 +17,40 @@ test("Elif: dar ekran, takviye, hatırlatma, fotoğraf, döngü", async ({ page 
     await expect(page.getByRole("dialog", { name: "Hedeflerini birlikte kuralım" })).toBeVisible();
   });
   await step("Sihirbaz (dar ekran)", "Kadın, 22, 168 cm, 60 kg, orta hareketli, kilo almak", async () => {
-    await fillWizard(page, { sex: "Kadın", age: 22, height: 168, weight: 60, activity: /Orta hareketli/, goal: "Kilo al", rate: "0.25" });
+    await fillWizard(page, { sex: "Kadın", age: 22, height: 168, weight: 60, activity: /Orta hareketli/, goal: "Kilo al", rate: "0.25", dayPattern: "Okul", homeTime: "17:00" });
     await saveWizard(page);
   });
   await step("Simit ekler", "Kahvaltıda yediği simidi tek tıkla ekler", async () => {
     await page.getByRole("button", { name: "+ Simit" }).click();
+    // Dalga 6 (B13): öğün sınırına yakınsa "Hangi öğün?" sorulur; Elif kahvaltıyı seçer.
+    const ask = page.getByRole("group", { name: "Hangi öğün?" });
+    if (await ask.isVisible({ timeout: 1000 }).catch(() => false)) await ask.getByRole("button").first().click();
     await expect(page.getByText(/Simit/).first()).toBeVisible();
   });
   await step("Ayarları arar", "Takviye eklemek için alt menüde Ayarlar'ı arar", async () => {
-    await page.getByRole("link", { name: "Ayarlar" }).click({ timeout: 3000 });
+    // Dalga 6 (B32): dar ekranda Ayarlar "Daha fazla" altında.
+    const more = page.getByRole("navigation", { name: "Alt menü" }).getByRole("button", { name: "Daha fazla" });
+    if (await more.isVisible({ timeout: 1000 }).catch(() => false)) await more.click();
+    await page.getByRole("link", { name: "Ayarlar", exact: true }).first().click({ timeout: 3000 });
   });
-  await step("Ayarlara adresle gider", "Bulamayınca ayarlara başka yoldan ulaşır", async () => {
-    await page.goto(`${BASE}/settings`);
+  await step("Takviyeler bölümünü bulur", "Ayarlarda takviyeler bölümüne gelir", async () => {
+    if (!page.url().includes("/settings")) await page.goto(`${BASE}/settings`);
     await expect(page.getByRole("heading", { name: "Takviyeler" })).toBeVisible();
   });
-  await step("Whey ekler", "Takviyelere 'Whey Protein' 30 g ekler", async () => {
+  await step("Kreatin ve whey ekler", "Takviyelere kreatin (5 g) ve 'Whey Protein' 30 g (120 kcal, 24 g protein) ekler", async () => {
+    // Dalga 6 (B02): yeni kurulumda takviye listesi boştur.
+    await page.getByLabel("Takviye adı").fill("Kreatin Monohidrat");
+    await page.getByLabel("Doz", { exact: true }).fill("5");
+    await page.getByRole("button", { name: "Takviye ekle" }).click();
+    await expect(page.getByText("Kreatin Monohidrat").first()).toBeVisible();
     await page.getByLabel("Takviye adı").fill("Whey Protein");
     await page.getByLabel("Doz", { exact: true }).fill("30");
+    // Dalga 6 (B12): doz başına besin değeri girilirse "alındı" proteine sayılır.
+    const kcal = page.getByLabel("Kalori (doz başına)");
+    if (await kcal.isVisible().catch(() => false)) {
+      await kcal.fill("120");
+      await page.getByLabel("Protein (g, doz başına)").fill("24");
+    }
     await page.getByRole("button", { name: "Takviye ekle" }).click();
     await expect(page.getByText("Whey Protein").first()).toBeVisible();
   });
@@ -50,7 +67,7 @@ test("Elif: dar ekran, takviye, hatırlatma, fotoğraf, döngü", async ({ page 
     await expect(page.getByText(/başarıyla güncellendi/)).toBeVisible();
   });
   await step("Panoda takviyeleri işaretler", "Ana panelde kreatin ve whey'i aldı olarak işaretler", async () => {
-    await page.getByRole("link", { name: "Ana Panel" }).click();
+    await page.getByRole("link", { name: "Ana Panel", exact: true }).first().click();
     await page.getByRole("button", { name: /Kreatin Monohidrat/ }).click();
     await page.getByRole("button", { name: /Whey Protein/ }).click();
     await expect(page.getByRole("button", { name: /Whey Protein/ })).toHaveAttribute("aria-pressed", "true");
@@ -63,22 +80,24 @@ test("Elif: dar ekran, takviye, hatırlatma, fotoğraf, döngü", async ({ page 
     await expect(s.getByText(/Kayıt güncellendi/)).toBeVisible();
   });
   await step("İlerleme sayfasını arar", "Fotoğraf eklemek için alt menüde İlerleme'yi arar", async () => {
-    await page.getByRole("link", { name: "İlerleme" }).click({ timeout: 3000 });
+    const more = page.getByRole("navigation", { name: "Alt menü" }).getByRole("button", { name: "Daha fazla" });
+    if (await more.isVisible({ timeout: 1000 }).catch(() => false)) await more.click();
+    await page.getByRole("link", { name: "İlerleme", exact: true }).first().click({ timeout: 3000 });
   });
-  await step("İlerleme fotoğrafı ekler", "İlerleme sayfasına adresle gidip önden fotoğraf yükler", async () => {
-    await page.goto(`${BASE}/progress`);
+  await step("İlerleme fotoğrafı ekler", "İlerleme sayfasında önden fotoğraf yükler", async () => {
+    if (!page.url().includes("/progress")) await page.goto(`${BASE}/progress`);
     const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
     await page.getByLabel("Fotoğraf", { exact: true }).setInputFiles({ name: "on.png", mimeType: "image/png", buffer: png });
     await page.getByRole("button", { name: "Fotoğrafı ekle" }).click();
     await expect(page.getByRole("img", { name: /Önden/ }).first()).toBeVisible();
   });
   await step("Koça soru (dar ekran)", "Koça 'Kreatin ne zaman alınmalı?' diye sorar", async () => {
-    await page.getByRole("link", { name: "AI Koçu" }).first().click();
+    await page.getByRole("link", { name: "AI Koçu", exact: true }).first().click();
     await page.getByPlaceholder(/Sorunuzu yazın/).fill("Kreatin ne zaman alınmalı?");
     await page.getByRole("button", { name: /Gönder/ }).click({ timeout: 3000 });
   });
   await step("Antrenman sayfası (dar ekran)", "Antrenman sayfasına bakar; haftalık planı telefonda okumaya çalışır", async () => {
-    await page.getByRole("link", { name: "Antrenman" }).click();
+    await page.getByRole("link", { name: "Antrenman", exact: true }).first().click();
     await expect(page.getByRole("heading", { name: "Haftalık Antrenman Planı" })).toBeVisible();
   });
 });

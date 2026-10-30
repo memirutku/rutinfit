@@ -34,7 +34,7 @@ export function FoodsHeader({
       <div>
         <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Besin & Tarif Kütüphanesi 📖</h2>
         <p className="text-sm text-slate-500 mt-0.5">
-          Doğrulanmış 100g değerleri, Open Food Facts paketli gıda verisi ve deterministik tarif hesapları.
+          100 gramlık besin değerleri, Open Food Facts paketli ürün verisi ve malzemelerinden hesaplanan tarifler.
         </p>
       </div>
 

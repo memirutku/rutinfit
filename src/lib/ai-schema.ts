@@ -42,6 +42,33 @@ export const AIActionResponseSchema = z.discriminatedUnion("type", [
   WorkoutAdjustmentSchema,
 ]);
 
+const PROPOSAL_TYPES = new Set<string>(["meal_proposal", "workout_adjustment"]);
+const CODE_BLOCK = /```(?:json)?[^\S\n]*\n?([\s\S]*?)```/g;
+export const PROPOSAL_ONLY_TEXT = "Önerimi aşağıdaki kartta bulabilirsin.";
+
+/**
+ * B29: modelin öneri bloğu (```json … ``` ya da etiketsiz ```) sohbet metninden çıkarılır; öneri
+ * kartta gösterilir. Öneri olmayan kod blokları olduğu gibi kalır.
+ */
+export function stripActionBlocks(content: string): string {
+  let removed = false;
+  const text = content.replace(CODE_BLOCK, (block, body: string) => {
+    try {
+      const parsed = JSON.parse(body.trim());
+      if (parsed && typeof parsed === "object" && PROPOSAL_TYPES.has(parsed.type)) {
+        removed = true;
+        return "";
+      }
+    } catch {
+      // JSON değil: kod bloğu olduğu gibi kalır
+    }
+    return block;
+  });
+  if (!removed) return content;
+  const cleaned = text.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  return cleaned || PROPOSAL_ONLY_TEXT;
+}
+
 export type MealProposal = z.infer<typeof MealProposalSchema>;
 export type WorkoutAdjustment = z.infer<typeof WorkoutAdjustmentSchema>;
 export type AIActionResponse = z.infer<typeof AIActionResponseSchema>;

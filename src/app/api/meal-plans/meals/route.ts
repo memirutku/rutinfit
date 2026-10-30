@@ -24,10 +24,10 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const id = new URL(req.url).searchParams.get("id") || "";
-    const { date, ...patch } = PlannedMealUpdateSchema.parse(await req.json());
+    const { date, logged, ...patch } = PlannedMealUpdateSchema.parse(await req.json());
     if (!(await prisma.plannedMeal.findUnique({ where: { id }, select: { id: true } }))) throw new HttpError("Öğün bulunamadı.", 404);
     const mealPlanId = date ? (await planFor(date)).id : undefined;
-    const updated = await prisma.plannedMeal.update({ where: { id }, data: { ...patch, ...(mealPlanId && { mealPlanId }) } });
+    const updated = await prisma.plannedMeal.update({ where: { id }, data: { ...patch, ...(mealPlanId && { mealPlanId }), ...(logged !== undefined && { loggedAt: logged ? new Date() : null }) } });
     return NextResponse.json(updated);
   } catch (error) {
     return apiError(error, "Öğün güncellenemedi", "PlannedMeal PATCH");

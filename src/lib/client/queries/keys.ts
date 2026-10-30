@@ -6,6 +6,10 @@ export const queryKeys = {
   profile: ["profile"] as const,
   aiSettings: ["ai-settings"] as const,
   aiExposure: ["ai-exposure"] as const,
+  /** B28: model sunucusunun gerçek durumu. */
+  aiStatus: ["ai-status"] as const,
+  /** B42: model olmadan kural tabanlı öğün önerisi. */
+  mealSuggestions: ["meal-suggestions"] as const,
   progress: ["progress"] as const,
   supplements: ["supplements"] as const,
   reminders: ["reminders"] as const,
@@ -19,6 +23,12 @@ export const queryKeys = {
     list: (limit: number, sort?: "usage") => ["foods", { limit, sort }] as const,
   },
   recipes: ["recipes"] as const,
+  /** B01: katalog kurulumu (Türk paketi ve başlangıç kataloğu aynı önekte). */
+  catalog: {
+    all: ["catalog"] as const,
+    starter: ["catalog", "starter"] as const,
+    turkish: ["catalog", "turkish"] as const,
+  },
   mealPlans: {
     all: ["meal-plans"] as const,
     byDate: (date: string) => ["meal-plans", date] as const,

@@ -2,29 +2,51 @@
 
 import { AlertCircle, Check } from "lucide-react";
 import { CoachHeader } from "@/components/coach/CoachHeader";
-import { QuickPrompts } from "@/components/coach/QuickPrompts";
+import { QuickPrompts, quickPrompts } from "@/components/coach/QuickPrompts";
+import { coachTargetsFrom, welcomeMessage } from "@/components/coach/types";
+import { AIStatusBadge, ModelUnavailableNotice } from "@/components/coach/CoachStatus";
+import { useAIStatus, useMealSuggestions } from "@/lib/client/queries/coach";
+import { RuleBasedSuggestions } from "@/components/coach/RuleBasedSuggestions";
+import { isCoachUnavailable } from "@/lib/ai-status";
 import { MessageList } from "@/components/coach/MessageList";
 import { AttachmentBar, UploadStatus } from "@/components/coach/AttachmentBar";
 import { ChatComposer } from "@/components/coach/ChatComposer";
 import { useCoachChat } from "@/components/coach/useCoachChat";
 import Link from "next/link";
-import { useAISettings } from "@/lib/client/queries/system";
+import { useAISettings, useProfile } from "@/lib/client/queries/system";
 
 export default function CoachPage() {
-  const chat = useCoachChat();
+  // B03: karşılama ve hazır sorular profildeki hedefle kurulur; "sayıları gizle"ye uyar.
+  const profile = useProfile();
+  const targets = coachTargetsFrom(profile.data);
+  const hideNumbers = profile.data?.hideNumbers ?? false;
+  const chat = useCoachChat(welcomeMessage(targets, hideNumbers));
   // F58: ayar okunamazsa koç açık sayılır (sunucu yine de kapalı koçu reddeder).
   const settings = useAISettings();
   const coachDisabled = settings.data?.coachEnabled === false;
+  // B28: sayfa açılınca model sunucusu denetlenir; rozet ve uyarı satırı gerçek duruma bağlı.
+  const aiStatus = useAIStatus();
+  const modelUnavailable = isCoachUnavailable(aiStatus.data?.status);
+  // B42: model kullanılamıyorsa (ya da koç kapalıysa) yapay zekâsız öneri gösterilir.
+  const showRuleBased = coachDisabled || (!!aiStatus.data && aiStatus.data.status !== "ready");
+  const suggestions = useMealSuggestions(showRuleBased);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0">
       {/* Üst Başlık & Oturum Çubuğu */}
       <CoachHeader
         conversations={chat.conversations}
         conversationId={chat.conversationId}
         onSelect={chat.selectConversation}
         onNew={chat.startNewConversation}
+        statusBadge={<AIStatusBadge status={aiStatus.data} failed={aiStatus.isError} />}
       />
+
+      {aiStatus.data && !coachDisabled && (
+        <ModelUnavailableNotice status={aiStatus.data} onRetry={() => aiStatus.refetch()} retrying={aiStatus.isFetching} />
+      )}
+
+      {showRuleBased && <RuleBasedSuggestions data={suggestions.data} failed={suggestions.isError} hideNumbers={hideNumbers} />}
 
       {/* Bildirim Mesajları */}
       {chat.successMessage && (
@@ -52,7 +74,7 @@ export default function CoachPage() {
       )}
 
       {/* Hızlı Komut Butonları */}
-      <QuickPrompts disabled={coachDisabled || chat.loading} onSend={chat.sendMessage} />
+      <QuickPrompts prompts={quickPrompts(targets, hideNumbers)} disabled={coachDisabled || modelUnavailable || chat.loading} onSend={chat.sendMessage} />
 
       {/* Sohbet Alanı */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[70vh]">

@@ -44,6 +44,64 @@ describe("F76 + F14: oruç", () => {
     expect(screen.getByText(/2.500 ml hedefle/)).toBeTruthy();
   });
 
+  it("B26: Ramazan dışında iftar sayacı yerine Ramazan'a kalan gün görünür", async () => {
+    restore = stubFetch([
+      ["/api/fasting", () =>
+        jsonResponse({
+          ramadan: {
+            province: "İstanbul",
+            today: times("2026-10-30", "05:51", "18:09"),
+            tomorrow: times("2026-10-31", "05:52", "18:08"),
+            phase: "fasting",
+            minutesLeft: 120,
+            progressPercent: 80,
+            waterAdvice: "x",
+            period: { inRamadan: false, day: null, start: "2027-02-08", end: "2027-03-09", daysUntil: 101 },
+          },
+          timer: noTimer,
+        })],
+    ]).restore;
+    renderWithQuery(<FastingCard />);
+    expect(await screen.findByText("Ramazan'a 101 gün")).toBeTruthy();
+    expect(screen.getByText(/Başlangıç 08\.02\.2027/)).toBeTruthy();
+    expect(screen.queryByText(/İftara/)).toBeNull();
+    expect(screen.queryByRole("progressbar")).toBeNull();
+  });
+
+  it("B26: sahur ve iftar hatırlatması tek tıkla kurulur", async () => {
+    const posts: unknown[] = [];
+    let reminders: Array<{ id: string; kind: string }> = [];
+    restore = stubFetch([
+      ["/api/reminders", (_u, init) => {
+        if (init?.method === "POST") {
+          const body = JSON.parse(String(init.body));
+          posts.push(body);
+          reminders = [...reminders, { id: `r${reminders.length}`, kind: body.kind }];
+          return jsonResponse({}, 201);
+        }
+        return jsonResponse({ reminders });
+      }],
+      ["/api/fasting", () =>
+        jsonResponse({
+          ramadan: {
+            province: "Ankara",
+            today: times("2026-02-19", "06:06", "18:35"),
+            tomorrow: times("2026-02-20", "06:05", "18:36"),
+            phase: "fasting",
+            minutesLeft: 360,
+            progressPercent: 52,
+            waterAdvice: "su",
+            period: { inRamadan: true, day: 1, start: "2026-02-19", end: "2026-03-19", daysUntil: 0 },
+          },
+          timer: noTimer,
+        })],
+    ]).restore;
+    renderWithQuery(<FastingCard />);
+    fireEvent.click(await screen.findByRole("button", { name: "Sahur ve iftar hatırlatması kur" }));
+    expect(await screen.findByText(/Sahur ve iftar hatırlatmaları açık/)).toBeTruthy();
+    expect(posts).toEqual([{ kind: "sahur", offsetMinutes: 45 }, { kind: "iftar", offsetMinutes: 15 }]);
+  });
+
   it("Ramazan kapalı ve hedef yoksa kart görünmez", async () => {
     let served = false;
     restore = stubFetch([["/api/fasting", () => ((served = true), jsonResponse({ ramadan: null, timer: noTimer }))]]).restore;
@@ -76,7 +134,7 @@ describe("F76 + F14: oruç", () => {
     await waitFor(() => expect(posts).toEqual(["start", "stop"]));
   });
 
-  it("ayarlar: Ramazan modu, il, düzeltme ve oruç hedefi kaydedilir", async () => {
+  it("B34: ayarlar dokununca kaydedilir (ayrı 'Kaydet' düğmesi yok); sayı alanı alandan çıkınca", async () => {
     const puts: unknown[] = [];
     restore = stubFetch([
       ["/api/fasting/settings", (_u, init) => (puts.push(JSON.parse(String(init?.body))), jsonResponse({ ok: true }))],
@@ -84,13 +142,21 @@ describe("F76 + F14: oruç", () => {
     ]).restore;
     renderWithQuery(<FastingSection />);
     fireEvent.click(await screen.findByLabelText("Ramazan modu"));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]).toMatchObject({ ramadanMode: true });
+    expect(await screen.findByText("Kaydedildi ✓")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("İl"), { target: { value: "Konya" } });
-    fireEvent.change(screen.getByLabelText("İftar düzeltmesi (dk)"), { target: { value: "2" } });
+    await waitFor(() => expect(puts).toHaveLength(2));
+    const iftar = screen.getByLabelText("İftar düzeltmesi (dk)");
+    fireEvent.change(iftar, { target: { value: "2" } });
+    expect(puts).toHaveLength(2);
+    fireEvent.blur(iftar);
+    await waitFor(() => expect(puts).toHaveLength(3));
     fireEvent.click(screen.getByLabelText("Aralıklı oruç zamanlayıcısı"));
     fireEvent.change(screen.getByLabelText("Hedef süre"), { target: { value: "18" } });
-    fireEvent.click(screen.getByRole("button", { name: "Oruç ayarlarını kaydet" }));
-    await waitFor(() => expect(puts).toHaveLength(1));
-    expect(puts[0]).toEqual({ ramadanMode: true, ramadanProvince: "Konya", ramadanImsakAdjust: 0, ramadanIftarAdjust: 2, fastingTargetHours: 18 });
+    await waitFor(() => expect(puts).toHaveLength(5));
+    expect(puts[4]).toEqual({ ramadanMode: true, ramadanProvince: "Konya", ramadanImsakAdjust: 0, ramadanIftarAdjust: 2, fastingTargetHours: 18 });
+    expect(screen.queryByRole("button", { name: "Oruç ayarlarını kaydet" })).toBeNull();
   });
 
   it("Ramazan modunda kahvaltı Sahur, akşam yemeği İftar olarak adlandırılır", () => {

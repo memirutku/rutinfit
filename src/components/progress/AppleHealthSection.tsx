@@ -5,13 +5,75 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { HeartPulse } from "lucide-react";
 import { apiFetch, errorMessage } from "@/lib/client/api";
 import { queryKeys } from "@/lib/client/queries/keys";
-import { readAppleHealthExport } from "@/lib/apple-health";
+import { readAppleHealthExport, type SourceBreakdown } from "@/lib/apple-health";
 import { formatDateTr, formatNumberTr } from "@/lib/format";
+import { FilePicker } from "@/components/ui/FilePicker";
 import type { healthSummary } from "@/lib/services/health-import";
 
 type Summary = Awaited<ReturnType<typeof healthSummary>>;
 const KEY = [...queryKeys.progress, "apple-health"];
 const BATCH = 5000;
+const METRIC_LABEL = { steps: "Adım", active_kcal: "Aktif enerji" } as const;
+
+/** B37: çift sayım önleminin tek satırlık açıklaması (ölçü başına). */
+export function dedupLines(b: SourceBreakdown): string[] {
+  const lines: string[] = [];
+  for (const m of b.metrics) {
+    if (m.days === 0) continue;
+    const label = METRIC_LABEL[m.type];
+    if (m.overlapDays > 0 && m.overlapWinner) {
+      const mostly = m.overlapWinnerDays > 0 && m.overlapWinnerDays < m.overlapDays ? "çoğunlukla " : "";
+      lines.push(`${label}: ${formatNumberTr(m.overlapDays)} günde birden çok kaynak vardı; aynı gün için yalnız yüksek kaynak alındı (${mostly}${m.overlapWinner}).`);
+    } else if (m.sources.length === 1) {
+      lines.push(`${label}: tek kaynak (${m.sources[0].source}); birleştirme gerekmedi.`);
+    } else {
+      lines.push(`${label}: ${formatNumberTr(m.sources.length)} kaynak farklı günlerde veri verdi; çakışan gün yok.`);
+    }
+  }
+  if (b.duplicateWorkouts > 0) lines.push(`Aynı antrenmanın ${formatNumberTr(b.duplicateWorkouts)} kopyası (başka uygulamadan) bir kez sayıldı.`);
+  return lines;
+}
+
+function DedupSummary({ breakdown }: { breakdown: SourceBreakdown }) {
+  const lines = dedupLines(breakdown);
+  const rows = breakdown.metrics.flatMap((m) => m.sources.map((s) => ({ metric: METRIC_LABEL[m.type], ...s })));
+  if (!lines.length) return null;
+  return (
+    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-1.5">
+      <p className="font-bold text-slate-800">Çift sayım önlemi</p>
+      {lines.map((line) => (
+        <p key={line}>{line}</p>
+      ))}
+      {rows.length > 0 && (
+        <details className="pt-1">
+          <summary className="cursor-pointer font-semibold text-slate-700">Kaynak dökümü</summary>
+          <table className="mt-2 w-full text-left text-[11px]">
+            <caption className="sr-only">Kaynak başına gün sayıları</caption>
+            <thead>
+              <tr className="text-slate-500 border-b border-slate-200">
+                <th scope="col" className="py-1 pr-2 font-semibold">Ölçü</th>
+                <th scope="col" className="py-1 pr-2 font-semibold">Kaynak</th>
+                <th scope="col" className="py-1 pr-2 font-semibold">Veri olan gün</th>
+                <th scope="col" className="py-1 font-semibold">Alınan gün</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={`${r.metric}-${r.source}`} className="border-b border-slate-100 align-top">
+                  <td className="py-1 pr-2">{r.metric}</td>
+                  <td className="py-1 pr-2 break-words">{r.source}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap">{`${formatNumberTr(r.days)} gün`}</td>
+                  <td className="py-1 whitespace-nowrap">{`${formatNumberTr(r.chosenDays)} gün`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-1 text-slate-500">Aynı gün için telefon ve saat aynı adımları ayrı ayrı sayar; toplamı yüksek olan tek kaynak alınır, ikisi toplanmaz.</p>
+        </details>
+      )}
+    </div>
+  );
+}
 
 /**
  * F62: Apple Sağlık içe aktarma. Dosya tarayıcıda akışla okunur; sunucuya yalnız günlük özetler
@@ -22,13 +84,18 @@ export function AppleHealthSection() {
   const { data } = useQuery({ queryKey: KEY, queryFn: () => apiFetch<Summary>("/api/apple-health") });
   const [progress, setProgress] = useState<number | null>(null);
   const [result, setResult] = useState<string | null>(null);
+  const [breakdown, setBreakdown] = useState<SourceBreakdown | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Recheck (Can): veri kaldırılınca seçili dosya adı da temizlenir.
+  const [pickedName, setPickedName] = useState<string | null>(null);
   const remove = useMutation({
     mutationFn: () => apiFetch("/api/apple-health", { method: "DELETE" }),
     onSuccess: () => {
       setConfirmDelete(false);
       setResult(null);
+      setBreakdown(null);
+      setPickedName(null);
       return qc.invalidateQueries({ queryKey: KEY });
     },
   });
@@ -37,9 +104,10 @@ export function AppleHealthSection() {
     if (!file) return;
     setError(null);
     setResult(null);
+    setBreakdown(null);
     setProgress(0);
     try {
-      const { records } = await readAppleHealthExport(file, (read, total) => setProgress(total ? Math.round((read / total) * 100) : 0));
+      const { records, breakdown: sources } = await readAppleHealthExport(file, (read, total) => setProgress(total ? Math.round((read / total) * 100) : 0));
       let created = 0;
       let updated = 0;
       for (let i = 0; i < records.length; i += BATCH) {
@@ -48,6 +116,7 @@ export function AppleHealthSection() {
         updated += res.updated;
       }
       setResult(`${formatNumberTr(records.length)} kayıt içe aktarıldı (${formatNumberTr(created)} yeni, ${formatNumberTr(updated)} güncellendi).`);
+      setBreakdown(sources ?? null);
       await qc.invalidateQueries({ queryKey: KEY });
     } catch (e) {
       setError(errorMessage(e, "Dosya okunamadı."));
@@ -68,28 +137,31 @@ export function AppleHealthSection() {
         kendi kilo ve kardiyo kayıtlarına eklenmez; aynı tartı ya da antrenman iki kez sayılmaz.
       </p>
 
-      <div>
-        <label htmlFor="apple-health-file" className="block text-xs font-semibold text-slate-600 mb-1">
-          Apple Sağlık dışa aktarımı (export.zip)
-        </label>
-        <input
-          id="apple-health-file"
-          type="file"
-          accept=".zip,.xml,application/zip,text/xml"
-          disabled={progress !== null}
-          onChange={(e) => {
-            void onFile(e.target.files?.[0]);
-            e.target.value = "";
-          }}
-          className="text-xs"
-        />
-      </div>
+      <FilePicker
+        id="apple-health-file"
+        label="Apple Sağlık dışa aktarımı (export.zip)"
+        accept=".zip,.xml,application/zip,text/xml"
+        disabled={progress !== null}
+        fileName={pickedName}
+        onFile={(file) => {
+          setPickedName(file?.name ?? null);
+          void onFile(file);
+        }}
+      />
       {progress !== null && (
         <div role="progressbar" aria-label="Okunuyor" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
           <div className="h-full bg-rose-500 transition-all" style={{ width: `${progress}%` }} />
         </div>
       )}
-      {result && <p role="status" className="text-xs font-semibold text-emerald-700">{result}</p>}
+      {result && (
+        <div className="space-y-1">
+          <p role="status" className="text-xs font-semibold text-emerald-700">
+            {result}
+          </p>
+          <p className="text-[11px] text-slate-500">Her kayıt bir günün tek özetidir: o günün adım toplamı, aktif enerjisi, dinlenik nabzı, kilosu ya da bir antrenman.</p>
+        </div>
+      )}
+      {breakdown && <DedupSummary breakdown={breakdown} />}
       {error && (
         <p role="alert" className="text-xs text-rose-700">
           {error}

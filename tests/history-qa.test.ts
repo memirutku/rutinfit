@@ -43,3 +43,22 @@ describe("F50: soru tipi", () => {
     expect(detectHistoryQuery("squat rekorum", TODAY)?.range.from).toBe("2000-01-01");
   });
 });
+
+describe("B31: kardiyo sorusunda tür", () => {
+  it.each([
+    ["Bu hafta kaç km koştum?", "run"],
+    ["bu ay koşu mesafem ne kadar", "run"],
+    ["bu hafta ne kadar yürüdüm", "walk"],
+    ["bu ay kaç km bisiklet sürdüm", "cycle"],
+    ["bu ay kaç km yüzdüm", "swim"],
+  ])("%s → %s", (q, kind) => {
+    const query = detectHistoryQuery(q, TODAY);
+    expect(query?.type).toBe("cardio_total");
+    expect(query?.cardioKind).toBe(kind);
+  });
+
+  it("tür belirtilmemişse ya da birden çok tür varsa filtre yok (türlere ayrılır)", () => {
+    expect(detectHistoryQuery("bu hafta toplam kaç km kardiyo yaptım", TODAY)?.cardioKind).toBeUndefined();
+    expect(detectHistoryQuery("bu ay kaç km koştum ve yürüdüm", TODAY)?.cardioKind).toBeUndefined();
+  });
+});

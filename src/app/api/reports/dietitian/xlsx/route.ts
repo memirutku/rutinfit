@@ -11,7 +11,7 @@ export async function GET(req: Request) {
     const report = await buildDietitianReport(p.get("from"), p.get("to"));
     const file = reportToXlsx(report);
     const fileName = `rutinfit-diyetisyen-raporu-${report.from}_${report.to}.xlsx`;
-    const saved = saveExportCopy(file, fileName);
+    const saved = await saveExportCopy(file, fileName);
     const headers: Record<string, string> = {
       "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "content-disposition": `attachment; filename="${fileName}"`,

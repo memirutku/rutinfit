@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { errorMessage } from "@/lib/client/api";
 import { useCreateFoodLog, useFoods, useRecipes, useSavePackagedProduct } from "@/lib/client/queries/nutrition";
 import { useTimedMessage } from "@/hooks/useTimedMessage";
@@ -19,12 +19,23 @@ import { formatNumberTr } from "@/lib/format";
 import { isBarcode } from "@/components/foods/constants";
 import { RecipeImportModal } from "@/components/foods/RecipeImportModal";
 
+const noSubscribe = () => () => {};
+/** B01: panodaki "Yeni besin ekle" bağlantısı `?yeni=1` ile gelir; form açık başlar. */
+const useNewFoodRequested = () =>
+  useSyncExternalStore(noSubscribe, () => new URLSearchParams(window.location.search).has("yeni"), () => false);
+
 export default function FoodsPage() {
   const [activeTab, setActiveTab] = useState<FoodsTab>("foods");
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [packagedInput, setPackagedInput] = useState("");
   const [newFood, setNewFood] = useState<{ open: boolean; prefillName?: string; prefillBarcode?: string }>({ open: false });
+  const newFoodRequested = useNewFoodRequested();
+  const [requestHandled, setRequestHandled] = useState(false);
+  if (newFoodRequested && !requestHandled) {
+    setRequestHandled(true);
+    setNewFood({ open: true });
+  }
   const [isNewRecipeOpen, setIsNewRecipeOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
@@ -125,6 +136,7 @@ export default function FoodsPage() {
           onSearchChange={setSearch}
           category={selectedCategory}
           onCategoryChange={setSelectedCategory}
+          onNewFood={() => setNewFood({ open: true })}
         />
       )}
 

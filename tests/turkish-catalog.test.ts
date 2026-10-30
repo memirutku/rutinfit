@@ -33,4 +33,25 @@ describe("F74: Türk ev yemekleri kataloğu", () => {
       expect(Math.abs(atwater - i.calories) / i.calories, i.name).toBeLessThan(tolerance);
     }
   });
+
+  it("B26: Ramazan sofrası kalemleri pakette; kaynakları yazılı, değerleri makul", () => {
+    const byName = new Map(CATALOG_INGREDIENTS.map((i) => [i.name, i]));
+    for (const n of ["Ramazan Pidesi", "Hurma (kuru)", "Beyaz Peynir", "Zeytin (yeşil, salamura)", "Zeytin (siyah)"]) {
+      const i = byName.get(n);
+      expect(i, n).toBeDefined();
+      expect(i!.source, n).toMatch(/USDA|TÜRKOMP/);
+    }
+    // 100 g: pide ~270, hurma ~280, beyaz peynir ~260 kcal (referanslarla aynı aralık)
+    expect(byName.get("Ramazan Pidesi")!.calories).toBeGreaterThanOrEqual(240);
+    expect(byName.get("Ramazan Pidesi")!.calories).toBeLessThanOrEqual(300);
+    expect(byName.get("Hurma (kuru)")!.carbsG).toBeGreaterThan(70);
+    expect(byName.get("Beyaz Peynir")!.proteinG).toBeGreaterThan(12);
+
+    const gullac = TURKISH_DISHES.find((d) => d.name === "Güllaç");
+    expect(gullac?.tags).toContain("Ramazan");
+    expect(gullac?.portion).toBe("1 dilim");
+    const kcal = dishPortionKcal(gullac!);
+    expect(kcal).toBeGreaterThanOrEqual(200);
+    expect(kcal).toBeLessThanOrEqual(320);
+  });
 });

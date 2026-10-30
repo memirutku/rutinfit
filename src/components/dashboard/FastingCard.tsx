@@ -3,6 +3,11 @@
 import { Moon, Timer } from "lucide-react";
 import { errorMessage } from "@/lib/client/api";
 import { useFasting, useFastingAction } from "@/lib/client/queries/fasting";
+import { formatDateTr } from "@/lib/format";
+import { useReminders, useSaveReminder } from "@/lib/client/queries/reminders";
+
+/** B25: ritim kartındaki "Vakitleri gör" bu kartı kaydırır. */
+const SECTION_ID = "fasting-section";
 
 export function formatDuration(minutes: number): string {
   const h = Math.floor(minutes / 60);
@@ -22,6 +27,39 @@ function Bar({ percent, label }: { percent: number; label: string }) {
 const PHASE_LABEL = { sahur: "İmsaka", fasting: "İftara", evening: "Yarın imsaka" } as const;
 
 /** F76: Ramazan vakitleri ve geri sayım · F14: aralıklı oruç zamanlayıcısı. İkisi de kapalıysa görünmez. */
+/** B26: Ramazan modunda sahur (imsaktan 45 dk önce) ve iftar (15 dk önce) hatırlatmasını tek tıkla kurar. */
+function RamadanRemindersOffer() {
+  const reminders = useReminders();
+  const save = useSaveReminder();
+  if (!reminders.data) return null;
+  const has = (kind: "sahur" | "iftar") => reminders.data.some((r) => r.kind === kind);
+  if (has("sahur") && has("iftar")) {
+    return <p className="text-xs text-emerald-700 font-semibold">Sahur ve iftar hatırlatmaları açık (Ayarlar → Hatırlatmalar).</p>;
+  }
+  async function setUp() {
+    if (!has("sahur")) await save.mutateAsync({ input: { kind: "sahur", offsetMinutes: 45 } });
+    if (!has("iftar")) await save.mutateAsync({ input: { kind: "iftar", offsetMinutes: 15 } });
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        disabled={save.isPending}
+        onClick={() => void setUp().catch(() => {})}
+        className="px-3 py-2 rounded-xl border border-amber-300 bg-amber-50 text-xs font-bold text-amber-900 disabled:opacity-50"
+      >
+        Sahur ve iftar hatırlatması kur
+      </button>
+      <span className="text-[11px] text-slate-500">İmsaktan 45 dk, iftardan 15 dk önce; uygulama açıkken bildirim gelir.</span>
+      {save.isError && (
+        <span role="alert" className="text-[11px] text-rose-700">
+          {errorMessage(save.error, "Hatırlatma kurulamadı.")}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function FastingCard() {
   const { data } = useFasting();
   const action = useFastingAction();
@@ -30,9 +68,28 @@ export function FastingCard() {
   const showTimer = !ramadan && (timer.targetHours !== null || timer.active !== null);
   if (!ramadan && !showTimer) return null;
 
+  // B26: Ramazan dışında iftar sayacı yerine Ramazan'a kalan gün.
+  const outside = ramadan?.period && !ramadan.period.inRamadan ? ramadan.period : null;
+
   return (
-    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-      {ramadan && (
+    <div id={SECTION_ID} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3 scroll-mt-4">
+      {ramadan && outside && (
+        <>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Ramazan modu · {ramadan.province}</span>
+            <Moon className="w-5 h-5 text-amber-600" />
+          </div>
+          <p className="text-2xl font-extrabold text-slate-900">Ramazan&apos;a {outside.daysUntil} gün</p>
+          <p className="text-xs text-slate-600">
+            Başlangıç {formatDateTr(outside.start)} (ilk oruç). Ramazan&apos;da imsak ve iftar sayacı burada görünür.
+          </p>
+          <p className="text-[11px] text-slate-400">
+            Bugün imsak {ramadan.today.imsak} · iftar {ramadan.today.iftar}. Başlangıç günü Diyanet takvimiyle bir gün farklı olabilir.
+          </p>
+          <RamadanRemindersOffer />
+        </>
+      )}
+      {ramadan && !outside && (
         <>
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Ramazan · {ramadan.province}</span>
@@ -48,6 +105,7 @@ export function FastingCard() {
               : `İmsak ${ramadan.today.imsak} · İftar ${ramadan.today.iftar}`}
           </p>
           <p className="text-xs text-slate-500">{ramadan.waterAdvice}</p>
+          <RamadanRemindersOffer />
           <p className="text-[11px] text-slate-400">Vakitler internetsiz hesaplanır; Diyanet takvimiyle bir iki dakika fark olabilir.</p>
         </>
       )}

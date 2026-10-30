@@ -53,6 +53,11 @@ const RULES: Array<{ match: RegExp; measures: Measure[] }> = [
   { match: /tam bugday ekmeg/, measures: [m("dilim", 30)] },
   { match: /ekmek|ekmeg/, measures: [m("dilim", 25)] },
   { match: /simit/, measures: [m("adet", 110)] },
+  // B26: Ramazan pidesi ≈ 250 g (yaygın satış ağırlığı), dilimi ≈ 40 g; kuru hurma (Deglet Noor)
+  // tanesi ≈ 8 g; zeytin tanesi ≈ 4 g ("zeytinyağı" yukarıdaki kuralla ayrılır).
+  { match: /pide/, measures: [m("dilim", 40), m("adet", 250)] },
+  { match: /hurma/, measures: [m("adet", 8)] },
+  { match: /\bzeytin\b/, measures: [m("adet", 4)] },
   { match: /\blor\b/, measures: [m("yemek kaşığı", 20)] },
   { match: /peynir/, measures: [m("yemek kaşığı", 15), m("dilim", 30)] },
   { match: /ceviz/, measures: [m("avuç", 30)] },
@@ -72,6 +77,32 @@ const RULES: Array<{ match: RegExp; measures: Measure[] }> = [
 export function builtinMeasuresFor(foodName: string): Measure[] {
   const name = foldTr(foodName);
   return RULES.find((r) => r.match.test(name))?.measures.map((x) => ({ ...x })) ?? [];
+}
+
+/**
+ * B11: Tarifte bu ölçüler tarifin bir porsiyonudur (toplam gram / porsiyon sayısı). "1 kase
+ * mercimek çorbası" tarif kartındaki porsiyonla aynı kaloriyi verir; kepçe, su bardağı gibi
+ * ölçüler yerleşik gramla kalır.
+ */
+export const RECIPE_SERVING_UNITS: ReadonlySet<string> = new Set(["porsiyon", "kase", "adet", "dilim"]);
+
+/** Türk paketi tariflerinin talimatı "Porsiyon: 1 kase." ile başlar → "1 kase". */
+export function recipePortionText(instructions: string | null | undefined): string | null {
+  return /^Porsiyon: ([^.]+)\./.exec(instructions ?? "")?.[1]?.trim() || null;
+}
+
+/**
+ * Tarifin ev ölçüleri: "porsiyon" (ve yerleşik kurallarda geçen kase/adet/dilim) bir porsiyondur.
+ * Talimatta porsiyon ölçüsü yazıyorsa ("Porsiyon: 1 su bardağı") o ölçü de bir porsiyondur.
+ */
+export function recipeMeasuresFor(recipeName: string, portionGrams: number, instructions?: string | null): Measure[] {
+  if (!(portionGrams > 0)) return [];
+  const portion = Math.round(portionGrams * 10) / 10;
+  const ownUnit = recipePortionText(instructions)?.replace(/^[\d.,]+\s*/, "");
+  const isServing = (name: string) => RECIPE_SERVING_UNITS.has(name) || name === ownUnit;
+  const builtin = builtinMeasuresFor(recipeName).map((x) => (isServing(x.name) ? { ...x, grams: portion } : x));
+  const extra = ownUnit && ownUnit !== "porsiyon" && !builtin.some((x) => x.name === ownUnit) ? [{ name: ownUnit, grams: portion }] : [];
+  return [...builtin.filter((x) => x.name !== "porsiyon"), ...extra, m("porsiyon", portion)].sort((a, b) => order(a.name) - order(b.name));
 }
 
 const order = (name: string) => {

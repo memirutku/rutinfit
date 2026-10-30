@@ -6,7 +6,13 @@ import { errorMessage } from "@/lib/client/api";
 import { useLogSupplement, useSupplements } from "@/lib/client/queries/supplements";
 import { formatNumberTr } from "@/lib/format";
 
-/** F15: Günün takviyeleri. Her takviye tek tıkla alındı/alınmadı işaretlenir. */
+/** B12: ayarlardaki takviye bölümü (kart her zaman bu bağlantıyı gösterir). */
+export const SUPPLEMENTS_SETTINGS_HREF = "/settings#takviyeler";
+
+/**
+ * F15: Günün takviyeleri. Her takviye tek tıkla alındı/alınmadı işaretlenir.
+ * B12: besin değeri olan takviye (ör. whey) alınınca günlüğe öğün olarak yazılır.
+ */
 export function SupplementsCard({ date }: { date: string }) {
   const supplements = useSupplements(date);
   const log = useLogSupplement();
@@ -16,14 +22,19 @@ export function SupplementsCard({ date }: { date: string }) {
     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Takviyeler</span>
-        <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-          <Pill className="w-4 h-4" />
+        <div className="flex items-center gap-2">
+          <Link href={SUPPLEMENTS_SETTINGS_HREF} className="text-xs font-semibold text-brand-700 hover:underline">
+            + Takviye / Düzenle
+          </Link>
+          <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <Pill className="w-4 h-4" />
+          </div>
         </div>
       </div>
       {supplements.isSuccess && active.length === 0 && (
         <p className="text-xs text-slate-500">
           Takviye listen boş.{" "}
-          <Link href="/settings" className="font-semibold text-brand-700 hover:underline">
+          <Link href={SUPPLEMENTS_SETTINGS_HREF} className="font-semibold text-brand-700 hover:underline">
             Ayarlar&apos;dan takviye ekleyebilirsin.
           </Link>
         </p>
@@ -44,7 +55,9 @@ export function SupplementsCard({ date }: { date: string }) {
               <span className="min-w-0">
                 <span className="block text-xs font-bold truncate">{s.name}</span>
                 <span className="block text-[11px] text-slate-500">
-                  {formatNumberTr(s.doseAmount)} {s.doseUnit} · {s.takenLast7}/7 gün
+                  {formatNumberTr(s.doseAmount)} {s.doseUnit}
+                  {s.proteinPerDose ? ` · ${formatNumberTr(s.proteinPerDose)} g protein` : s.caloriesPerDose ? ` · ${formatNumberTr(s.caloriesPerDose)} kcal` : ""} ·{" "}
+                  {s.takenLast7}/7 gün
                 </span>
               </span>
             </button>

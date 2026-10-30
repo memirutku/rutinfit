@@ -13,7 +13,8 @@ describe("Egzersiz İlerleme Algoritması", () => {
     expect(result.isTargetMetAllSets).toBe(true);
     expect(result.recommendedNextWeightKg).toBe(62.5);
     expect(result.badge).toBe("progression");
-    expect(result.message).toContain("+2.5 kg (62.5 kg) artırmayı deneyebilirsiniz");
+    // B23: mesajdaki ağırlıklar Türkçe ondalıkla
+    expect(result.message).toContain("+2,5 kg (62,5 kg) artırmayı deneyebilirsiniz");
   });
 
   it("Hedef aralığında kalındığında aynı ağırlığı korumayı ve suçlayıcı olmamayı önermeli", () => {
@@ -42,5 +43,12 @@ describe("Egzersiz İlerleme Algoritması", () => {
     expect(result.recommendedNextWeightKg).toBe(60); // Ağırlık düşürülmedi!
     expect(result.badge).toBe("maintain");
     expect(result.message).toContain("aynı ağırlığı (60 kg) koruyarak");
+  });
+
+  it("B23: korunacak ağırlık da virgüllü ondalıkla yazılır", () => {
+    const sets = [{ setNumber: 1, weightKg: 102.5, reps: 4, targetRepMin: 6, targetRepMax: 8 }];
+    expect(evaluateExerciseProgression(sets).message).toContain("(102,5 kg)");
+    expect(evaluateExerciseProgression([{ ...sets[0], reps: 6 }]).message).toContain("(102,5 kg)");
+    expect(evaluateExerciseProgression([{ ...sets[0], reps: 8 }], 1.25).message).toContain("+1,25 kg (103,75 kg)");
   });
 });

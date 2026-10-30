@@ -81,7 +81,7 @@ export function PackagedFoodTab({
             Veriler <strong>Open Food Facts</strong> açık veritabanından (ODbL lisansı) canlı veya yerel önbellekten
             sorgulanır.
           </span>
-          <span className="font-semibold text-slate-500">Yerel-First Cache Aktif</span>
+          <span className="font-semibold text-slate-500">Yerel önbellek açık</span>
         </div>
       </div>
 
@@ -145,7 +145,7 @@ function ProductCard({ product, onLogMeal, onImport }: ProductCardProps) {
       <div className="grid grid-cols-4 gap-2 text-center bg-slate-50 p-2.5 rounded-xl text-xs">
         <div>
           <div className="text-slate-400 text-[10px]">Kalori</div>
-          <div className="font-bold text-orange-600">{product.calories} kcal</div>
+          <div className="font-bold text-orange-600">{formatNumberTr(product.calories)} kcal</div>
         </div>
         <div>
           <div className="text-slate-400 text-[10px]">Protein</div>

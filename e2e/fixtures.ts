@@ -5,6 +5,8 @@ const MOCK = `http://127.0.0.1:${process.env.E2E_MOCK_PORT ?? 3106}`;
 export interface Mocks {
   queueLLM: (content: string) => Promise<void>;
   queueLLMError: (status: number) => Promise<void>;
+  /** Sahte LLM'i kapatır/açar (bağlantı hatası). Her testin başındaki reset onu yeniden açar. */
+  setLLMOffline: (offline: boolean) => Promise<void>;
   reset: () => Promise<void>;
 }
 
@@ -21,6 +23,7 @@ export const test = base.extend<{ mocks: Mocks; api: APIRequestContext }>({
     await use({
       queueLLM: async (content) => void (await post("/__control/llm/queue", { content })),
       queueLLMError: async (status) => void (await post("/__control/llm/queue", { status })),
+      setLLMOffline: async (offline) => void (await post("/__control/llm/offline", { offline })),
       reset: async () => void (await post("/__control/reset")),
     });
   },

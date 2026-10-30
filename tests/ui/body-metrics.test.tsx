@@ -64,9 +64,32 @@ describe("F16: ölçüler ve fotoğraflar", () => {
     const imgs = (await within(compare).findAllByRole("img")) as HTMLImageElement[];
     expect(imgs.map((i) => i.getAttribute("src"))).toEqual(["/api/progress-photos/file?id=p1", "/api/progress-photos/file?id=p3"]);
     expect(within(compare).getByText(/01.09.2026/)).toBeTruthy();
-    expect(screen.getByText(/progress-photos/)).toBeTruthy();
+    // B36: ham sistem yolu yerine Finder ve yolu kopyala düğmeleri.
+    expect(screen.queryByText(/progress-photos/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Fotoğraf klasörünü Finder'da göster" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Fotoğraf klasörünün yolunu kopyala" })).toBeTruthy();
     expect(screen.getByText(/yedek dosyasına girmez/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Karşılaştırılacak poz"), { target: { value: "side" } });
     expect(within(screen.getByRole("group", { name: "Karşılaştırma" })).getByText(/Karşılaştırmak için bu pozda en az iki fotoğraf gerekir/)).toBeTruthy();
+  });
+
+  it("B35: fotoğraf Türkçe seçiciyle seçilir; yüklemeden sonra seçilen ad temizlenir", async () => {
+    let uploaded = 0;
+    restore = stubFetch([
+      ["/api/progress-photos", (_u, init) => {
+        if (init?.method === "POST") {
+          uploaded++;
+          return jsonResponse({ id: "p9" }, 201);
+        }
+        return jsonResponse({ folder: "/x/progress-photos", photos: [] });
+      }],
+    ]).restore;
+    renderWithQuery(<PhotosSection />);
+    expect(await screen.findByText("Fotoğraf seç")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Fotoğraf", { selector: "input" }), { target: { files: [new File(["x"], "on.png", { type: "image/png" })] } });
+    expect(screen.getByText("on.png")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Fotoğrafı ekle" }));
+    await waitFor(() => expect(uploaded).toBe(1));
+    expect(await screen.findByText("Dosya seçilmedi")).toBeTruthy();
   });
 });

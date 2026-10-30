@@ -5,7 +5,7 @@ export function MealPrepGuide() {
       <div>
         <h3 className="text-lg font-bold text-slate-900">Pazar Günü Meal-Prep (Ön Hazırlık) Rehberi 🍱</h3>
         <p className="text-xs text-slate-500 mt-0.5">
-          Hafta içi iş çıkışı yorgunluğunu azaltmak için 1 saatlik pazar ön hazırlığı hayat kurtarır.
+          Hafta içi yoğun günlerde mutfakta geçen süreyi azaltmak için haftada bir saatlik ön hazırlık işini kolaylaştırır.
         </p>
       </div>
 
@@ -31,12 +31,12 @@ export function MealPrepGuide() {
         </div>
 
         <div className="p-4 bg-amber-50/60 border border-amber-200 rounded-xl">
-          <h4 className="font-bold text-amber-900 text-sm mb-2">3. İş Yeri Ara Öğün Kapları</h4>
+          <h4 className="font-bold text-amber-900 text-sm mb-2">3. Ara Öğün Kapları</h4>
           <p className="text-xs text-amber-800 leading-relaxed mb-2">
-            Muz, yoğurt ve lor peynirini iş yeri buzdolabına pazartesi günü haftalık stoklayabilir veya her akşam 2 dakikada hazırlayıp çantaya atabilirsiniz.
+            Meyve, kuruyemiş ya da planındaki ara öğünü küçük kaplara porsiyonlayıp hazır tutabilir, gün içinde yanına alabilirsiniz.
           </p>
           <div className="text-xs text-amber-700 bg-white/70 p-2.5 rounded-lg border border-amber-100">
-            <strong>İpucu:</strong> Saat 17:00'de yenecek bu ara öğün, 19:30 eve varışta enerjinizi yüksek tutar.
+            <strong>İpucu:</strong> Öğünler arası uzun bir aralık varsa hazır bir ara öğün, sonraki öğünde aşırı acıkmayı önler.
           </div>
         </div>
 

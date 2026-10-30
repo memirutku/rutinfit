@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { UpdateProfileSchema } from "@/lib/schemas/profile";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
-import { DEFAULT_TARGETS } from "@/lib/constants";
+import { DEFAULT_TARGETS, NEW_PROFILE_DEFAULTS } from "@/lib/constants";
 import { checkCalorieTarget } from "@/lib/safety";
 
 export async function GET() {
@@ -15,13 +15,10 @@ export async function GET() {
       profile = await prisma.userProfile.create({
         data: {
           id: "default-user",
-          heightCm: 181,
-          age: 25,
-          sex: "male",
-          currentWeightKg: 112,
+          // B02: nötr başlangıç; sihirbaz tamamlanana kadar hedefler "tahmini" gösterilir.
+          ...NEW_PROFILE_DEFAULTS,
           ...DEFAULT_TARGETS,
-          wakeTime: "06:00",
-          workdayHomeTime: "19:30",
+          dayPattern: null,
           // F09: yeni kurulumda pano kurulum sihirbazını açar.
           isOnboarded: false,
         },

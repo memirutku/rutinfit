@@ -21,7 +21,7 @@ export async function GET(req: Request) {
     }
     const csv = await CSV_BUILDERS[type]({ from, to });
     const fileName = `rutinfit-${CSV_EXPORT_TYPES[type]}-${getLocalDateString()}.csv`;
-    const saved = saveExportCopy(csv, fileName);
+    const saved = await saveExportCopy(csv, fileName);
     const headers: Record<string, string> = {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="${fileName}"`,

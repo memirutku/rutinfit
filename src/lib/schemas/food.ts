@@ -17,7 +17,8 @@ export const FoodItemInputSchema = z.object({
   carbsG: z.number().nonnegative(),
   fatG: z.number().nonnegative(),
   source: z.string().default("Kullanıcı"),
-  confidence: z.string().default("Yüksek"),
+  // B14: elle eklenen besinin güveni kullanıcının beyanıdır.
+  confidence: z.string().default("Kullanıcı"),
   brand: z.string().trim().max(120).optional().nullable(),
   barcode: barcodeDigits
     .refine((v) => v.length === 0 || (v.length >= 6 && v.length <= 14), "Barkod 6–14 haneli olmalıdır.")
@@ -52,19 +53,26 @@ export const FoodLogCreateSchema = z
     foodItemId: z.string().optional().nullable(),
     recipeId: z.string().optional().nullable(),
     name: z.string().min(1),
-    /** Gram ya da (tarif için) porsiyon sayısı verilmelidir. */
-    grams: z.number().positive().optional(),
+    /** Gram ya da (tarif için) porsiyon sayısı verilmelidir. B09: serbest kayıtta kalori yeterlidir (gram 0 = bilinmiyor). */
+    grams: z.number().nonnegative().optional(),
     servings: z.number().positive().optional(),
     caloriesSnapshot: z.number().nonnegative().optional(),
     proteinSnapshot: z.number().nonnegative().optional(),
     carbsSnapshot: z.number().nonnegative().optional(),
     fatSnapshot: z.number().nonnegative().optional(),
   })
-  .refine((v) => v.grams !== undefined || (v.servings !== undefined && !!v.recipeId), {
-    message: "grams veya (tarif için) servings zorunludur.",
-    path: ["grams"],
-  });
+  .refine(
+    (v) =>
+      v.grams !== undefined ||
+      (v.servings !== undefined && !!v.recipeId) ||
+      (!v.foodItemId && !v.recipeId && v.caloriesSnapshot !== undefined),
+    { message: "grams, (tarif için) servings ya da (serbest kayıtta) kalori zorunludur.", path: ["grams"] }
+  );
 export type FoodLogCreateInput = z.input<typeof FoodLogCreateSchema>;
+
+/** PATCH /api/food-logs?id= (B13: kaydın öğünü sonradan değiştirilir). */
+export const FoodLogPatchSchema = z.object({ mealType: MealTypeSchema });
+export type FoodLogPatchInput = z.input<typeof FoodLogPatchSchema>;
 
 /** POST /api/foods/barcode: Open Food Facts ürününü yerel kataloğa kaydeder. */
 export const PackagedProductSaveSchema = z.object({

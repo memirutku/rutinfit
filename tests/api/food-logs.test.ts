@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { GET, POST, DELETE } from "@/app/api/food-logs/route";
+import { GET, POST, DELETE, PATCH } from "@/app/api/food-logs/route";
 import { prisma } from "@/lib/prisma";
 import { buildRestorePayload } from "@/lib/food-log-restore";
 import { callRoute } from "../helpers/route";
@@ -119,5 +119,39 @@ describe("POST /api/food-logs — tarif porsiyonu ile kayıt", () => {
     expect(res.json.grams).toBe(300);
     expect(res.json.caloriesSnapshot).toBe(300);
     expect(res.json.proteinSnapshot).toBe(30);
+  });
+
+  it("B13: PATCH kaydın öğününü değiştirir; geçersiz öğün 400, bilinmeyen kayıt 404", async () => {
+    const food = await prisma.foodItem.create({ data: { name: "Simit", calories: 275, proteinG: 9, carbsG: 52, fatG: 3.5 } });
+    const created = (await callRoute(POST, { body: { date: "2026-10-30", time: "17:10", mealType: "workSnack", foodItemId: food.id, name: "Simit", grams: 110 } })).json;
+    const res = await callRoute(PATCH, { method: "PATCH", query: { id: created.id }, body: { mealType: "breakfast" } });
+    expect(res.status).toBe(200);
+    expect(res.json).toMatchObject({ id: created.id, mealType: "breakfast", caloriesSnapshot: created.caloriesSnapshot });
+    expect((await callRoute(PATCH, { method: "PATCH", query: { id: created.id }, body: { mealType: "brunch" } })).status).toBe(400);
+    expect((await callRoute(PATCH, { method: "PATCH", query: { id: "yok" }, body: { mealType: "lunch" } })).status).toBe(404);
+    expect((await callRoute(PATCH, { method: "PATCH", body: { mealType: "lunch" } })).status).toBe(400);
+  });
+});
+
+describe("B09: tarifsiz plan öğünü kaloriyle kaydedilir", () => {
+  it("katalog ya da tarif bağı olmadan kalori verilen serbest kayıt gramsız kabul edilir; Geri Al da çalışır", async () => {
+    const res = await callRoute(POST, {
+      body: { date: DATE, time: "08:10", mealType: "breakfast", name: "2 yumurta, 1 dilim ekmek", caloriesSnapshot: 350, proteinSnapshot: 20 },
+    });
+    expect(res.status).toBe(201);
+    expect(res.json).toMatchObject({ grams: 0, caloriesSnapshot: 350, proteinSnapshot: 20, carbsSnapshot: 0, fatSnapshot: 0 });
+
+    await callRoute(DELETE, { method: "DELETE", query: { id: res.json.id } });
+    const restored = await callRoute(POST, { body: buildRestorePayload(res.json) });
+    expect(restored.status).toBe(201);
+    expect(restored.json).toMatchObject({ grams: 0, caloriesSnapshot: 350 });
+  });
+
+  it("ne gram ne kalori verilen serbest kayıt 400 döner; katalog besininde gram yine zorunludur", async () => {
+    expect((await callRoute(POST, { body: { date: DATE, mealType: "lunch", name: "Serbest" } })).status).toBe(400);
+    const food = await createFood();
+    expect((await callRoute(POST, { body: { date: DATE, mealType: "lunch", foodItemId: food.id, name: food.name, caloriesSnapshot: 100 } })).status).toBe(400);
+    expect((await callRoute(POST, { body: { date: DATE, mealType: "lunch", foodItemId: food.id, name: food.name, grams: 0 } })).status).toBe(400);
+    expect(await prisma.foodLog.count()).toBe(0);
   });
 });

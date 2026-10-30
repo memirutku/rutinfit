@@ -12,16 +12,19 @@ export interface CatalogIngredient {
   proteinG: number;
   carbsG: number;
   fatG: number;
+  /** Değerin kaynağı (verilmezse "USDA FDC (yaklaşık)"). */
+  source?: string;
 }
 
-const ing = (name: string, category: string, calories: number, proteinG: number, carbsG: number, fatG: number): CatalogIngredient => ({
-  name,
-  category,
-  calories,
-  proteinG,
-  carbsG,
-  fatG,
-});
+const ing = (
+  name: string,
+  category: string,
+  calories: number,
+  proteinG: number,
+  carbsG: number,
+  fatG: number,
+  source?: string,
+): CatalogIngredient => ({ name, category, calories, proteinG, carbsG, fatG, ...(source ? { source } : {}) });
 
 /** Mevcut başlangıç kataloğundaki adlarla aynı olanlar varsa onlar kullanılır. */
 export const CATALOG_INGREDIENTS: CatalogIngredient[] = [
@@ -49,6 +52,27 @@ export const CATALOG_INGREDIENTS: CatalogIngredient[] = [
   ing("Nohut (çiğ)", "Bakliyatlar", 378, 20.5, 63, 6),
   ing("Dana Kıyma (%20 yağlı, çiğ)", "Kasap & Balık", 254, 17.2, 0, 20),
   ing("İçme Suyu", "Diğer", 0, 0, 0, 0),
+  /*
+   * B26: Ramazan sofrası (sahur ve iftar). 100 g değerleri USDA FoodData Central SR Legacy'den;
+   * birebir karşılığı olmayanlarda en yakın kayıt kullanıldı ve kaynakta "yakın karşılık" yazar:
+   * - Ramazan Pidesi ← "Bread, pita, white, enriched" (susam ve çörek otu ihmal)
+   * - Hurma (kuru) ← "Dates, deglet noor"
+   * - Beyaz Peynir ← "Cheese, feta" (salamura beyaz peynire en yakın kayıt)
+   * - Zeytin (yeşil, salamura) ← "Olives, pickled, canned or bottled, green"
+   * - Zeytin (siyah) ← "Olives, ripe, canned (small-extra large)" (sele/Gemlik tipinde yağ daha yüksek olabilir)
+   * - Güllaç Yaprağı ← "Cornstarch" (yaprak nişastadan yapılır)
+   * - Süt (tam yağlı) ← "Milk, whole, 3.25% milkfat"; Toz Şeker ← "Sugars, granulated";
+   *   Ceviz İçi ← "Nuts, walnuts, english"
+   */
+  ing("Ramazan Pidesi", "Kuru Gıda & Tahıllar", 275, 9.1, 55.7, 1.2, "USDA FDC: Bread, pita, white (yakın karşılık)"),
+  ing("Hurma (kuru)", "Manav (Sebze & Meyve)", 282, 2.5, 75, 0.4, "USDA FDC: Dates, deglet noor"),
+  ing("Beyaz Peynir", "Süt Ürünleri & Yumurta", 264, 14.2, 4.1, 21.3, "USDA FDC: Cheese, feta (yakın karşılık)"),
+  ing("Zeytin (yeşil, salamura)", "Genel", 145, 1, 3.8, 15.3, "USDA FDC: Olives, green, pickled"),
+  ing("Zeytin (siyah)", "Genel", 115, 0.8, 6.3, 10.7, "USDA FDC: Olives, ripe, canned (yakın karşılık)"),
+  ing("Güllaç Yaprağı", "Kuru Gıda & Tahıllar", 381, 0.3, 91.3, 0.1, "USDA FDC: Cornstarch (yakın karşılık)"),
+  ing("Süt (tam yağlı)", "Süt Ürünleri & Yumurta", 61, 3.2, 4.8, 3.3, "USDA FDC: Milk, whole, 3.25%"),
+  ing("Toz Şeker", "Kuru Gıda & Tahıllar", 387, 0, 100, 0, "USDA FDC: Sugars, granulated"),
+  ing("Ceviz İçi", "Kuru Gıda & Tahıllar", 654, 15.2, 13.7, 65.2, "USDA FDC: Nuts, walnuts, english"),
 ];
 
 export interface CatalogDish {
@@ -58,18 +82,29 @@ export interface CatalogDish {
   /** "1 kase", "1 adet" gibi porsiyon tarifi (talimatta gösterilir). */
   portion: string;
   ingredients: Array<{ name: string; grams: number }>;
+  /** "Türk mutfağı"na ek etiketler (ör. "Ramazan"). */
+  tags?: string[];
 }
 
-const d = (name: string, servings: number, prepMinutes: number, portion: string, ingredients: Array<[string, number]>): CatalogDish => ({
+const d = (
+  name: string,
+  servings: number,
+  prepMinutes: number,
+  portion: string,
+  ingredients: Array<[string, number]>,
+  tags?: string[],
+): CatalogDish => ({
   name,
   servings,
   prepMinutes,
   portion,
   ingredients: ingredients.map(([n, grams]) => ({ name: n, grams })),
+  ...(tags ? { tags } : {}),
 });
 
 export const TURKISH_DISHES: CatalogDish[] = [
-  d("Mercimek Çorbası", 6, 40, "1 kase", [
+  // B11: çorbalarda porsiyon bir kasedir (≈ 250 g): toplam ≈ 2 kg / 8.
+  d("Mercimek Çorbası", 8, 40, "1 kase", [
     ["Kırmızı Mercimek (çiğ)", 250],
     ["Kuru Soğan", 100],
     ["Havuç", 80],
@@ -78,7 +113,7 @@ export const TURKISH_DISHES: CatalogDish[] = [
     ["Domates Salçası", 15],
     ["İçme Suyu", 1500],
   ]),
-  d("Yayla Çorbası", 6, 35, "1 kase", [
+  d("Yayla Çorbası", 8, 35, "1 kase", [
     ["Yoğurt (%1.5 az yağlı)", 500],
     ["Pirinç (baldo/basmati)", 70],
     ["Buğday Unu", 20],
@@ -181,6 +216,20 @@ export const TURKISH_DISHES: CatalogDish[] = [
     ["Maydanoz", 30],
     ["Domates Salçası", 20],
   ]),
+  // B26: iftar tatlısı. 1 l süt, ~1 su bardağı şeker, ~10 yaprak; 10 dilim (dilimi ≈ 145 g).
+  d(
+    "Güllaç",
+    10,
+    30,
+    "1 dilim",
+    [
+      ["Süt (tam yağlı)", 1000],
+      ["Toz Şeker", 220],
+      ["Güllaç Yaprağı", 150],
+      ["Ceviz İçi", 80],
+    ],
+    ["Ramazan", "tatlı"],
+  ),
 ];
 
 /** Bir porsiyonun kalorisi (malzeme değerleri bu listeden; kullanıcının kendi kaydı DB'de farklı olabilir). */

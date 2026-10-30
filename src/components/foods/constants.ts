@@ -10,6 +10,8 @@ export const FOOD_CATEGORIES = [
   "Bakliyatlar",
   "Yağlar & Soslar",
   "Paketli Gıda",
+  // B14: elle eklenen besinin varsayılan kategorisi.
+  "Genel",
 ] as const;
 
 export const QUICK_SEARCH_TAGS = [

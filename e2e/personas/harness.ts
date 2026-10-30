@@ -106,7 +106,21 @@ export const queueLLM = (api: APIRequestContext, content: string) => api.post(`$
 /** İlk açılış sihirbazı (personanın gerçekten doldurduğu adımlar). */
 export async function fillWizard(
   page: Page,
-  o: { sex: "Erkek" | "Kadın"; age: number; height: number; weight: number; activity: RegExp; goal: "Kilo ver" | "Kiloyu koru" | "Kilo al"; target?: number; rate?: string }
+  o: {
+    sex: "Erkek" | "Kadın";
+    age: number;
+    height: number;
+    weight: number;
+    activity: RegExp;
+    goal: "Kilo ver" | "Kiloyu koru" | "Kilo al";
+    target?: number;
+    rate?: string;
+    /** B06: başlarken adımı (dalga 6). Verilmezse adım boş geçilir. */
+    dayPattern?: "Ofis / iş yeri" | "Okul" | "Vardiyalı" | "Evden / esnek";
+    homeTime?: string;
+    ramadanProvince?: string;
+    program?: RegExp;
+  }
 ) {
   const d = page.getByRole("dialog", { name: "Hedeflerini birlikte kuralım" });
   await d.getByLabel("Cinsiyet").selectOption({ label: o.sex });
@@ -119,6 +133,15 @@ export async function fillWizard(
   await d.getByLabel(o.goal).check({ force: true });
   if (o.target) await d.getByLabel("Hedef kilo (kg)").fill(String(o.target));
   if (o.rate) await d.getByLabel("Haftalık hız").selectOption(o.rate);
+  await d.getByRole("button", { name: "İleri" }).click();
+  // B06: başlarken
+  if (o.dayPattern) await d.getByRole("radio", { name: o.dayPattern }).check();
+  if (o.homeTime) await d.getByLabel("Eve varış saati").fill(o.homeTime);
+  if (o.ramadanProvince) {
+    await d.getByRole("checkbox", { name: /Ramazan'da oruç tutuyorum/ }).check();
+    await d.getByLabel("İl").selectOption(o.ramadanProvince);
+  }
+  if (o.program) await d.getByRole("radio", { name: o.program }).check();
   await d.getByRole("button", { name: "İleri" }).click();
 }
 

@@ -11,6 +11,9 @@ export const SupplementInputSchema = z.object({
   doseUnit: z.enum(SUPPLEMENT_UNITS),
   active: z.boolean().optional(),
   notes: z.string().trim().max(200).nullable().optional(),
+  /** B12: doz başına enerji ve protein (isteğe bağlı). Doluysa "alındı" işareti günlüğe öğün yazar. */
+  caloriesPerDose: z.number().nonnegative("Kalori negatif olamaz.").max(5000).nullable().optional(),
+  proteinPerDose: z.number().nonnegative("Protein negatif olamaz.").max(500).nullable().optional(),
 });
 export type SupplementInput = z.infer<typeof SupplementInputSchema>;
 
@@ -29,6 +32,8 @@ export interface SupplementView {
   doseUnit: string;
   active: boolean;
   notes: string | null;
+  caloriesPerDose: number | null;
+  proteinPerDose: number | null;
   takenToday: boolean;
   takenLast7: number;
 }

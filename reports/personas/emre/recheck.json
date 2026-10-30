@@ -1,0 +1,109 @@
+{
+  "persona": "emre",
+  "findings": [
+    {
+      "id": "B01",
+      "status": "kapandı",
+      "step": 5,
+      "screenshot": "05-hurmayi-elle-ekler.png",
+      "evidence": "Yeni kurulumda katalog dolu geliyor: 'Besin Kataloğu (44)' ve 'Tarifler (16)'. Hurma (kuru), Ramazan Pidesi ve Kırmızı Mercimek hazır. Adım 7'de 'Yazarak ekle' mercimek çorbasını ve pideyi buldu ve kaydetti (günlük toplam 579 kcal). Dalga 5'te aynı adım '0 kalemi kaydet' ile çıkmaza giriyordu."
+    },
+    {
+      "id": "B03",
+      "status": "kapandı",
+      "step": 10,
+      "screenshot": "10-koca-iftar-menusu-sorar.png",
+      "evidence": "Koçun karşılama mesajı 'günlük 2.460 kcal, 143 g protein' diyor; hazır soru da '2.460 kcal hedefime uyan bir yemek öner' diyor. İkisi de Emre'nin profilindeki hedefle aynı. Dalga 5'teki sabit '2.080 kcal' metni yok."
+    },
+    {
+      "id": "B06",
+      "status": "kapandı",
+      "step": 1,
+      "screenshot": "01-ilk-acilis-ve-sihirbaz.png",
+      "evidence": "Sihirbaz biter bitmez panoda 'Ramazan modu · İstanbul' kartı ve 'Tam Vücut A · Başlangıç programı' antrenmanı var. Gün düzeni 'Evden / esnek' olduğu için 'iş çıkışı' etiketi de görünmüyor. 'Başlarken' adımının ekranı görüntüde yok; buna sonuçlarına bakarak karar verildi."
+    },
+    {
+      "id": "B10",
+      "status": "görülemedi",
+      "step": 7,
+      "screenshot": "07-mercimek-corbasi-ve-pide.png",
+      "evidence": "İki kalem de eşleşti ve 'İftar' öğünü olarak kaydedildi: Mercimek Çorbası 150,6 kcal, Ramazan Pidesi 343,8 kcal. Yani pencere Ramazan öğün adını artık biliyor. Ancak eşleşmeyen satır hiç oluşmadı ve pencere görüntüye girmedi. Bu yüzden 'yeni besin olarak ekle / yaklaşık kalori gir' çözümü doğrulanamadı."
+    },
+    {
+      "id": "B14",
+      "status": "kapandı",
+      "step": 5,
+      "screenshot": "05-hurmayi-elle-ekler.png",
+      "evidence": "Elle eklenen 'Hurma' kartı kategori olarak 'Genel', güven rozeti olarak 'Kullanıcı' gösteriyor. Dalga 5'te aynı kart 'Kasap & Balık' ve 'Yüksek' idi."
+    },
+    {
+      "id": "B25",
+      "status": "görülemedi",
+      "step": 4,
+      "screenshot": "04-panoda-geri-sayim.png",
+      "evidence": "Test günü Ramazan dışında olduğu için oruç günü panosu oluşmadı: Ramazan kartı en üste çıkmadı, sahur/iftar ritim kartı görülmedi ve alkol satırı duruyor. Bunlar Ramazan dışı bir gün için beklenen durum. Üstteki kart 'Akşam Yemeği 19:00–22:00' öneriyor, dalga 5'teki 'İş Çıkışı & Ara Öğün' önerisi yok."
+    },
+    {
+      "id": "B26",
+      "status": "kapandı",
+      "step": 4,
+      "screenshot": "04-panoda-geri-sayim.png",
+      "evidence": "Kart artık 'Ramazan'a 101 gün' ve 'Başlangıç 08.02.2027 (ilk oruç)' diyor; 'İftara …' sayacı yok. Tek tıklık 'Sahur ve iftar hatırlatması kur' düğmesi açıklamasıyla duruyor ve katalogda Hurma, Ramazan Pidesi ve Güllaç Yaprağı var. Düğmeye basılmadığı için kurduğu hatırlatmalar görülmedi."
+    },
+    {
+      "id": "B27",
+      "status": "kapandı",
+      "step": 10,
+      "screenshot": "10-koca-iftar-menusu-sorar.png",
+      "evidence": "Koç sayfası 1360 px genişlikte kalıyor; dalga 5'te sayfa 1536 px'e taşıyordu. Hazır soru şeridinin kendi kaydırma çubuğu var. Mesajların başı yan menünün altına girmiyor."
+    },
+    {
+      "id": "B28",
+      "status": "kapandı",
+      "step": 10,
+      "screenshot": "10-koca-iftar-menusu-sorar.png",
+      "evidence": "Sayfa açılınca 'Koç kapalı' rozeti ve 'Koç kapalı: yerel model bulunamadı' kutusu çıkıyor. Kutuda Ollama/LM Studio kurulum adımları ile 'Ayarlar'da test et' ve 'Yeniden dene' düğmeleri var. Sohbetteki hata artık ham markdown değil, düz metin. Ayarlar'daki rozet de yeşil yerine kırmızı 'Ulaşılamıyor' diyor (adım 2)."
+    },
+    {
+      "id": "B34",
+      "status": "kısmen",
+      "step": 3,
+      "screenshot": "03-ramazan-modunu-acar.png",
+      "evidence": "Ayarlar'ın üstünde yapışkan bölüm çipleri var (Profil … Gelişmiş). Şeffaflık, openGym ve tanılama 'Gelişmiş' altında katlanmış; sayfa 4.099 px'ten 3.432 px'e indi. Ancak 'Ramazan modu' anahtarı hâlâ ayrı 'Oruç ayarlarını kaydet' düğmesini bekliyor. Yalnız iki profil anahtarı dokununca kaydediliyor, yani sayfada iki farklı kaydetme davranışı var."
+    },
+    {
+      "id": "B42",
+      "status": "kapandı",
+      "step": 10,
+      "screenshot": "10-koca-iftar-menusu-sorar.png",
+      "evidence": "Model yokken 'Model olmadan öneri · Yapay zekâ değil' kartı çıkıyor. Kart, kalan 1.881 kcal ve makrolara göre üç tarif sıralıyor: Tavuk Sote 278, Kuru Fasulye 339, Lahmacun 366 kcal. Öneriler iftara özel değil ve sohbetteki hata yanıtı bu karta yönlendirmiyor."
+    }
+  ],
+  "newIssues": [
+    {
+      "title": "Besin kataloğunda arama kutusu simge boyutuna sıkıştı",
+      "severity": "orta",
+      "step": 5,
+      "screenshot": "05-hurmayi-elle-ekler.png",
+      "observed": "Katalog artık 44 kalemle açılıyor, ama 1366 px'te arama kutusu kategori çiplerinin yanında büyüteç kadar (yaklaşık 45 px) kalıyor ve yer tutucu metni hiç görünmüyor. Dalga 5'te kutu dardı ama 'Be' yazısı okunuyordu; eklenen kategoriler kutuyu daha da daralttı. Kalabalık katalogda besin bulmanın asıl yolu bu kutu.",
+      "suggestion": "Arama kutusunu çiplerden ayrı, tam genişlikte bir satıra al ya da en az 240 px genişlik ver ('Besin ara…' yazısı görünsün); kategori çiplerini alttaki satırda kaydırılabilir bırak."
+    },
+    {
+      "title": "'Yakın karşılık' verili hazır kalemler 'Yüksek' güvenle etiketli",
+      "severity": "düşük",
+      "step": 5,
+      "screenshot": "05-hurmayi-elle-ekler.png",
+      "observed": "Yeni hazır katalogda Güllaç Yaprağı 'USDA FDC: Cornstarch (yakın karşılık)', Ramazan Pidesi 'Bread, pita, white (yakın karşılık)', Beyaz Peynir 'Cheese, feta (yakın karşılık)' kaynaklı. Kaynak notu yaklaşık dediği hâlde üçü de yeşil 'Yüksek' rozeti taşıyor. Simit ve Beyaz Ekmek ise 'Tahmini' etiketli, yani etiketler kendi içinde tutarsız.",
+      "suggestion": "Kaynağı 'yakın karşılık' olan hazır kalemlere 'Tahmini' (ya da 'Orta') güven ver. 'Yüksek' rozetini yalnız doğrudan eşleşen kayıtlarda (TÜRKOMP, USDA tam eşleşme) kullan."
+    },
+    {
+      "title": "Yeni besin formu benzer hazır kalemi göstermiyor; katalogda iki 'Hurma' oluşuyor",
+      "severity": "düşük",
+      "step": 5,
+      "screenshot": "05-hurmayi-elle-ekler.png",
+      "observed": "Emre 'Hurma'yı elle ekledi; katalogda aynı değerlerle 'Hurma (kuru)' zaten vardı (282 kcal, 2,5 P, 75 K, 0,4 Y). Form uyarmadı ve şimdi 'hurma' aramasında iki kalem çıkıyor. Bu durum hazır katalog gelince ortaya çıktı.",
+      "suggestion": "Besin Adı yazılırken katalogda benzer adları göster ('Katalogda var: Hurma (kuru) — bunu kullan'). Kullanıcı yine de eklemek isterse kaydetsin."
+    }
+  ],
+  "summary": "Bu sefer ilk iftarımı sorunsuz kaydettim: hurma, mercimek çorbası ve Ramazan pidesi katalogdaydı, hepsi 'İftar' altına yazıldı. Sihirbaz Ramazan modunu açtı, kart 'Ramazan'a 101 gün' diyor ve sahur/iftar hatırlatmasını tek tıkla öneriyor. Model kurulu olmasa da koç ne olduğunu ve nasıl düzelteceğimi açıkça söylüyor, üstelik kalan kaloriye göre öneri veriyor. Oruç günündeki panoyu ise ancak Şubat'ta görebileceğim; Ayarlar'da Ramazan anahtarının hâlâ ayrı bir 'Kaydet' istemesi ve katalogdaki minik arama kutusu da hâlâ göze batıyor."
+}

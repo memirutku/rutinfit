@@ -5,10 +5,12 @@ import { User } from "lucide-react";
 import { errorMessage } from "@/lib/client/api";
 import { useSaveProfile } from "@/lib/client/queries/system";
 import { useTimedMessage } from "@/hooks/useTimedMessage";
-import type { Profile, ProfileInput } from "@/lib/schemas/profile";
+import { DAY_PATTERNS, DAY_PATTERN_LABELS, type DayPattern, type Profile, type ProfileInput } from "@/lib/schemas/profile";
 import { DecimalInput } from "@/components/ui/DecimalInput";
 import { calorieFloor } from "@/lib/safety";
 import { formatNumberTr } from "@/lib/format";
+import { DEFAULT_TARGETS, NEW_PROFILE_DEFAULTS } from "@/lib/constants";
+import { macroMismatch, redistributeMacros } from "@/lib/macro-balance";
 import { SetupWizard } from "@/components/onboarding/SetupWizard";
 
 /** Formdaki yerel taslak: profil yüklenemediyse alanlar boş başlar (varsayılanlar gösterilir). */
@@ -25,6 +27,7 @@ type NumericKey =
   | "waterTargetMl"
   | "householdSize";
 type TimeKey = "wakeTime" | "workdayHomeTime";
+type ToggleKey = "hideNumbers" | "cycleTracking";
 
 interface NumberFieldDef {
   id: string;
@@ -41,28 +44,29 @@ interface NumberFieldDef {
 const LABEL = "block text-xs font-semibold text-slate-600 mb-1";
 const INPUT = "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm";
 const int = (raw: string) => parseInt(raw, 10);
-const CALORIE_FALLBACK = 2080;
+const CALORIE_FALLBACK = DEFAULT_TARGETS.calorieTarget;
 
-const HEIGHT: NumberFieldDef = { id: "settings-field-1", label: "Boy (cm)", key: "heightCm", fallback: 181, parse: parseFloat, decimal: true };
-const AGE: NumberFieldDef = { id: "settings-field-2", label: "Yaş", key: "age", fallback: 25, parse: int };
+const HEIGHT: NumberFieldDef = { id: "settings-field-1", label: "Boy (cm)", key: "heightCm", fallback: NEW_PROFILE_DEFAULTS.heightCm, parse: parseFloat, decimal: true };
+const AGE: NumberFieldDef = { id: "settings-field-2", label: "Yaş", key: "age", fallback: NEW_PROFILE_DEFAULTS.age, parse: int };
 const WEIGHT: NumberFieldDef = {
   id: "settings-field-4",
   label: "Güncel Kilo (kg)",
   key: "currentWeightKg",
-  fallback: 112,
+  fallback: NEW_PROFILE_DEFAULTS.currentWeightKg,
   parse: parseFloat,
   step: "0.1",
   decimal: true,
 };
+// Profil yokken hedef alanları ortak varsayılanları gösterir (kişisel sabit sayı yok).
 const TARGETS: NumberFieldDef[] = [
-  { id: "settings-field-5", label: "Kalori Hedefi (kcal)", key: "calorieTarget", fallback: 2080, parse: int, tone: "font-bold text-slate-900" },
-  { id: "settings-field-6", label: "Üst Sınır Tavan (kcal)", key: "calorieCeiling", fallback: 2100, parse: int, tone: "font-bold text-slate-900" },
-  { id: "settings-field-7", label: "Protein Hedefi (g)", key: "proteinTargetG", fallback: 165, parse: int, tone: "font-bold text-emerald-700" },
-  { id: "settings-field-8", label: "Karbonhidrat (g)", key: "carbTargetG", fallback: 220, parse: int, tone: "font-bold text-amber-700" },
+  { id: "settings-field-5", label: "Kalori Hedefi (kcal)", key: "calorieTarget", fallback: DEFAULT_TARGETS.calorieTarget, parse: int, tone: "font-bold text-slate-900" },
+  { id: "settings-field-6", label: "Kalori tavanı (kcal)", key: "calorieCeiling", fallback: DEFAULT_TARGETS.calorieCeiling, parse: int, tone: "font-bold text-slate-900" },
+  { id: "settings-field-7", label: "Protein Hedefi (g)", key: "proteinTargetG", fallback: DEFAULT_TARGETS.proteinTargetG, parse: int, tone: "font-bold text-emerald-700" },
+  { id: "settings-field-8", label: "Karbonhidrat (g)", key: "carbTargetG", fallback: DEFAULT_TARGETS.carbTargetG, parse: int, tone: "font-bold text-amber-700" },
 ];
 const WATER: NumberFieldDef = { id: "settings-field-water", label: "Günlük su hedefi (ml)", key: "waterTargetMl", fallback: 2500, parse: int, tone: "font-bold text-sky-700" };
 const HOUSEHOLD: NumberFieldDef = { id: "settings-field-household", label: "Hane büyüklüğü (kişi)", key: "householdSize", fallback: 1, parse: int };
-const FAT: NumberFieldDef = { id: "settings-field-9", label: "Yağ Hedefi (g)", key: "fatTargetG", fallback: 60, parse: int, tone: "font-bold text-indigo-700" };
+const FAT: NumberFieldDef = { id: "settings-field-9", label: "Yağ Hedefi (g)", key: "fatTargetG", fallback: DEFAULT_TARGETS.fatTargetG, parse: int, tone: "font-bold text-indigo-700" };
 
 function NumberField({ field, draft, onChange }: { field: NumberFieldDef; draft: ProfileDraft; onChange: (key: NumericKey, value: number) => void }) {
   return (
@@ -103,6 +107,14 @@ function TimeField(props: { id: string; label: string; field: TimeKey; fallback:
   );
 }
 
+function ToggleSaved({ show }: { show: boolean }) {
+  return show ? (
+    <span role="status" className="text-[11px] font-semibold text-emerald-700">
+      Kaydedildi ✓
+    </span>
+  ) : null;
+}
+
 /**
  * Profil ve günlük hedefler. Yazılanlar yerel taslakta tutulur; profil sorgusu yeni veri
  * getirdiğinde (kayıt yanıtı, yedekten geri yükleme) taslak yeniden kurulur.
@@ -110,19 +122,54 @@ function TimeField(props: { id: string; label: string; field: TimeKey; fallback:
 export function ProfileTargetsSection({ profile }: { profile: Profile | undefined }) {
   const [draft, setDraft] = useState<ProfileDraft>(() => profile ?? {});
   const [seededFrom, setSeededFrom] = useState(profile);
+  // B34: anahtar kaydından dönen profil yalnız anahtarları günceller; formdaki kaydedilmemiş düzenleme kalır.
+  const [toggleSaving, setToggleSaving] = useState(false);
   if (profile !== seededFrom) {
     setSeededFrom(profile);
-    setDraft(profile ?? {});
+    setDraft((d) => (toggleSaving && profile ? { ...d, hideNumbers: profile.hideNumbers, cycleTracking: profile.cycleTracking } : profile ?? {}));
+    if (toggleSaving) setToggleSaving(false);
   }
 
   const [acknowledgeLow, setAcknowledgeLow] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const floor = calorieFloor(draft.sex ?? "male");
-  const isLowCalorie = (draft.calorieTarget || CALORIE_FALLBACK) < floor;
+  const calorieTarget = draft.calorieTarget || CALORIE_FALLBACK;
+  const isLowCalorie = calorieTarget < floor;
+  // B15: kalori hedefi değişince makrolar eski değerde kalabilir; enerjileri hedefle uyuşmazsa uyarılır.
+  const macros = {
+    proteinG: draft.proteinTargetG || DEFAULT_TARGETS.proteinTargetG,
+    carbsG: draft.carbTargetG || DEFAULT_TARGETS.carbTargetG,
+    fatG: draft.fatTargetG || DEFAULT_TARGETS.fatTargetG,
+  };
+  const balance = macroMismatch(calorieTarget, macros);
+  const suggestion = balance.mismatched ? redistributeMacros(calorieTarget, macros) : null;
 
   const save = useSaveProfile();
   const success = useTimedMessage<string>(3000);
   const set = <K extends keyof ProfileDraft>(key: K, value: ProfileDraft[K]) => setDraft((d) => ({ ...d, [key]: value }));
+
+  // B34: açma-kapama ayarları dokununca kaydedilir. Kayıtlı profil + yalnız bu anahtar gönderilir;
+  // formdaki kaydedilmemiş hedefler bu kayda girmez. Onay mesajı anahtarın yanında görünür.
+  const toggleSave = useSaveProfile();
+  const toggleDone = useTimedMessage<ToggleKey>(2500);
+  function saveToggle(key: ToggleKey, value: boolean) {
+    set(key, value);
+    toggleDone.clear();
+    if (!profile) return;
+    setToggleSaving(true);
+    // Kayıtlı hedef taban altındaysa daha önce onaylanmıştır (sunucu onaysız kaydetmez).
+    const acknowledged = profile.calorieTarget < calorieFloor(profile.sex);
+    toggleSave.mutate(
+      { ...(profile as ProfileInput), [key]: value, acknowledgeLowCalorie: acknowledged || undefined },
+      {
+        onSuccess: () => toggleDone.show(key),
+        onError: () => {
+          setToggleSaving(false);
+          set(key, !value);
+        },
+      }
+    );
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -158,6 +205,13 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
         <div role="alert" className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-semibold">
           {errorMessage(save.error, "Profil güncellenemedi.")}
         </div>
+      )}
+
+      {/* Recheck (Can): sihirbaz tamamlanmadıysa bu değerler nötr başlangıç değerleridir, kullanıcının değil. */}
+      {profile?.isOnboarded === false && (
+        <p role="note" className="p-3 rounded-xl border border-amber-200 bg-amber-50 text-xs text-amber-900">
+          Bu değerler tahmini başlangıç değerleri; senin ölçülerin değil. Kendi bilgilerini gir ya da sihirbazla hedeflerini hesapla.
+        </p>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -201,10 +255,63 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
           </div>
         )}
 
+        {balance.mismatched && (
+          <div role="status" aria-label="Makro dengesi" className="p-3 rounded-xl bg-sky-50 border border-sky-200 text-sky-900 text-xs space-y-2">
+            <p>
+              Protein, karbonhidrat ve yağ hedeflerin toplam {formatNumberTr(balance.macroKcal)} kcal ediyor; kalori hedefin{" "}
+              {formatNumberTr(calorieTarget)} kcal ({formatNumberTr(Math.abs(balance.diff))} kcal {balance.diff > 0 ? "fazla" : "eksik"}).
+            </p>
+            {suggestion && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span>
+                  Oranları koruyarak dağıtılırsa: Protein {formatNumberTr(suggestion.proteinG)} g · Karbonhidrat {formatNumberTr(suggestion.carbsG)} g · Yağ{" "}
+                  {formatNumberTr(suggestion.fatG)} g
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setDraft((d) => ({ ...d, proteinTargetG: suggestion.proteinG, carbTargetG: suggestion.carbsG, fatTargetG: suggestion.fatG }))}
+                  className="px-3 py-1.5 rounded-lg bg-sky-700 text-white font-bold hover:bg-sky-800"
+                >
+                  Makroları oranla dağıt
+                </button>
+              </div>
+            )}
+            <p className="text-sky-800">İstersen makroları elle de düzeltebilirsin; diyetisyeninin verdiği değerler varsa onları gir.</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-slate-100">
           <NumberField field={FAT} draft={draft} onChange={set} />
-          <TimeField id="settings-field-10" label="Hedef Uyanış Saati" field="wakeTime" fallback="06:00" draft={draft} onChange={set} />
-          <TimeField id="settings-field-11" label="İşten Eve Varış Saati" field="workdayHomeTime" fallback="19:30" draft={draft} onChange={set} />
+          <TimeField id="settings-field-10" label="Hedef Uyanış Saati" field="wakeTime" fallback={NEW_PROFILE_DEFAULTS.wakeTime} draft={draft} onChange={set} />
+          {/* B02/B06: gün düzeni; rutin bandı ve eve varış saati yalnız ofis/okulda kullanılır. */}
+          <div>
+            <label htmlFor="settings-day-pattern" className={LABEL}>
+              Gün düzeni
+            </label>
+            <select
+              id="settings-day-pattern"
+              value={draft.dayPattern ?? ""}
+              onChange={(e) => set("dayPattern", (e.target.value || null) as DayPattern | null)}
+              className={INPUT}
+            >
+              <option value="">Belirtilmedi</option>
+              {DAY_PATTERNS.map((p) => (
+                <option key={p} value={p}>
+                  {DAY_PATTERN_LABELS[p]}
+                </option>
+              ))}
+            </select>
+          </div>
+          {(draft.dayPattern === "office" || draft.dayPattern === "school") && (
+            <TimeField
+              id="settings-field-11"
+              label="Eve varış saati"
+              field="workdayHomeTime"
+              fallback={NEW_PROFILE_DEFAULTS.workdayHomeTime}
+              draft={draft}
+              onChange={set}
+            />
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -228,28 +335,45 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
           <p className="mt-1 text-[11px] text-slate-500">Koç bu notları her yanıtta dikkate alır. Notlar yalnız seçtiğin yapay zekâ sağlayıcısına gönderilir.</p>
         </div>
 
-        <label className="flex items-start gap-2 pt-3 border-t border-slate-100 text-xs text-slate-700">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={draft.hideNumbers ?? false}
-            onChange={(e) => set("hideNumbers", e.target.checked)}
-          />
-          <span>
-            <span className="font-bold">Kalori ve makro sayılarını gizle</span>
-            <span className="block text-slate-500">Pano ilerlemeyi sayı yerine sözle gösterir. Sayılar hesaplanmaya devam eder.</span>
-          </span>
-        </label>
-
-        <label className="flex items-start gap-2 text-xs text-slate-700">
-          <input type="checkbox" className="mt-0.5" checked={draft.cycleTracking ?? false} onChange={(e) => set("cycleTracking", e.target.checked)} />
-          <span>
-            <span className="font-bold">Adet döngüsü notu</span>
-            <span className="block text-slate-500">
-              Günlük ritimde isteğe bağlı not. Haftalık değerlendirme kilo dalgalanmasını açıklarken kullanır; yapay zekâ modeline gönderilmez.
+        <div className="pt-3 border-t border-slate-100 space-y-3">
+          <p className="text-[11px] text-slate-500">Bu iki ayar dokununca kaydedilir.</p>
+          <label className="flex items-start gap-2 text-xs text-slate-700">
+            <input
+              id="settings-hide-numbers"
+              type="checkbox"
+              className="mt-0.5"
+              checked={draft.hideNumbers ?? false}
+              disabled={toggleSave.isPending}
+              onChange={(e) => saveToggle("hideNumbers", e.target.checked)}
+            />
+            <span>
+              <span className="font-bold">Kalori ve makro sayılarını gizle</span> <ToggleSaved show={toggleDone.message === "hideNumbers"} />
+              <span className="block text-slate-500">Pano ilerlemeyi sayı yerine sözle gösterir. Sayılar hesaplanmaya devam eder.</span>
             </span>
-          </span>
-        </label>
+          </label>
+
+          <label className="flex items-start gap-2 text-xs text-slate-700">
+            <input
+              id="settings-cycle-tracking"
+              type="checkbox"
+              className="mt-0.5"
+              checked={draft.cycleTracking ?? false}
+              disabled={toggleSave.isPending}
+              onChange={(e) => saveToggle("cycleTracking", e.target.checked)}
+            />
+            <span>
+              <span className="font-bold">Adet döngüsü notu</span> <ToggleSaved show={toggleDone.message === "cycleTracking"} />
+              <span className="block text-slate-500">
+                Günlük ritimde isteğe bağlı not. Haftalık değerlendirme kilo dalgalanmasını açıklarken kullanır; yapay zekâ modeline gönderilmez.
+              </span>
+            </span>
+          </label>
+          {toggleSave.isError && (
+            <p role="alert" className="text-xs font-semibold text-rose-700">
+              {errorMessage(toggleSave.error, "Ayar kaydedilemedi.")}
+            </p>
+          )}
+        </div>
 
         <div className="flex justify-end pt-2">
           <button

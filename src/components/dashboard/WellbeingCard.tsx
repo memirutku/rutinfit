@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTimedMessage } from "@/hooks/useTimedMessage";
 import type { ProgressResponse } from "@/lib/schemas/progress";
 import { WELLBEING_SECTION_ID } from "./rhythm";
-import { parseDecimalTr } from "@/lib/format";
+import { formatNumberTr, parseDecimalTr } from "@/lib/format";
 import { computeReadiness, READINESS_BAND_LABELS, type ReadinessBand } from "@/lib/readiness";
 import { CYCLE_NOTES, CYCLE_NOTE_LABELS, type CycleNote } from "@/lib/schemas/enums";
 
@@ -12,8 +12,8 @@ const READINESS_TONE: Record<ReadinessBand, string> = { low: "text-rose-700", me
 
 export interface WellbeingValues {
   weightKg?: number;
-  energy1to5: number;
-  sleepMinutes: number;
+  energy1to5?: number;
+  sleepMinutes?: number;
   /** F51 */
   stress1to5?: number;
   soreness1to5?: number;
@@ -24,17 +24,19 @@ export interface WellbeingValues {
 
 type Scales = Pick<WellbeingValues, "stress1to5" | "soreness1to5" | "mood1to5">;
 
-/** Form alanlarını kayıt gövdesine çevirir. Virgüllü ondalık kabul edilir; boş uyku 7 saattir. */
-export function toWellbeingValues(weight: string, sleepHours: string, energy: number, scales: Scales = {}): WellbeingValues {
+/**
+ * Form alanlarını kayıt gövdesine çevirir. Virgüllü ondalık kabul edilir.
+ * B04: boş bırakılan alan gövdeye girmez (enerji 3/5, uyku 7 saat gibi değerler uydurulmaz).
+ */
+export function toWellbeingValues(weight: string, sleepHours: string, energy: number | null, scales: Scales = {}): WellbeingValues {
   const w = parseDecimalTr(weight) ?? NaN;
   const h = parseDecimalTr(sleepHours) ?? NaN;
-  const extra = Object.fromEntries(Object.entries(scales).filter(([, v]) => typeof v === "number")) as Scales;
-  return {
-    weightKg: Number.isFinite(w) && w > 0 ? w : undefined,
-    energy1to5: energy,
-    sleepMinutes: Number.isFinite(h) ? Math.round(h * 60) : 420,
-    ...extra,
-  };
+  const values: WellbeingValues = {};
+  if (Number.isFinite(w) && w > 0) values.weightKg = w;
+  if (energy !== null) values.energy1to5 = energy;
+  if (Number.isFinite(h) && h >= 0) values.sleepMinutes = Math.round(h * 60);
+  for (const [k, v] of Object.entries(scales)) if (typeof v === "number") values[k as keyof Scales] = v;
+  return values;
 }
 
 /** F51: 1–5 ölçeği (düğmeler "Kas ağrısı 3/5" gibi adlandırılır). */
@@ -71,13 +73,15 @@ interface WellbeingCardProps {
   onSave: (values: WellbeingValues) => Promise<boolean>;
   /** F82: ayarlarda açıksa döngü notu seçimi gösterilir. */
   cycleTracking?: boolean;
+  /** B02: kilo alanı örneği kullanıcının son tartısından (yoksa genel örnek). */
+  lastWeightKg?: number | null;
 }
 
 /** Günlük iyilik hâli hızlı girişi (takviyeler F15 ile ayrı kartta). */
-export function WellbeingCard({ today, onSave, cycleTracking = false }: WellbeingCardProps) {
+export function WellbeingCard({ today, onSave, cycleTracking = false, lastWeightKg = null }: WellbeingCardProps) {
   const [weight, setWeight] = useState("");
-  const [energy, setEnergy] = useState(3);
-  const [sleep, setSleep] = useState("7");
+  const [energy, setEnergy] = useState<number | null>(null);
+  const [sleep, setSleep] = useState("");
   const [stress, setStress] = useState<number | null>(null);
   const [soreness, setSoreness] = useState<number | null>(null);
   const [mood, setMood] = useState<number | null>(null);
@@ -94,9 +98,10 @@ export function WellbeingCard({ today, onSave, cycleTracking = false }: Wellbein
   const [seededSignature, setSeededSignature] = useState<string | null>(null);
   if (today && signature !== seededSignature) {
     setSeededSignature(signature);
-    if (today.weightKg) setWeight(String(today.weightKg));
+    // B23: kayıtlı değer Türkçe ondalıkla gösterilir (89,6; 89.6 değil).
+    if (today.weightKg) setWeight(String(today.weightKg).replace(".", ","));
     if (today.energy1to5) setEnergy(today.energy1to5);
-    if (today.sleepMinutes) setSleep(String(today.sleepMinutes / 60));
+    if (today.sleepMinutes) setSleep(String(Math.round((today.sleepMinutes / 60) * 100) / 100).replace(".", ","));
     if (today.stress1to5) setStress(today.stress1to5);
     if (today.soreness1to5) setSoreness(today.soreness1to5);
     if (today.mood1to5) setMood(today.mood1to5);
@@ -148,7 +153,7 @@ export function WellbeingCard({ today, onSave, cycleTracking = false }: Wellbein
                 id="dash-field-1"
                 type="text"
                 inputMode="decimal"
-                placeholder="Örn: 112,0"
+                placeholder={lastWeightKg ? `Örn: ${formatNumberTr(lastWeightKg)}` : "Örn: 70,5"}
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white"
@@ -175,7 +180,7 @@ export function WellbeingCard({ today, onSave, cycleTracking = false }: Wellbein
           {/* Enerji Seviyesi (1-5) */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-              Günlük Enerji Seviyesi: <span className="text-slate-900 font-bold">{energy} / 5</span>
+              Günlük Enerji Seviyesi: <span className="text-slate-900 font-bold">{energy ?? "—"} / 5</span>
             </label>
             <div className="flex gap-2">
               {[1, 2, 3, 4, 5].map((level) => (

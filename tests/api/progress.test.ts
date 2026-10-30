@@ -65,6 +65,27 @@ describe("GET /api/progress — uzun kullanım", () => {
   });
 });
 
+describe("B04: veri yokken uydurma değer yok", () => {
+  it("kilo kaydı yokken haftalık fark null; kreatin takibi yoksa izlenmiyor", async () => {
+    const res = await callRoute(GET);
+    expect(res.json.weeklyWeightDelta).toBeNull();
+    expect(res.json.creatineTracked).toBe(false);
+  });
+
+  it("kreatin takviyesi ya da kaydı varsa izleniyor sayılır", async () => {
+    await prisma.supplement.create({ data: { name: "Kreatin Monohidrat", doseAmount: 5, doseUnit: "g" } });
+    expect((await callRoute(GET)).json.creatineTracked).toBe(true);
+  });
+
+  it("yalnız tek alan gönderilince diğer iyilik hâli alanları boş kalır (3/5, 7 saat yazılmaz)", async () => {
+    await callRoute(POST, { body: { date: today(), mood1to5: 4 } });
+    const row = await prisma.dailyWellbeing.findUnique({ where: { date: today() } });
+    expect(row).toMatchObject({ mood1to5: 4, energy1to5: null, sleepMinutes: null, hunger1to5: null, stress1to5: null });
+    const res = await callRoute(GET);
+    expect(res.json.today).toMatchObject({ energy1to5: null, sleepMinutes: null });
+  });
+});
+
 describe("POST /api/progress", () => {
   it("kilo + kreatin kaydını aynı gün için günceller (upsert)", async () => {
     await callRoute(POST, { body: { date: today(), weightKg: 101.2, creatineTaken: true } });

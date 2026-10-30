@@ -15,7 +15,7 @@ test("Ayşe: ilk hafta, kilo verme, Türk ev yemekleri", async ({ page, request 
     await expect(page.getByRole("dialog", { name: "Hedeflerini birlikte kuralım" })).toBeVisible();
   });
   await step("Sihirbaz: vücut, hareket, hedef", "Bilgilerini girer: kadın, 34, 165 cm, 90 kg, masa başı, kilo vermek, hedef 75 kg", async () => {
-    await fillWizard(page, { sex: "Kadın", age: 34, height: 165, weight: 90, activity: /Hareketsiz/, goal: "Kilo ver", target: 75, rate: "0.5" });
+    await fillWizard(page, { sex: "Kadın", age: 34, height: 165, weight: 90, activity: /Hareketsiz/, goal: "Kilo ver", target: 75, rate: "0.5", dayPattern: "Ofis / iş yeri", homeTime: "18:30" });
   });
   await step("Sihirbaz: özet", "Önerilen kalori hedefini okur ve anlamaya çalışır", async () => {
     await expect(page.getByText("Günlük kalori hedefi")).toBeVisible();
@@ -28,7 +28,7 @@ test("Ayşe: ilk hafta, kilo verme, Türk ev yemekleri", async ({ page, request 
     await d.getByRole("searchbox", { name: "Besin ara" }).fill("mercimek");
     await expect(d.getByLabel("Besin Seçin").locator("option")).not.toHaveCount(1, { timeout: 3000 });
   });
-  await step("Hızlı öğünü kapatır", "Bulamayınca pencereyi kapatır", async () => {
+  await step("Hızlı öğünü kapatır", "Sonucu görür; yazarak eklemeyi denemek için pencereyi kapatır", async () => {
     await page.keyboard.press("Escape");
   });
 
@@ -40,22 +40,24 @@ test("Ayşe: ilk hafta, kilo verme, Türk ev yemekleri", async ({ page, request 
     await d.getByRole("button", { name: "Çözümle" }).click();
     await expect(d.getByRole("button", { name: /kalemi kaydet/ })).toBeEnabled({ timeout: 4000 });
   });
-  await step("Yazarak ekle penceresini kapatır", "Eşleşme çıkmayınca vazgeçer", async () => {
+  await step("Yazarak ekle penceresini kapatır", "Eşleşmeleri görür; önce besin sayfasına bakmak için kapatır", async () => {
     await page.keyboard.press("Escape");
   });
 
   await step("Besin & Tarif sayfasını keşfeder", "Besinleri nereden ekleyeceğini arar", async () => {
-    await page.getByRole("link", { name: "Besin & Tarif" }).click();
+    await page.getByRole("link", { name: "Besin & Tarif", exact: true }).first().click();
     await expect(page.getByRole("button", { name: /Besin Kataloğu/ })).toBeVisible();
   });
-  await step("Türk ev yemeklerini ekler", "Tarifler sekmesinde Türk ev yemekleri önerisini görür ve ekler", async () => {
+  await step("Türk ev yemeklerini ekler", "Tarifler sekmesinde Türk ev yemeklerini arar (yoksa ekler)", async () => {
     await page.getByRole("button", { name: /^Tarifler/ }).click();
-    await page.getByRole("button", { name: /Türk ev yemeklerini ekle/ }).click();
+    // Dalga 6 (B01): paket ilk açılışta kurulu gelir; düğme yalnız kurulu değilse görünür.
+    const add = page.getByRole("button", { name: /Türk ev yemeklerini ekle/ });
+    if (await add.isVisible().catch(() => false)) await add.click();
     await expect(page.getByText("Mercimek Çorbası").first()).toBeVisible();
   });
 
   await step("Yazarak ekle: ikinci deneme", "Panoya dönüp aynı cümleyi tekrar yazar ve kaydeder", async () => {
-    await page.getByRole("link", { name: "Ana Panel" }).click();
+    await page.getByRole("link", { name: "Ana Panel", exact: true }).first().click();
     await page.getByRole("button", { name: /Yazarak ekle/ }).first().click();
     const d = page.getByRole("dialog", { name: "Yazarak öğün ekle" });
     await d.getByLabel("Ne yedin?").fill("1 kase mercimek çorbası, 2 dilim ekmek, 1 su bardağı ayran");
@@ -94,7 +96,7 @@ test("Ayşe: ilk hafta, kilo verme, Türk ev yemekleri", async ({ page, request 
     await expect(page.getByText("Bugün Kaydedilen Öğünler")).toBeVisible();
   });
   await step("İlerleme sayfası", "Haftanın nasıl geçtiğini görmek ister", async () => {
-    await page.getByRole("link", { name: "İlerleme" }).click();
+    await page.getByRole("link", { name: "İlerleme", exact: true }).first().click();
     await expect(page.getByRole("heading", { name: "Haftalık değerlendirme" })).toBeVisible();
   });
   await step("Geçen haftayı değerlendir", "Haftalık değerlendirmeyi ister", async () => {

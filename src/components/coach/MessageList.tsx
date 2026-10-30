@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { Bot, X } from "lucide-react";
 import { ActionProposalCard, type ProposalActionState } from "./ActionProposalCard";
-import type { CardProposal, CoachMessage } from "./types";
+import { plainText, type CardProposal, type CoachMessage } from "./types";
 import { Explanation } from "@/components/ui/Explanation";
 
 export interface MessageActionState extends ProposalActionState {
@@ -39,7 +39,7 @@ export function MessageBubble({ message: m, state, onApprove, onReject, onToggle
     <div className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
       {!isUser && <BotAvatar />}
 
-      <div className={`max-w-xl space-y-3 ${isUser ? "items-end" : ""}`}>
+      <div className={`min-w-0 max-w-xl space-y-3 ${isUser ? "items-end" : ""}`}>
         <div
           className={`p-4 rounded-2xl text-sm leading-relaxed ${
             isUser
@@ -49,14 +49,18 @@ export function MessageBubble({ message: m, state, onApprove, onReject, onToggle
               : "bg-slate-100/80 text-slate-800 rounded-tl-none border border-slate-200/50"
           }`}
         >
-          <div className="whitespace-pre-wrap">{m.content}</div>
+          <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">{m.isError ? plainText(m.content) : m.content}</div>
         </div>
         {m.aiGenerated && <p className="text-[10px] text-slate-400 pl-1">AI tarafından üretildi · hatalı olabilir</p>}
 
         {/* F50: kayıtlardan hesaplanan yanıt; sayılar modelden değil veritabanından */}
         {m.dataAnswer && (
           <div className="p-3 rounded-xl border border-sky-200 bg-sky-50/60 text-xs space-y-2">
-            <p className="font-bold text-slate-900">{m.dataAnswer.title}</p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-bold text-slate-900">{m.dataAnswer.title}</p>
+              {/* B31: sayılar modelden değil kullanıcının kayıtlarından */}
+              <span className="text-[10px] font-semibold text-sky-800 bg-sky-100 px-1.5 py-0.5 rounded">Kayıtlarından hesaplandı</span>
+            </div>
             <p className="text-slate-700">{m.dataAnswer.answer}</p>
             {m.dataAnswer.rows.length > 0 && <Explanation title="Kaynak kayıtlar" items={m.dataAnswer.rows} />}
           </div>

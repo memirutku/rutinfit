@@ -1,14 +1,32 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithQuery } from "../helpers/query";
 import { jsonResponse, stubFetch } from "../helpers/fetch";
 
+const mockBreakdown = vi.hoisted(() => ({
+  current: {
+    metrics: [
+      {
+        type: "steps",
+        days: 14,
+        overlapDays: 14,
+        overlapWinner: "Can's Apple Watch",
+        sources: [
+          { source: "Can's Apple Watch", days: 14, chosenDays: 14 },
+          { source: "Can's iPhone", days: 14, chosenDays: 0 },
+        ],
+      },
+      { type: "active_kcal", days: 3, overlapDays: 0, overlapWinner: null, sources: [{ source: "Can's Apple Watch", days: 3, chosenDays: 3 }] },
+    ],
+    duplicateWorkouts: 2,
+  } as unknown,
+}));
 const records = Array.from({ length: 6001 }, (_, i) => ({ key: `steps:${i}`, type: "steps", date: "2026-10-01", value: 1, unit: "count", source: "Watch" }));
 vi.mock("@/lib/apple-health", () => ({
   readAppleHealthExport: vi.fn(async (_file: Blob, onProgress?: (r: number, t: number) => void) => {
     onProgress?.(50, 100);
     onProgress?.(100, 100);
-    return { records, stats: { lines: 9000, records: 8000, skipped: 1000, workouts: 0 } };
+    return { records, stats: { lines: 9000, records: 8000, skipped: 1000, workouts: 0 }, breakdown: mockBreakdown.current };
   }),
 }));
 
@@ -49,6 +67,26 @@ describe("F62: Apple Sağlık bölümü", () => {
     expect(await screen.findByText("7.300")).toBeTruthy();
     expect(screen.getByText(/Koşu · 30,5 dk · 5 km/)).toBeTruthy();
     expect(screen.getByText(/kendi kaydın: 101 kg/)).toBeTruthy();
+  });
+
+  it("B37: içe aktarmadan sonra çift sayım önlemi bir satırda, kaynak dökümü açılır bölümde görünür", async () => {
+    restore = stubFetch([
+      ["/api/apple-health/import", () => jsonResponse({ created: 1, updated: 0 })],
+      ["/api/apple-health", () => jsonResponse(summary(0))],
+    ]).restore;
+    renderWithQuery(<AppleHealthSection />);
+    fireEvent.change(await screen.findByLabelText("Apple Sağlık dışa aktarımı (export.zip)"), { target: { files: [new File(["x"], "export.zip")] } });
+    expect(
+      await screen.findByText("Adım: 14 günde birden çok kaynak vardı; aynı gün için yalnız yüksek kaynak alındı (Can's Apple Watch).")
+    ).toBeTruthy();
+    expect(screen.getByText("Aktif enerji: tek kaynak (Can's Apple Watch); birleştirme gerekmedi.")).toBeTruthy();
+    expect(screen.getByText("Aynı antrenmanın 2 kopyası (başka uygulamadan) bir kez sayıldı.")).toBeTruthy();
+
+    const details = screen.getByText("Kaynak dökümü").closest("details")!;
+    expect(details.open).toBe(false);
+    const rows = within(details).getAllByRole("row").map((r) => r.textContent);
+    expect(rows).toContain("AdımCan's Apple Watch14 gün14 gün");
+    expect(rows).toContain("AdımCan's iPhone14 gün0 gün");
   });
 
   it("silme iki adımda onaylanır", async () => {

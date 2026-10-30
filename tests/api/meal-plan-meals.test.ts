@@ -41,4 +41,13 @@ describe("F30: planlı öğün düzenleme", () => {
     expect((await callRoute(PATCH, { method: "PATCH", query: { id: "yok" }, body: { servings: 2 } })).status).toBe(404);
     expect((await callRoute(DELETE, { method: "DELETE", query: { id: "yok" } })).status).toBe(404);
   });
+
+  it("recheck (Zeynep): 'Yedim' ile günlüğe yazılan öğün işaretlenir (çift kayıt önlenir); işaret geri alınabilir", async () => {
+    const added = await callRoute(POST, { body: { date: "2026-11-02", mealType: "breakfast", customName: "2 yumurta" } });
+    const marked = await callRoute(PATCH, { method: "PATCH", query: { id: added.json.id }, body: { logged: true } });
+    expect(marked.status).toBe(200);
+    expect(marked.json.loggedAt).toBeTruthy();
+    const cleared = await callRoute(PATCH, { method: "PATCH", query: { id: added.json.id }, body: { logged: false } });
+    expect(cleared.json.loggedAt).toBeNull();
+  });
 });

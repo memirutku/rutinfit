@@ -12,7 +12,7 @@ export const MealTypeSchema = z.preprocess(
 export const MEAL_TYPE_LABELS: Record<MealType, string> = {
   breakfast: "Kahvaltı",
   lunch: "Öğle Yemeği",
-  workSnack: "İş Çıkışı Ara Öğünü",
+  workSnack: "İkindi Ara Öğünü",
   dinner: "Akşam Yemeği",
   extra: "Ekstra / Ara Öğün",
 };
