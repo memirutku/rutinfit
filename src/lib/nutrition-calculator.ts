@@ -67,6 +67,33 @@ export function calculateRecipeMacros(
   );
 }
 
+const round1 = (n: number) => Math.round(n * 10) / 10;
+
+/** Makroları bir katsayıyla ölçekler (0,1 hassasiyet). */
+export function scaleMacros(values: NutritionalValues, factor: number): NutritionalValues {
+  return {
+    calories: round1(values.calories * factor),
+    proteinG: round1(values.proteinG * factor),
+    carbsG: round1(values.carbsG * factor),
+    fatG: round1(values.fatG * factor),
+  };
+}
+
+/**
+ * Tarifin malzeme listesi `recipeServings` porsiyon verir; `servings` porsiyonluk payın
+ * gramajı ve makroları. Plan ekranı, "Yedim" ve öğün kaydı aynı formülü kullanır.
+ */
+export function calculateRecipePortion(
+  ingredients: IngredientWithFood[],
+  recipeServings: number,
+  servings: number
+): { grams: number; macros: NutritionalValues } {
+  const total = calculateRecipeMacros(ingredients);
+  const totalGrams = ingredients.reduce((acc, i) => acc + i.grams, 0);
+  const factor = servings / (recipeServings > 0 ? recipeServings : 1);
+  return { grams: round1(totalGrams * factor), macros: scaleMacros(total, factor) };
+}
+
 export interface DailyTargets {
   calorieTarget: number;
   calorieCeiling: number;
@@ -136,17 +163,23 @@ export function calculateDailySummary(
 
   // 2100 kcal üst tavan kontrolü
   const diffFromCeiling = targets.calorieCeiling - consumedCalories;
-  const isApproaching = diffFromCeiling <= 100 && diffFromCeiling > 0;
-  const isExceeded = diffFromCeiling <= 0;
+  // Tavana tam eşitlik aşım değildir.
+  const isExceeded = diffFromCeiling < 0;
+  const isApproaching = !isExceeded && diffFromCeiling <= 100;
 
   let message: string | null = null;
   if (isExceeded) {
     message = `Bugün üst sınır (${targets.calorieCeiling} kcal) hafifçe aşıldı (+${Math.abs(
       diffFromCeiling
     )} kcal). Bu tamamen doğaldır; sonraki günlerde dengeyi sakin bir tempoyla koruyabilirsiniz.`;
+  } else if (diffFromCeiling === 0) {
+    message = `Günlük üst sınıra (${targets.calorieCeiling} kcal) tam olarak ulaştınız. Bugün için ek öğüne gerek yok.`;
   } else if (isApproaching) {
     message = `Günlük üst sınıra (${targets.calorieCeiling} kcal) yaklaşıyorsunuz (kalan: ${diffFromCeiling} kcal). Akşam öğününde sebze ve hafif protein tercih edebilirsiniz.`;
   }
+
+  const pct = (consumed: number, target: number) =>
+    target > 0 ? Math.min(150, Math.round((consumed / target) * 100)) : 0;
 
   return {
     consumedCalories,
@@ -158,19 +191,10 @@ export function calculateDailySummary(
     remainingCarbs,
     remainingFat,
     progressPercent: {
-      calories: Math.min(
-        150,
-        Math.round((consumedCalories / targets.calorieTarget) * 100)
-      ),
-      protein: Math.min(
-        150,
-        Math.round((consumedProtein / targets.proteinTargetG) * 100)
-      ),
-      carbs: Math.min(
-        150,
-        Math.round((consumedCarbs / targets.carbTargetG) * 100)
-      ),
-      fat: Math.min(150, Math.round((consumedFat / targets.fatTargetG) * 100)),
+      calories: pct(consumedCalories, targets.calorieTarget),
+      protein: pct(consumedProtein, targets.proteinTargetG),
+      carbs: pct(consumedCarbs, targets.carbTargetG),
+      fat: pct(consumedFat, targets.fatTargetG),
     },
     ceilingAlert: {
       isApproaching,

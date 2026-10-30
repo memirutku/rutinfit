@@ -4,6 +4,8 @@ node_modules
 
 # Next.js & Build outputs
 .next
+# Prisma istemcisi ve şema bilgisi (`prisma generate` / postinstall üretir)
+src/generated/
 out
 build
 dist
@@ -28,6 +30,12 @@ antigravity_*brief*.md
 .env.local
 .env.*.local
 *.pem
+# Apple imza / notarization malzemesi (sertifika, App Store Connect API anahtarı) asla depoya girmez
+*.p12
+*.p8
+*.cer
+*.mobileprovision
+private_keys/
 
 # Logs & Cache
 npm-debug.log*
@@ -39,3 +47,12 @@ yarn-error.log*
 # OS Files
 .DS_Store
 Thumbs.db
+
+# Test outputs
+coverage/
+test-results/
+playwright-report/
+
+# Masaüstü paketi (scripts/prepare-desktop.mjs üretir)
+src-tauri/resources/
+src-tauri/binaries/

@@ -62,3 +62,40 @@ describe("Alışveriş Listesi Tekilleştirici ve Gruplayıcı", () => {
     expect(chicken?.formattedAmount).toBe("1.5 kg");
   });
 });
+
+describe("resolveShoppingCategory — kelime bazlı ve Türkçe büyük/küçük harf", () => {
+  it("'paketli' veya 'spagetti' içindeki 'et' hecesi kasap sayılmaz", () => {
+    expect(resolveShoppingCategory("Paketli Gıda")).not.toBe("Kasap & Balık");
+    expect(resolveShoppingCategory("Spagetti")).not.toBe("Kasap & Balık");
+    expect(resolveShoppingCategory("Ketçap")).not.toBe("Kasap & Balık");
+  });
+
+  it("'Dana Eti' ve 'Ton Balığı' kasaptır", () => {
+    expect(resolveShoppingCategory("Dana Eti")).toBe("Kasap & Balık");
+    expect(resolveShoppingCategory("Ton Balığı")).toBe("Kasap & Balık");
+  });
+
+  it("büyük 'I' ile başlayan Türkçe kelimeyi tanır (Ispanak → ıspanak)", () => {
+    expect(resolveShoppingCategory("Ispanak")).toBe("Manav (Sebze & Meyve)");
+  });
+
+  it("genel/paketli kategori adı varsa besin adına göre karar verir", () => {
+    expect(resolveShoppingCategory("Genel", "Tavuk Göğsü")).toBe("Kasap & Balık");
+    expect(resolveShoppingCategory("Paketli Gıda", "Light Yoğurt")).toBe("Süt Ürünleri & Yumurta");
+    expect(resolveShoppingCategory("Kasap & Balık", "Muz")).toBe("Kasap & Balık"); // açık kategori önceliklidir
+  });
+});
+
+describe("aggregateShoppingList — tarif porsiyonu", () => {
+  it("4 porsiyonluk tariften 1 porsiyon planlanınca malzemenin dörtte biri alınır", () => {
+    const result = aggregateShoppingList([
+      {
+        recipeName: "Fırın Tavuk (4 kişilik)",
+        recipeServings: 4,
+        servings: 1,
+        ingredients: [{ name: "Tavuk Göğsü", category: "Kasap & Balık", grams: 800 }],
+      },
+    ]);
+    expect(result["Kasap & Balık"][0].totalGrams).toBe(200);
+  });
+});

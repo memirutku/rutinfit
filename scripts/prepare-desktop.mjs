@@ -1,0 +1,274 @@
+#!/usr/bin/env node
+/**
+ * Masaüstü paketi hazırlığı (tauri.conf.json → beforeBuildCommand, `next build` sonrası):
+ *
+ * 1. .next/standalone sunucusunu src-tauri/resources/server klasörüne kopyalar
+ *    (statik dosyalar dahil, sembolik linkler çözülmüş).
+ * 2. Pakette kullanıcı verisi veya gizli dosya OLMADIĞINI doğrular; varsa derlemeyi durdurur.
+ * 3. macOS'ta APPLE_SIGNING_IDENTITY verilmişse sunucudaki native modülleri (better-sqlite3, @napi-rs/canvas,
+ *    varsa sharp/libvips) o kimlikle imzalar. Tauri yalnız Contents/MacOS altını imzalar; Resources altındakiler
+ *    imzasız kalırsa notarization reddeder ve hardened runtime'ın kütüphane doğrulaması onları Node'a yükletmez.
+ * 4. Gömülü Node çalışma zamanını (sabit sürüm + sabit SHA-256) indirip
+ *    src-tauri/binaries/node-<hedef> olarak yerleştirir (Tauri sidecar adlandırması; imzayı Tauri atar).
+ * 5. SQLite yerel eklentisinin (better-sqlite3) bu gömülü Node ile yüklenebildiğini doğrular.
+ * 6. Paketteki pdf-parse'ın bu gömülü Node ile PDF'den metin çıkarabildiğini doğrular.
+ */
+import { execFileSync } from "node:child_process";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { minimalPdf } from "./lib/minimal-pdf.cjs";
+import { findMachO, isRealIdentity } from "./lib/macos.mjs";
+
+const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+const standalone = path.join(root, ".next", "standalone");
+const serverOut = path.join(root, "src-tauri", "resources", "server");
+const binariesDir = path.join(root, "src-tauri", "binaries");
+
+const NODE_VERSION = "22.23.3";
+const NODE_SHA256 = {
+  "aarch64-apple-darwin": { file: `node-v${NODE_VERSION}-darwin-arm64.tar.gz`, sha256: "23b25245dcfb9af7262f8ff142e9e2e0af025368117329e7a7458a51e5922f53" },
+  "x86_64-apple-darwin": { file: `node-v${NODE_VERSION}-darwin-x64.tar.gz`, sha256: "8a677b0219178efd6eb0e475457c4afb452b521a92f6e67845a73bd85727f2a8" },
+};
+
+/**
+ * Standalone çıktının pakete alınabilecek üst düzey girdileri. Derleyicinin dosya izleyicisi
+ * dinamik yollar yüzünden proje dosyalarını (notlar, yedekler, yüklemeler) standalone'a
+ * katabilir; bu listede olmayan her şey atlanır ve doğrulamada hata sayılır.
+ */
+const ALLOWED_TOP_LEVEL = new Set(["server.js", "package.json", ".next", "node_modules", "prisma"]);
+const ALLOWED_IN_PRISMA = new Set(["migrations"]);
+const NATIVE_ADDON = "node_modules/better-sqlite3/build/Release/better_sqlite3.node";
+/** prepare-desktop'ın kendisinin eklediği girdiler. */
+const ADDED_TOP_LEVEL = new Set(["desktop-entry.cjs", "public"]);
+
+function outsideAllowlist(rel) {
+  const [top, second] = rel.split("/");
+  if (!ALLOWED_TOP_LEVEL.has(top)) return true;
+  return top === "prisma" && second !== undefined && !ALLOWED_IN_PRISMA.has(second);
+}
+
+/** Pakete asla girmemesi gereken yollar (kullanıcı verisi, gizli anahtarlar, ortam dosyaları). */
+const FORBIDDEN = [
+  { test: (rel) => /(^|\/)\.env(\.|$)/.test(rel), why: "ortam değişkeni dosyası" },
+  { test: (rel) => /\.(db|db-journal|sqlite|bak)$/i.test(rel), why: "veritabanı/yedek" },
+  { test: (rel) => /^(backups|uploads|opengym)(\/|$)/.test(rel), why: "kullanıcı veri klasörü" },
+  { test: (rel) => /(^|\/)(secret|vapid\.json|.*\.pem)$/.test(rel), why: "gizli anahtar" },
+];
+
+function log(msg) {
+  console.log(`[prepare-desktop] ${msg}`);
+}
+
+function hostTarget() {
+  try {
+    const out = execFileSync("rustc", ["-vV"], { encoding: "utf8" });
+    const m = out.match(/^host: (.+)$/m);
+    if (m) return m[1].trim();
+  } catch {
+    // rustc yoksa işlemci mimarisinden çıkar
+  }
+  return os.arch() === "arm64" ? "aarch64-apple-darwin" : "x86_64-apple-darwin";
+}
+
+function copyServer() {
+  if (!fs.existsSync(path.join(standalone, "server.js"))) {
+    throw new Error(".next/standalone bulunamadı. Önce `pnpm build` çalıştırın (next.config: output 'standalone').");
+  }
+  fs.rmSync(serverOut, { recursive: true, force: true });
+  fs.mkdirSync(path.dirname(serverOut), { recursive: true });
+
+  const skipped = [];
+  fs.cpSync(standalone, serverOut, {
+    recursive: true,
+    dereference: true,
+    filter: (src) => {
+      const rel = path.relative(standalone, src).split(path.sep).join("/");
+      if (rel && outsideAllowlist(rel)) {
+        skipped.push(`${rel} (izin listesi dışında)`);
+        return false;
+      }
+      const hit = rel && FORBIDDEN.find((f) => f.test(rel));
+      if (hit) skipped.push(`${rel} (${hit.why})`);
+      return !hit;
+    },
+  });
+  fs.cpSync(path.join(root, ".next", "static"), path.join(serverOut, ".next", "static"), { recursive: true });
+  if (fs.existsSync(path.join(root, "public"))) {
+    fs.cpSync(path.join(root, "public"), path.join(serverOut, "public"), { recursive: true });
+  }
+  fs.copyFileSync(path.join(root, "src-tauri", "desktop-entry.cjs"), path.join(serverOut, "desktop-entry.cjs"));
+  if (skipped.length) log(`Pakete alınmadı: ${skipped.join(", ")}`);
+}
+
+function verifyServer() {
+  const violations = [];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      const rel = path.relative(serverOut, full).split(path.sep).join("/");
+      if (entry.isSymbolicLink()) violations.push(`${rel} (sembolik link)`);
+      const hit = FORBIDDEN.find((f) => f.test(rel));
+      if (hit) violations.push(`${rel} (${hit.why})`);
+      if (entry.isDirectory()) walk(full);
+    }
+  };
+  walk(serverOut);
+  for (const entry of fs.readdirSync(serverOut)) {
+    if (!ALLOWED_TOP_LEVEL.has(entry) && !ADDED_TOP_LEVEL.has(entry)) violations.push(`${entry} (izin listesi dışında)`);
+  }
+  const prismaDir = path.join(serverOut, "prisma");
+  for (const entry of fs.existsSync(prismaDir) ? fs.readdirSync(prismaDir) : []) {
+    if (!ALLOWED_IN_PRISMA.has(entry)) violations.push(`prisma/${entry} (izin listesi dışında)`);
+  }
+  for (const required of ["server.js", "desktop-entry.cjs", ".next/static", "prisma/migrations/0001_init/migration.sql"]) {
+    if (!fs.existsSync(path.join(serverOut, required))) violations.push(`${required} eksik`);
+  }
+  if (violations.length) {
+    throw new Error(`Masaüstü paketi güvenli değil:\n  - ${violations.join("\n  - ")}`);
+  }
+  // Prisma 7: Rust sorgu motoru yok; veritabanına better-sqlite3 sürücü adaptörüyle bağlanılır.
+  if (!fs.existsSync(path.join(serverOut, NATIVE_ADDON))) throw new Error(`SQLite yerel eklentisi pakette yok: ${NATIVE_ADDON}`);
+  const leftovers = [];
+  const findEngines = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) findEngines(full);
+      else if (/^(lib)?query[-_]engine/.test(entry.name)) leftovers.push(path.relative(serverOut, full));
+    }
+  };
+  findEngines(serverOut);
+  if (leftovers.length) throw new Error(`Eski Prisma sorgu motoru pakette kalmış: ${leftovers.join(", ")}`);
+  log(`Sunucu hazır: ${path.relative(root, serverOut)} (SQLite: ${NATIVE_ADDON})`);
+}
+
+/**
+ * better-sqlite3 Node'un V8 ABI'sine göre derlenir: `pnpm install` hangi Node ile çalıştıysa eklenti
+ * yalnız o ana sürümde yüklenir. Paketteki Node ile yüklenemezse uygulama açılışta çöker.
+ */
+function verifyNativeAddon(nodeBinary) {
+  const pkg = path.join(serverOut, "node_modules", "better-sqlite3");
+  const probe = `const D=require(${JSON.stringify(pkg)});const db=new D(":memory:");db.prepare("select 1").get();db.close();`;
+  try {
+    execFileSync(nodeBinary, ["-e", probe], { stdio: "pipe" });
+  } catch (err) {
+    const detail = String(err.stderr || err.message).split("\n").find((l) => l.includes("NODE_MODULE_VERSION")) || err.message;
+    throw new Error(
+      `SQLite yerel eklentisi gömülü Node ${NODE_VERSION} ile yüklenemedi (kurulum Node ${process.version} ile yapılmış).\n  ${detail}\n  Çözüm: Node 22 ile \`pnpm install\` çalıştırıp yeniden derleyin.`
+    );
+  }
+  log(`SQLite yerel eklentisi gömülü Node ${NODE_VERSION} ile yüklendi.`);
+}
+
+/**
+ * pdf-parse `@napi-rs/canvas`'ı ve `pdf.worker.mjs`'i çalışma anında yükler; dosya izleyici onları
+ * göremez (next.config.mjs → outputFileTracingIncludes). Pakette eksiklerse yüklenen PDF'ler sessizce
+ * boş kalır ("DOMMatrix is not defined"). Paketin dışından (ör. depodaki node_modules) yüklenen her
+ * modül de eksik sayılır: uygulama kurulduğu Mac'te o klasörü bulamaz.
+ */
+function verifyPdfParser(nodeBinary) {
+  // Sunucu parçası pdf-parse'ı Turbopack takma adıyla yükler (.next/node_modules/pdf-parse-<hash>;
+  // standalone'da sembolik link, pakette kopya).
+  const aliasDir = path.join(serverOut, ".next", "node_modules");
+  const alias = fs.existsSync(aliasDir) ? fs.readdirSync(aliasDir).find((name) => /^pdf-parse-[0-9a-f]+$/.test(name)) : undefined;
+  const pkg = alias ? path.join(aliasDir, alias) : path.join(serverOut, "node_modules", "pdf-parse");
+  const text = "RutinFit PDF probe: yulaf 80 g";
+  // pdfjs uyarılarını console.log ile yazar; stdout yalnız sonuç JSON'u taşısın diye stderr'e yönlenir.
+  const probe = `
+    console.log = console.warn = (...a) => process.stderr.write(a.join(" ") + "\\n");
+    (async () => {
+      const { PDFParse } = require(${JSON.stringify(pkg)});
+      const parser = new PDFParse({ data: require("node:fs").readFileSync(0) });
+      const { text } = await parser.getText();
+      await parser.destroy();
+      const outside = Object.keys(require.cache).filter((f) => !f.startsWith(${JSON.stringify(serverOut + path.sep)}));
+      process.stdout.write(JSON.stringify({ text, outside }));
+    })().catch((err) => { process.stderr.write(String(err && err.message) + "\\n"); process.exit(1); });`;
+  let result;
+  try {
+    result = JSON.parse(execFileSync(nodeBinary, ["-e", probe], { input: minimalPdf(text), stdio: "pipe" }).toString());
+  } catch (err) {
+    throw new Error(`Paketteki pdf-parse gömülü Node ile çalışmadı:\n  ${String(err.stderr || err.message).trim()}`);
+  }
+  if (!result.text.includes(text)) throw new Error(`Paketteki pdf-parse PDF'den metin çıkaramadı: ${JSON.stringify(result.text)}`);
+  if (result.outside.length) throw new Error(`pdf-parse paket dışından modül yükledi (pakette eksik): ${result.outside.join(", ")}`);
+  log(`PDF'den metin çıkarma gömülü Node ${NODE_VERSION} ile doğrulandı (${path.relative(serverOut, pkg)}).`);
+}
+
+function signNativeModules() {
+  if (process.platform !== "darwin") return;
+  const identity = process.env.APPLE_SIGNING_IDENTITY;
+  const files = findMachO(serverOut);
+  if (!isRealIdentity(identity)) {
+    log(`İmza kimliği yok (APPLE_SIGNING_IDENTITY): ${files.length} native modül olduğu gibi bırakıldı (yalnız bu Mac için ad-hoc paket).`);
+    return;
+  }
+  for (const file of files) {
+    const rel = path.relative(serverOut, file);
+    try {
+      // --timestamp: notarization güvenli zaman damgası ister. --options runtime: hardened runtime işareti.
+      execFileSync("codesign", ["--force", "--sign", identity, "--options", "runtime", "--timestamp", file], { stdio: ["ignore", "ignore", "pipe"] });
+      execFileSync("codesign", ["--verify", "--strict", file], { stdio: ["ignore", "ignore", "pipe"] });
+    } catch (err) {
+      const detail = String(err.stderr || err.message).trim();
+      throw new Error(
+        `${rel} imzalanamadı: ${detail}\n` +
+          "  Sertifika anahtar zincirinde olmalı: `security find-identity -v -p codesigning` (bkz. docs/RELEASING.md)."
+      );
+    }
+  }
+  log(`${files.length} native modül imzalandı: ${files.map((f) => path.relative(serverOut, f)).join(", ")}`);
+}
+
+async function ensureNode() {
+  const target = hostTarget();
+  const spec = NODE_SHA256[target];
+  if (!spec) throw new Error(`Desteklenmeyen hedef: ${target} (şimdilik yalnız macOS).`);
+  const dest = path.join(binariesDir, `node-${target}`);
+  const marker = `${dest}.version`;
+  if (fs.existsSync(dest) && fs.existsSync(marker) && fs.readFileSync(marker, "utf8").trim() === NODE_VERSION) {
+    log(`Node ${NODE_VERSION} zaten hazır (${path.relative(root, dest)})`);
+    return dest;
+  }
+
+  const url = `https://nodejs.org/dist/v${NODE_VERSION}/${spec.file}`;
+  log(`İndiriliyor: ${url}`);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Node indirilemedi: HTTP ${res.status}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  const actual = crypto.createHash("sha256").update(buf).digest("hex");
+  if (actual !== spec.sha256) {
+    throw new Error(`SHA-256 uyuşmuyor! beklenen ${spec.sha256}, gelen ${actual}. Dosya kullanılmadı.`);
+  }
+  log("SHA-256 doğrulandı.");
+
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "rutinfit-node-"));
+  try {
+    const tarball = path.join(tmp, spec.file);
+    fs.writeFileSync(tarball, buf);
+    const member = `${spec.file.replace(/\.tar\.gz$/, "")}/bin/node`;
+    execFileSync("tar", ["-xzf", tarball, "-C", tmp, member]);
+    fs.mkdirSync(binariesDir, { recursive: true });
+    fs.copyFileSync(path.join(tmp, member), dest);
+    fs.chmodSync(dest, 0o755);
+    fs.writeFileSync(marker, NODE_VERSION);
+    log(`Node ${NODE_VERSION} yerleştirildi: ${path.relative(root, dest)}`);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+  return dest;
+}
+
+try {
+  copyServer();
+  verifyServer();
+  // İmza önce: yükleme kontrolleri imzalanmış dosyalar üzerinde koşar.
+  signNativeModules();
+  const nodeBinary = await ensureNode();
+  verifyNativeAddon(nodeBinary);
+  verifyPdfParser(nodeBinary);
+} catch (err) {
+  console.error(`[prepare-desktop] HATA: ${err.message}`);
+  process.exit(1);
+}

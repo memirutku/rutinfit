@@ -22,12 +22,12 @@ flowchart TD
 
     subgraph Security ["Güvenlik & Süreç Yönetimi"]
         RustCore["Tauri 2 Rust Çekirdeği"]
-        LoopbackIPC["Loopback IPC / Dinamik Port (127.0.0.1)\n- Rastgele Port Seçimi\n- Yaşam Döngüsü (Kill-on-Exit)"]
+        LoopbackIPC["127.0.0.1 · tercihen 3005, doluysa boş port\n- Nonce ile sağlık doğrulaması\n- Kapanışta ve çökmede sunucu sonlanır"]
         RustCore --- LoopbackIPC
     end
 
     subgraph ServerEngine ["Yönetilen Yerel Arka Plan Motoru"]
-        NextEngine["Next.js 15 (Node.js Çalışma Zamanı)"]
+        NextEngine["Next.js 16 (Node.js Çalışma Zamanı)"]
         Parsers["Çoklu Dosya Ayrıştırıcıları\n(PDF, XLSX, DOCX, TXT)"]
         NutriEngine["Deterministik Besin Motoru\n(2.080 / 2.100 kcal tavanı)"]
         AIEngine["2-Fazlı Onaylı AI Katmanı\n(ActionDraft & AuditLog)"]
@@ -37,7 +37,7 @@ flowchart TD
     end
 
     subgraph DataLayer ["Yerel Depolama (Korumalı OS Alanı)"]
-        SQLiteDB[("SQLite Veritabanı (Prisma 6.4)\n~/Library/Application Support/RutinFit/rutinfit.db")]
+        SQLiteDB[("SQLite Veritabanı (Prisma 7 · better-sqlite3)\n~/Library/Application Support/RutinFit/rutinfit.db")]
         Backups[("Otomatik Yedekler\n.../RutinFit/backups/")]
     end
 
@@ -87,14 +87,20 @@ flowchart TD
 
 ---
 
-### 2.3 Web & Arka Plan Motoru: Next.js 15 (App Router) + React 19
-* **Kullanılan Sürüm:** Next.js v15.2.0 (React 19.0.0, Node.js 22 LTS uyumlu).
+### 2.3 Web & Arka Plan Motoru: Next.js 16 (App Router) + React 19
+* **Kullanılan Sürüm:** Next.js v16.4 (Turbopack, React 19.3, Node.js 22 LTS uyumlu).
 * **Görev:** Kullanıcı arayüzü bileşenleri, sunucu taraflı dosya ayrıştırıcıları, REST API rotaları ve yerel veri işleme.
 
 #### Neden Saf React/Vite SPA Değil de Next.js App Router Seçildi?
 1. **Hibrit Backend ve Frontend Entegrasyonu:** RutinFit yalnızca bir görsel arayüz değildir; aynı zamanda PDF, Excel ve Word dosyalarını ayrıştıran, yerel AI ile konuşan ve SQLite ile haberleşen bir backend motoruna ihtiyaç duyar. Next.js App Router sayesinde frontend ve 20+ API rotası tek bir standart mimaride birleşmiştir.
 2. **Sunucu Taraflı Ağır Kütüphaneler:** `pdf-parse`, `xlsx` ve `mammoth` gibi dosya okuyucu kütüphaneler tarayıcı ortamında hantal kalırken, Next.js sunucu tarafında yüksek hızda ve güvenli bellek alanında çalışır.
 3. **React 19 İstemci Optimizasyonu:** Modern Hook'lar, optimize edilmiş re-render döngüleri ve form durumları akıcı bir kullanıcı deneyimi sağlar.
+
+#### İstemci Veri Katmanı: TanStack Query
+* Sayfalar (`src/app/*/page.tsx`) yalnız düzen ve durum taşır; bölümler `src/components/<sayfa>/` altındadır.
+* Tüm istekler `src/lib/client/queries/*` kancalarından geçer (fetcher: `apiFetch`, `res.ok` kontrolü ve sunucu hata mesajı). Aynı anahtarlı eşzamanlı istekler tekilleşir; mutasyonlar ilgili sorguları geçersiz kılar.
+* Kreatin işareti, kiler ± ve alışveriş kalemi işareti iyimser güncellenir; sunucu hata verirse önceki duruma dönülür.
+* İstek ve yanıt tipleri `src/lib/schemas/*` altındaki Zod şemalarından türetilir; route'lar aynı şemalarla doğrular, `tests/api/response-schemas.test.ts` gerçek yanıtların şemalara uyduğunu sınar.
 
 ---
 
@@ -161,8 +167,8 @@ flowchart TD
 │ Kategori               │ Seçilen Teknoloji        │ Tercih Edilmeyen Alternatif │
 ├────────────────────────┼──────────────────────────┼─────────────────────────────┤
 │ Masaüstü Shell         │ Tauri 2 (Rust)           │ Electron (Ağır RAM & Boyut) │
-│ Veritabanı             │ SQLite + Prisma 6        │ PostgreSQL / Bulut DB       │
-│ Full-Stack Framework   │ Next.js 15 (App Router)  │ Saf Vite SPA                │
+│ Veritabanı             │ SQLite + Prisma 7        │ PostgreSQL / Bulut DB       │
+│ Full-Stack Framework   │ Next.js 16 (App Router)  │ Saf Vite SPA                │
 │ İstemci Kütüphanesi    │ React 19                 │ Vue / Svelte                │
 │ Stil & UI              │ Tailwind CSS v3.4        │ CSS Modules / Styled Comp.  │
 │ Grafikler              │ Recharts (SVG)           │ Chart.js (Canvas)           │

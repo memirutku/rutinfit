@@ -1,65 +1,55 @@
+import fs from "node:fs";
+import path from "node:path";
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getLocalDateString } from "@/lib/date-utils";
+import { exportAllData } from "@/lib/services/backup";
+import { getStoragePaths } from "@/lib/storage-paths";
+
+export const dynamic = "force-dynamic";
+
+/** Uygulama klasöründe tutulacak dışa aktarma kopyası sayısı (eskiler silinir). */
+const KEEP_EXPORT_COPIES = 20;
+
+/**
+ * Her dışa aktarmada bir kopya uygulamanın backups/ klasörüne de yazılır: masaüstü
+ * görünümünde indirme engellense bile yedek kaybolmaz.
+ */
+function saveLocalCopy(json: string, stamp: string): string | null {
+  try {
+    // turbopackIgnore: kullanıcı veri klasörü; derleyici bu yolu izleyip yedekleri pakete katmasın.
+    const dir = getStoragePaths().backupsDir;
+    const file = path.join(/*turbopackIgnore: true*/ dir, `rutinfit-backup-${stamp}.json`);
+    fs.writeFileSync(file, json, "utf8");
+    const copies = fs
+      .readdirSync(/*turbopackIgnore: true*/ dir)
+      .filter((f) => /^rutinfit-backup-.*\.json$/.test(f))
+      .sort();
+    for (const old of copies.slice(0, Math.max(0, copies.length - KEEP_EXPORT_COPIES))) {
+      fs.rmSync(path.join(/*turbopackIgnore: true*/ dir, old), { force: true });
+    }
+    return file;
+  } catch (error) {
+    console.error("Backup local copy error:", error);
+    return null;
+  }
+}
 
 export async function GET() {
   try {
-    const profile = await prisma.userProfile.findFirst();
-    const foods = await prisma.foodItem.findMany();
-    const recipes = await prisma.recipe.findMany({
-      include: { ingredients: true },
-    });
-    const mealPlans = await prisma.mealPlan.findMany({
-      include: { meals: true },
-    });
-    const foodLogs = await prisma.foodLog.findMany();
-    const workoutTemplates = await prisma.workoutTemplate.findMany({
-      include: { exercises: true },
-    });
-    const workoutSessions = await prisma.workoutSession.findMany({
-      include: { setLogs: true },
-    });
-    const weightLogs = await prisma.weightLog.findMany();
-    const measurements = await prisma.bodyMeasurement.findMany();
-    const wellbeings = await prisma.dailyWellbeing.findMany();
-    const supplementLogs = await prisma.supplementLog.findMany();
-    const shoppingListItems = await prisma.shoppingListItem.findMany();
-    const pantryItems = await prisma.pantryItem.findMany();
-    const aiSettings = await prisma.aISettings.findFirst();
+    const backup = await exportAllData();
+    const json = JSON.stringify(backup, null, 2);
+    const stamp = `${getLocalDateString()}_${new Date().toISOString().slice(11, 19).replace(/:/g, "")}`;
+    const savedPath = saveLocalCopy(json, stamp);
 
-    const backup = {
-      version: "1.1",
-      exportedAt: new Date().toISOString(),
-      data: {
-        profile,
-        foods,
-        recipes,
-        mealPlans,
-        foodLogs,
-        workoutTemplates,
-        workoutSessions,
-        weightLogs,
-        measurements,
-        wellbeings,
-        supplementLogs,
-        shoppingListItems,
-        pantryItems,
-        aiSettings,
-      },
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "Content-Disposition": `attachment; filename="rutinfit-backup-${getLocalDateString()}.json"`,
+      "Cache-Control": "no-store",
     };
-
-    return new NextResponse(JSON.stringify(backup, null, 2), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Content-Disposition": `attachment; filename="rutinfit-backup-${getLocalDateString()}.json"`,
-      },
-    });
+    if (savedPath) headers["X-RutinFit-Backup-Path"] = encodeURIComponent(savedPath);
+    return new NextResponse(json, { status: 200, headers });
   } catch (error) {
     console.error("Backup export error:", error);
-    return NextResponse.json(
-      { error: "Yedek dışa aktarılamadı" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Yedek dışa aktarılamadı" }, { status: 500 });
   }
 }

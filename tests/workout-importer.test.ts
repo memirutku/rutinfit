@@ -45,3 +45,47 @@ describe("Workout Importer (Strong & Hevy CSV)", () => {
     expect(result.errors).toBeDefined();
   });
 });
+
+describe("Workout Importer — gerçek dışa aktarım biçimleri", () => {
+  it("gerçek Hevy başlığını tanır: egzersiz adı exercise_title, tarih start_time, set_index 0'dan başlar, ısınma atlanır", () => {
+    const csv = [
+      '"title","start_time","end_time","description","exercise_title","superset_id","exercise_notes","set_index","set_type","weight_kg","reps","distance_km","duration_seconds","rpe"',
+      '"Bacak Günü","16 Oct 2026, 18:30","16 Oct 2026, 19:20","","Squat (Barbell)","","","0","warmup","40","10","","",""',
+      '"Bacak Günü","16 Oct 2026, 18:30","16 Oct 2026, 19:20","","Squat (Barbell)","","","1","normal","90","8","","","8"',
+      '"Bacak Günü","16 Oct 2026, 18:30","16 Oct 2026, 19:20","","Squat (Barbell)","","","2","normal","90","7","","","8.5"',
+    ].join("\n");
+
+    const r = parseWorkoutCsv(csv);
+    expect(r.appType).toBe("hevy");
+    expect(r.workoutCount).toBe(1);
+    const w = r.workouts[0];
+    expect(w).toMatchObject({ date: "2026-10-16", name: "Bacak Günü", durationMinutes: 50 });
+    expect(w.sets.map((s) => [s.exerciseName, s.setNumber, s.weightKg, s.reps])).toEqual([
+      ["Squat (Barbell)", 1, 90, 8],
+      ["Squat (Barbell)", 2, 90, 7],
+    ]);
+  });
+
+  it("tırnaklı alanda kesme işareti ve kaçışlı çift tırnak sütunları kaydırmaz", () => {
+    const csv = [
+      "Date,Workout Name,Duration,Exercise Name,Set Order,Weight,Reps,Distance,Seconds,Notes,Workout Notes,RPE",
+      `2026-10-15 19:40:00,"Kol ""Pump"" Günü",42m,Farmer's Walk,1,30,20,,,"not, virgüllü",,`,
+    ].join("\n");
+    const r = parseWorkoutCsv(csv);
+    expect(r.workouts[0].name).toBe('Kol "Pump" Günü');
+    expect(r.workouts[0].durationMinutes).toBe(42);
+    expect(r.workouts[0].sets[0]).toMatchObject({ exerciseName: "Farmer's Walk", weightKg: 30, reps: 20 });
+  });
+
+  it("noktalı virgül ayraçlı ve GG.AA.YYYY tarihli dosyayı okur", () => {
+    const csv = "Date;Workout Name;Exercise Name;Set Order;Weight;Reps\n18.10.2026;Sırt;Row;1;50;10";
+    const r = parseWorkoutCsv(csv);
+    expect(r.workouts[0]).toMatchObject({ date: "2026-10-18", name: "Sırt" });
+    expect(r.workouts[0].sets[0]).toMatchObject({ weightKg: 50, reps: 10 });
+  });
+
+  it("ondalık virgüllü ağırlığı (62,5) okur", () => {
+    const csv = 'Date,Workout Name,Exercise Name,Set Order,Weight,Reps\n2026-10-18,A,Bench,1,"62,5",8';
+    expect(parseWorkoutCsv(csv).workouts[0].sets[0].weightKg).toBe(62.5);
+  });
+});

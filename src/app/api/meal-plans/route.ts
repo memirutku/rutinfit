@@ -1,23 +1,9 @@
 import { NextResponse } from "next/server";
+import { SaveMealPlanSchema } from "@/lib/schemas/meal-plan";
 import { prisma } from "@/lib/prisma";
-import { z } from "zod";
-import { calculateRecipeMacros } from "@/lib/nutrition-calculator";
+import { apiError } from "@/lib/api-error";
+import { calculateRecipePortion } from "@/lib/nutrition-calculator";
 import { addDaysToDateString } from "@/lib/date-utils";
-
-const PlannedMealItemSchema = z.object({
-  mealType: z.string(),
-  recipeId: z.string().optional().nullable(),
-  customName: z.string().optional().nullable(),
-  plannedTime: z.string().optional().nullable(),
-  servings: z.number().positive().default(1),
-  isCompleted: z.boolean().default(false),
-});
-
-const SaveMealPlanSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  notes: z.string().optional(),
-  meals: z.array(PlannedMealItemSchema),
-});
 
 export async function GET(req: Request) {
   try {
@@ -60,25 +46,12 @@ export async function GET(req: Request) {
       const enrichedMeals = plan.meals.map((meal) => {
         let calculatedMacros = null;
         if (meal.recipe) {
-          const baseMacros = calculateRecipeMacros(
-            meal.recipe.ingredients.map((ing) => ({
-              grams: ing.grams,
-              foodItem: {
-                basisGrams: ing.foodItem.basisGrams,
-                calories: ing.foodItem.calories,
-                proteinG: ing.foodItem.proteinG,
-                carbsG: ing.foodItem.carbsG,
-                fatG: ing.foodItem.fatG,
-              },
-            }))
-          );
-          calculatedMacros = {
-            calories: Math.round(baseMacros.calories * meal.servings),
-            proteinG:
-              Math.round(baseMacros.proteinG * meal.servings * 10) / 10,
-            carbsG: Math.round(baseMacros.carbsG * meal.servings * 10) / 10,
-            fatG: Math.round(baseMacros.fatG * meal.servings * 10) / 10,
-          };
+          // Tarifin tamamı recipe.servings porsiyondur; planlanan pay meal.servings porsiyon.
+          calculatedMacros = calculateRecipePortion(
+            meal.recipe.ingredients.map((ing) => ({ grams: ing.grams, foodItem: ing.foodItem })),
+            meal.recipe.servings,
+            meal.servings
+          ).macros;
         }
         return {
           ...meal,
@@ -147,11 +120,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(plan);
-  } catch (error: any) {
-    console.error("MealPlan POST error:", error);
-    return NextResponse.json(
-      { error: error.message || "Yemek planı kaydedilemedi" },
-      { status: 400 }
-    );
+  } catch (error) {
+    return apiError(error, "Yemek planı kaydedilemedi", "MealPlan POST");
   }
 }

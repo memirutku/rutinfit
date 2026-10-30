@@ -1,8 +1,13 @@
-import { PrismaClient } from "@prisma/client";
+import path from "node:path";
+import { createPrismaClient } from "../src/lib/db/client";
+import { runMigrations } from "../src/lib/db/migrate";
+import { getPrismaDatabaseUrl } from "../src/lib/storage-paths";
 
-const prisma = new PrismaClient();
+// DATABASE_URL verilmişse onu (testler/E2E), yoksa uygulamanın kendi veritabanını kullan.
+const prisma = createPrismaClient(process.env.DATABASE_URL || getPrismaDatabaseUrl());
 
 async function main() {
+  await runMigrations(prisma, { migrationsDir: path.join(__dirname, "migrations") });
   console.log("🌱 RutinFit başlangıç verileri yükleniyor...");
 
   // 1. Kullanıcı Profili (Brief'teki başlangıç değerleri)

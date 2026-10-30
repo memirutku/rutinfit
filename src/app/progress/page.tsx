@@ -1,16 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
-  TrendingUp,
   Scale,
   BatteryMedium,
-  Moon,
   Info,
-  Calendar,
-  Sparkles,
   CheckCircle2,
-  Circle,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -22,29 +16,12 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
+import { useProgress } from "@/lib/client/queries/progress";
 
 export default function ProgressPage() {
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, isPending } = useProgress();
 
-  useEffect(() => {
-    loadProgress();
-  }, []);
-
-  async function loadProgress() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/progress");
-      const json = await res.json();
-      setData(json);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (loading) {
+  if (isPending) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-slate-500">
         <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mb-4" />
@@ -58,13 +35,13 @@ export default function ProgressPage() {
   const creatineList = data?.creatineCompliance || [];
 
   // Enerji & Uyku Grafiği için verileri birleştir
-  const energySleepChartData = wellbeings.map((w: any) => ({
+  const energySleepChartData = wellbeings.map((w) => ({
     date: w.date.slice(5), // MM-DD
     enerji: w.energy1to5,
     uykuSaat: w.sleepMinutes ? Math.round((w.sleepMinutes / 60) * 10) / 10 : 7,
   }));
 
-  const weightChartData = weights.map((w: any) => ({
+  const weightChartData = weights.map((w) => ({
     date: w.date.slice(5), // MM-DD
     gunlukKilo: w.weightKg,
     haftalikOrtalama: w.rollingAvg,
@@ -108,7 +85,7 @@ export default function ProgressPage() {
             <Scale className="w-4 h-4 text-brand-600" />
           </div>
           <div className="text-2xl font-bold text-slate-900">
-            {data?.weeklyWeightDelta > 0 ? `+${data.weeklyWeightDelta}` : data?.weeklyWeightDelta || "0"} kg
+            {data && data.weeklyWeightDelta > 0 ? `+${data.weeklyWeightDelta}` : data?.weeklyWeightDelta || "0"} kg
           </div>
           <p className="text-xs text-slate-400 mt-1">
             Önceki haftanın 7 günlük ortalamasına göre değişim
@@ -121,12 +98,12 @@ export default function ProgressPage() {
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-2xl font-bold text-slate-900">
-            {creatineList.filter((c: any) => c.taken).length} / 7 Gün
+            {creatineList.filter((c) => c.taken).length} / 7 Gün
           </div>
           <div className="flex gap-1.5 mt-2">
-            {creatineList.map((c: any, i: number) => (
+            {creatineList.map((c) => (
               <span
-                key={i}
+                key={c.date}
                 title={`${c.date}: ${c.taken ? "Alındı" : "Alınmadı"}`}
                 className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
                   c.taken
@@ -148,10 +125,10 @@ export default function ProgressPage() {
           <div className="text-2xl font-bold text-slate-900">
             {wellbeings.length > 0
               ? (
-                  wellbeings.reduce((a: any, b: any) => a + b.energy1to5, 0) /
+                  wellbeings.reduce((a, b) => a + b.energy1to5, 0) /
                   wellbeings.length
-                ).toFixed(1)
-              : "3.0"}{" "}
+                ).toLocaleString("tr-TR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+              : "3,0"}{" "}
             / 5
           </div>
           <p className="text-xs text-slate-400 mt-1">

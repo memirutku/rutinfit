@@ -1,6 +1,11 @@
+import { normalizeName, wordsTr } from "./text";
+
 export interface PlannedRecipeItem {
   recipeName: string;
+  /** Planlanan porsiyon sayısı (0.5x, 1x, 1.5x ...). */
   servings: number;
+  /** Tarifin malzeme listesinin kaç porsiyon verdiği (Recipe.servings). Varsayılan 1. */
+  recipeServings?: number;
   ingredients: {
     name: string;
     category: string;
@@ -25,90 +30,57 @@ const CATEGORY_MAP: Record<string, string> = {
   diger: "Diğer",
 };
 
-export function resolveShoppingCategory(categoryOrFoodName: string): string {
-  const lower = categoryOrFoodName.toLowerCase().trim();
+/**
+ * Anahtar kelimeler kelime başı olarak eşleşir ("et" → "et", "eti"; ama "paketli", "spagetti" değil).
+ * Kısa kelimeler (≤3 harf) yalnız tam kelime veya iyelik ekiyle (-i/-ı) eşleşir.
+ */
+const KEYWORDS: Array<[keyof typeof CATEGORY_MAP, string[]]> = [
+  ["kasap", ["kasap", "tavuk", "kıyma", "et", "dana", "kuzu", "hindi", "ton", "somon", "balık", "balığ", "levrek", "çupra", "karides", "köfte", "biftek", "bonfile", "sucuk", "pastırma"]],
+  ["sut", ["süt", "sut", "yumurta", "yoğurt", "lor", "peynir", "kefir", "ayran", "kaymak", "labne", "tereyağ"]],
+  ["manav", ["manav", "muz", "elma", "ıspanak", "domates", "salatalık", "biber", "marul", "patates", "meyve", "sebze", "soğan", "sarımsak", "havuç", "brokoli", "kabak", "limon", "portakal", "maydanoz", "roka", "avokado", "çilek"]],
+  ["tahil", ["tahıl", "tahil", "yulaf", "pirinç", "bulgur", "ekmek", "makarna", "spagetti", "un", "lavaş", "tortilla", "kinoa", "granola", "galeta"]],
+  ["bakliyat", ["bakliyat", "mercimek", "nohut", "fasulye", "barbunya", "bezelye"]],
+  ["yag", ["yağ", "yag", "zeytinyağ", "sos", "ketçap", "mayonez", "hardal", "sirke", "baharat"]],
+];
 
-  // Doğrudan anahtar kontrolü
-  if (CATEGORY_MAP[lower]) {
-    return CATEGORY_MAP[lower];
+function wordMatches(word: string, keyword: string): boolean {
+  if (word === keyword) return true;
+  if (keyword.length <= 3) return word === `${keyword}i` || word === `${keyword}ı`;
+  return word.startsWith(keyword);
+}
+
+function matchByKeywords(text: string): string | null {
+  const words = wordsTr(text);
+  // "Ton balığı": ilk kelimeden itibaren tarandığı için doğru kategori bulunur.
+  for (const [key, keywords] of KEYWORDS) {
+    if (words.some((w) => keywords.some((k) => wordMatches(w, k)))) return CATEGORY_MAP[key];
   }
+  return null;
+}
 
-  // Değer kontrolü (zaten tam kategori adı verilmişse)
+function matchExactCategory(value: string): string | null {
+  const lower = normalizeName(value);
+  if (CATEGORY_MAP[lower]) return CATEGORY_MAP[lower];
   for (const catVal of Object.values(CATEGORY_MAP)) {
-    if (lower === catVal.toLowerCase()) return catVal;
+    if (lower === normalizeName(catVal)) return catVal;
   }
+  return null;
+}
 
-  if (
-    lower.includes("manav") ||
-    lower.includes("muz") ||
-    lower.includes("elma") ||
-    lower.includes("ıspanak") ||
-    lower.includes("domates") ||
-    lower.includes("salatalık") ||
-    lower.includes("biber") ||
-    lower.includes("marul") ||
-    lower.includes("patates") ||
-    lower.includes("meyve") ||
-    lower.includes("sebze")
-  ) {
-    return CATEGORY_MAP.manav;
-  }
+/**
+ * Alışveriş reyonunu belirler. Önce açık kategori (ör. "Kasap & Balık" veya "kasap"),
+ * sonra kategori metnindeki kelimeler, en son besin adı denenir. "Genel" veya
+ * "Paketli Gıda" gibi reyon belirtmeyen kategoriler besin adına bırakılır.
+ */
+export function resolveShoppingCategory(categoryOrFoodName: string, foodName?: string): string {
+  const exact = matchExactCategory(categoryOrFoodName);
+  if (exact && exact !== CATEGORY_MAP.diger) return exact;
 
-  if (
-    lower.includes("kasap") ||
-    lower.includes("tavuk") ||
-    lower.includes("kıyma") ||
-    lower.includes("et") ||
-    lower.includes("hindi") ||
-    lower.includes("ton") ||
-    lower.includes("somon") ||
-    lower.includes("balık")
-  ) {
-    return CATEGORY_MAP.kasap;
-  }
-
-  if (
-    lower.includes("süt") ||
-    lower.includes("sut") ||
-    lower.includes("yumurta") ||
-    lower.includes("yoğurt") ||
-    lower.includes("lor") ||
-    lower.includes("peynir")
-  ) {
-    return CATEGORY_MAP.sut;
-  }
-
-  if (
-    lower.includes("tahıl") ||
-    lower.includes("tahil") ||
-    lower.includes("yulaf") ||
-    lower.includes("pirinç") ||
-    lower.includes("bulgur") ||
-    lower.includes("ekmek") ||
-    lower.includes("makarna")
-  ) {
-    return CATEGORY_MAP.tahil;
-  }
-
-  if (
-    lower.includes("bakliyat") ||
-    lower.includes("mercimek") ||
-    lower.includes("nohut") ||
-    lower.includes("fasulye")
-  ) {
-    return CATEGORY_MAP.bakliyat;
-  }
-
-  if (
-    lower.includes("yağ") ||
-    lower.includes("yag") ||
-    lower.includes("zeytinyağı") ||
-    lower.includes("tereyağı")
-  ) {
-    return CATEGORY_MAP.yag;
-  }
-
-  return CATEGORY_MAP.diger;
+  return (
+    matchByKeywords(categoryOrFoodName) ??
+    (foodName ? matchByKeywords(foodName) : null) ??
+    CATEGORY_MAP.diger
+  );
 }
 
 /**
@@ -123,18 +95,20 @@ export function aggregateShoppingList(
   >();
 
   for (const meal of plannedMeals) {
-    const servings = meal.servings || 1;
+    // Malzeme gramajı tarifin tamamı içindir: önce porsiyona böl, sonra planlanan porsiyonla çarp.
+    const portionFactor = (meal.servings || 1) / (meal.recipeServings && meal.recipeServings > 0 ? meal.recipeServings : 1);
     for (const ing of meal.ingredients) {
-      const normalizedName = ing.name.trim();
-      const scaledGrams = ing.grams * servings;
-      const category = resolveShoppingCategory(ing.category || ing.name);
+      const displayName = ing.name.trim();
+      const key = normalizeName(displayName);
+      const scaledGrams = ing.grams * portionFactor;
+      const category = resolveShoppingCategory(ing.category || ing.name, ing.name);
 
-      const existing = itemMap.get(normalizedName);
+      const existing = itemMap.get(key);
       if (existing) {
         existing.totalGrams += scaledGrams;
       } else {
-        itemMap.set(normalizedName, {
-          name: normalizedName,
+        itemMap.set(key, {
+          name: displayName,
           category,
           totalGrams: scaledGrams,
         });

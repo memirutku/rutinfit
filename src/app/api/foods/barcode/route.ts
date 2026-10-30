@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { apiError } from '@/lib/api-error';
+import { normalizeName } from '@/lib/text';
+import { PackagedProductSaveSchema } from '@/lib/schemas/food';
 import {
   getProductByBarcode,
   searchProductsByName,
@@ -9,7 +12,8 @@ import {
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const barcode = searchParams.get('barcode');
+    // OFF istemcisiyle aynı normalizasyon: yalnız rakamlar.
+    const barcode = searchParams.get('barcode')?.replace(/[^0-9]/g, '') || null;
     const query = searchParams.get('query');
 
     if (barcode) {
@@ -53,78 +57,47 @@ export async function GET(req: Request) {
       { error: 'Lütfen bir "barcode" veya "query" parametresi sağlayın.' },
       { status: 400 }
     );
-  } catch (error: any) {
-    return NextResponse.json(
-      {
-        error: error?.message || 'Ürün arama hatası',
-        attribution: OFF_ATTRIBUTION,
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error('Barcode GET error:', error);
+    return NextResponse.json({ error: 'Ürün arama hatası', attribution: OFF_ATTRIBUTION }, { status: 500 });
   }
+}
+
+/** "Ferrero" + "Ferrero Nutella" → "Ferrero Nutella" (marka iki kez eklenmez). */
+function displayName(name: string, brand?: string | null): string {
+  if (!brand) return name;
+  return normalizeName(name).startsWith(normalizeName(brand)) ? name : `${brand} ${name}`;
 }
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const {
-      barcode,
-      name,
-      brand,
-      basisGrams = 100,
-      calories,
-      proteinG,
-      carbsG,
-      fatG,
-      category = 'Paketli Gıda',
-      confidence = 'Yüksek',
-    } = body;
+    const body = PackagedProductSaveSchema.parse(await req.json());
+    const data = {
+      name: displayName(body.name, body.brand),
+      category: body.category,
+      brand: body.brand || null,
+      basisGrams: body.basisGrams,
+      calories: body.calories,
+      proteinG: body.proteinG,
+      carbsG: body.carbsG,
+      fatG: body.fatG,
+      confidence: body.confidence,
+    };
 
-    if (!name || calories === undefined || proteinG === undefined) {
-      return NextResponse.json(
-        { error: 'Ürün adı, kalori ve protein alanları zorunludur.' },
-        { status: 400 }
-      );
-    }
-
-    // Upsert into local FoodItem catalog
-    const foodItem = await prisma.foodItem.upsert({
-      where: barcode ? { barcode } : { id: 'non-existent' },
-      create: {
-        name: brand ? `${brand} ${name}` : name,
-        category,
-        brand: brand || null,
-        barcode: barcode || null,
-        basisGrams: Number(basisGrams) || 100,
-        calories: Number(calories) || 0,
-        proteinG: Number(proteinG) || 0,
-        carbsG: Number(carbsG) || 0,
-        fatG: Number(fatG) || 0,
-        source: 'Open Food Facts (ODbL)',
-        confidence,
-      },
-      update: {
-        name: brand ? `${brand} ${name}` : name,
-        category,
-        brand: brand || null,
-        basisGrams: Number(basisGrams) || 100,
-        calories: Number(calories) || 0,
-        proteinG: Number(proteinG) || 0,
-        carbsG: Number(carbsG) || 0,
-        fatG: Number(fatG) || 0,
-        confidence,
-      },
-    });
+    const foodItem = body.barcode
+      ? await prisma.foodItem.upsert({
+          where: { barcode: body.barcode },
+          create: { ...data, barcode: body.barcode, source: 'Open Food Facts (ODbL)' },
+          update: data,
+        })
+      : await prisma.foodItem.create({ data: { ...data, source: 'Open Food Facts (ODbL)' } });
 
     return NextResponse.json({
       success: true,
       foodItem,
       message: `"${foodItem.name}" başarıyla yerel kataloğunuza kaydedildi.`,
     });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error?.message || 'Ürün kataloğa kaydedilemedi.' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return apiError(error, 'Ürün kataloğa kaydedilemedi.', 'Barcode POST');
   }
 }

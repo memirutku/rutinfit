@@ -1,21 +1,8 @@
 import { NextResponse } from "next/server";
+import { UpdateProfileSchema } from "@/lib/schemas/profile";
 import { prisma } from "@/lib/prisma";
-import { z } from "zod";
-
-const UpdateProfileSchema = z.object({
-  heightCm: z.number().positive(),
-  age: z.number().int().positive(),
-  sex: z.string(),
-  currentWeightKg: z.number().positive(),
-  calorieTarget: z.number().positive(),
-  calorieCeiling: z.number().positive(),
-  proteinTargetG: z.number().positive(),
-  fatTargetG: z.number().positive(),
-  carbTargetG: z.number().positive(),
-  wakeTime: z.string(),
-  workdayHomeTime: z.string(),
-  isOnboarded: z.boolean().optional(),
-});
+import { apiError } from "@/lib/api-error";
+import { DEFAULT_TARGETS } from "@/lib/constants";
 
 export async function GET() {
   try {
@@ -31,11 +18,7 @@ export async function GET() {
           age: 25,
           sex: "male",
           currentWeightKg: 112,
-          calorieTarget: 2080,
-          calorieCeiling: 2100,
-          proteinTargetG: 165,
-          fatTargetG: 60,
-          carbTargetG: 220,
+          ...DEFAULT_TARGETS,
           wakeTime: "06:00",
           workdayHomeTime: "19:30",
           isOnboarded: true,
@@ -45,8 +28,7 @@ export async function GET() {
 
     return NextResponse.json(profile);
   } catch (error) {
-    console.error("Profile GET error:", error);
-    return NextResponse.json({ error: "Profil getirilemedi" }, { status: 500 });
+    return apiError(error, "Profil getirilemedi", "Profile GET");
   }
 }
 
@@ -65,11 +47,7 @@ export async function PUT(req: Request) {
     });
 
     return NextResponse.json(updated);
-  } catch (error: any) {
-    console.error("Profile PUT error:", error);
-    return NextResponse.json(
-      { error: error.message || "Profil güncellenemedi" },
-      { status: 400 }
-    );
+  } catch (error) {
+    return apiError(error, "Profil güncellenemedi", "Profile PUT");
   }
 }

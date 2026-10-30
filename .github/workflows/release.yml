@@ -1,0 +1,201 @@
+name: Release (macOS)
+
+# v* etiketi push'lanınca: arm64 + x64 için derle → Developer ID ile imzala → notarize et →
+# doğrula (imza zinciri, Gatekeeper, duman testi) → .dmg'leri TASLAK GitHub Release'e yükle.
+#
+# Elle tetikleme (Actions → Release (macOS) → Run workflow) KURU ÇALIŞTIRMADIR: aynı derleme, imza,
+# notarization ve doğrulama koşar ama Release'e dokunulmaz; .dmg'ler iş akışı çıktısı (artifact) olur.
+# Sırlar tanımlı değilse (ör. fork) ad-hoc paket üretilir ve yalnız imza bütünlüğü + duman testi koşar.
+#
+# Sırlar (Settings → Secrets and variables → Actions). Ayrıntı: docs/RELEASING.md
+#   APPLE_CERTIFICATE           Developer ID Application sertifikası (.p12) — base64
+#   APPLE_CERTIFICATE_PASSWORD  .p12 parolası
+#   Notarization için ikisinden biri:
+#     APPLE_API_KEY + APPLE_API_ISSUER + APPLE_API_KEY_P8   App Store Connect API anahtarı (.p8 içeriği)
+#     APPLE_ID + APPLE_PASSWORD + APPLE_TEAM_ID             Apple ID + uygulamaya özel parola
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: macOS ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x64
+            runner: macos-15-intel
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      IS_RELEASE: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+      HAS_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' }}
+      HAS_NOTARY: ${{ (secrets.APPLE_API_KEY != '' && secrets.APPLE_API_ISSUER != '' && secrets.APPLE_API_KEY_P8 != '') || (secrets.APPLE_ID != '' && secrets.APPLE_PASSWORD != '' && secrets.APPLE_TEAM_ID != '') }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.17.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Bilerek derleme önbelleği yok: imzalanacak ikili temiz derlenir (önbellek zehirlenmesine kapalı).
+      - name: Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustc -vV
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Release preconditions
+        if: env.IS_RELEASE == 'true'
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          TAURI="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          if [ "$TAG" != "$PKG" ] || [ "$TAG" != "$TAURI" ]; then
+            echo "::error::Etiket ($GITHUB_REF_NAME), package.json ($PKG) ve tauri.conf.json ($TAURI) sürümü aynı olmalı."
+            exit 1
+          fi
+          [ "$HAS_CERTIFICATE" = "true" ] || { echo "::error::APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD yok: imzasız sürüm yayınlanmaz."; exit 1; }
+          [ "$HAS_NOTARY" = "true" ] || { echo "::error::Notarization sırları yok: notarize edilmemiş sürüm yayınlanmaz."; exit 1; }
+
+      # Sertifika Tauri'den ÖNCE anahtar zincirinde olmalı: Resources altındaki native modülleri
+      # (better-sqlite3, @napi-rs/canvas, varsa sharp) scripts/prepare-desktop.mjs imzalar (Tauri bunları imzalamaz).
+      - name: Import signing certificate
+        if: env.HAS_CERTIFICATE == 'true'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/rutinfit-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          echo "::add-mask::$KEYCHAIN_PASSWORD"
+          CERT="$RUNNER_TEMP/certificate.p12"
+          printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$CERT"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$CERT" -k "$KEYCHAIN" -f pkcs12 -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          rm -f "$CERT"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          # shellcheck disable=SC2046
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" | sed -n 's/.*"\(Developer ID Application: .*\)"$/\1/p' | head -n 1)"
+          if [ -z "$IDENTITY" ]; then
+            echo "::error::.p12 içinde Developer ID Application kimliği yok."
+            exit 1
+          fi
+          echo "SIGNING_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+          echo "APPLE_SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          echo "İmza kimliği: $IDENTITY"
+
+      - name: Write notarization API key
+        if: env.HAS_NOTARY == 'true'
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          if [ -n "$APPLE_API_KEY" ] && [ -n "$APPLE_API_KEY_P8" ]; then
+            KEY_PATH="$RUNNER_TEMP/private_keys/AuthKey_${APPLE_API_KEY}.p8"
+            mkdir -p "$(dirname "$KEY_PATH")"
+            ( umask 077; printf '%s\n' "$APPLE_API_KEY_P8" > "$KEY_PATH" )
+            echo "APPLE_API_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+          fi
+
+      # pnpm desktop:build → scripts/desktop-build.mjs: kimlik varsa Developer ID + hardened runtime,
+      # notarization bilgisi varsa Tauri .app'i notarize edip zımbalar; yoksa ad-hoc yerel paket.
+      - name: Build, sign and notarize app
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: pnpm desktop:build
+
+      - name: Notarize and staple DMG
+        if: env.HAS_CERTIFICATE == 'true' && env.HAS_NOTARY == 'true'
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: node scripts/notarize-macos.mjs src-tauri/target/release/bundle/dmg/*.dmg
+
+      # .dmg salt okunur bağlanır; içindeki .app'in imzası, Gatekeeper kararı ve gömülü Node'un
+      # hardened runtime altında sunucuyu açtığı (x64 için Intel makinede) denetlenir.
+      - name: Verify bundle
+        run: |
+          if [ "$HAS_CERTIFICATE" = "true" ] && [ "$HAS_NOTARY" = "true" ]; then
+            node scripts/verify-desktop.mjs --distribution
+          else
+            echo "::warning::İmza/notarization sırları yok: ad-hoc paket (Gatekeeper'dan geçmez)."
+            node scripts/verify-desktop.mjs
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rutinfit-macos-${{ matrix.arch }}
+          path: src-tauri/target/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Remove signing material
+        if: always()
+        run: |
+          if [ -n "${SIGNING_KEYCHAIN:-}" ]; then security delete-keychain "$SIGNING_KEYCHAIN" || true; fi
+          rm -rf "$RUNNER_TEMP/private_keys" "$RUNNER_TEMP/certificate.p12"
+
+  release:
+    name: GitHub Release (taslak)
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: rutinfit-macos-*
+          merge-multiple: true
+          path: dist
+
+      - name: Checksums
+        working-directory: dist
+        run: |
+          sha256sum -- *.dmg > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      # Taslak olarak açılır: notları gözden geçirip "Publish release" ile yayınlayın.
+      - name: Create or update draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$TAG" dist/*.dmg dist/SHA256SUMS.txt --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            PRERELEASE=""
+            case "$TAG" in *-*) PRERELEASE="--prerelease" ;; esac
+            gh release create "$TAG" dist/*.dmg dist/SHA256SUMS.txt \
+              --repo "$GITHUB_REPOSITORY" --draft $PRERELEASE --verify-tag --generate-notes --title "RutinFit $TAG"
+          fi

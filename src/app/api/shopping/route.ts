@@ -1,264 +1,60 @@
 import { NextResponse } from 'next/server';
+import { ShoppingGenerateSchema, ShoppingToggleSchema } from '@/lib/schemas/shopping';
 import { prisma } from '@/lib/prisma';
-import {
-  aggregateShoppingList,
-  resolveShoppingCategory,
-} from '@/lib/shopping-aggregator';
-import { calculateNetShoppingList } from '@/lib/pantry-service';
-import { z } from 'zod';
-import { getLocalDateString, addDaysToDateString } from '@/lib/date-utils';
+import { getLocalDateString, isDateString } from '@/lib/date-utils';
+import { generateShoppingList, getShoppingList } from '@/lib/services/shopping-list';
 
+/** Kaydedilmiş haftalık listeyi döner. Salt-okunurdur; liste oluşturmak için POST kullanılır. */
 export async function GET(req: Request) {
+  const param = new URL(req.url).searchParams.get('weekStart');
+  if (param !== null && !isDateString(param)) {
+    return NextResponse.json({ error: 'weekStart YYYY-AA-GG olmalıdır.' }, { status: 400 });
+  }
   try {
-    const { searchParams } = new URL(req.url);
-    const weekStart =
-      searchParams.get('weekStart') || getLocalDateString();
-    const deductPantry = searchParams.get('deductPantry') !== 'false';
-
-    // Önce veritabanında bu haftaya ait kaydedilmiş liste var mı kontrol et
-    let items = await prisma.shoppingListItem.findMany({
-      where: { weekStart },
-      orderBy: [{ category: 'asc' }, { name: 'asc' }],
-    });
-
-    let pantrySummary: string | null = null;
-
-    // Eğer henüz kaydedilmiş liste yoksa, bu haftanın yemek planından otomatik türet
-    if (items.length === 0) {
-      const plans = await prisma.mealPlan.findMany({
-        where: {
-          date: {
-            gte: weekStart,
-            lt: addDaysToDateString(weekStart, 7),
-          },
-        },
-        include: {
-          meals: {
-            include: {
-              recipe: {
-                include: {
-                  ingredients: {
-                    include: {
-                      foodItem: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      });
-
-      const plannedRecipes = [];
-      for (const plan of plans) {
-        for (const meal of plan.meals) {
-          if (meal.recipe) {
-            plannedRecipes.push({
-              recipeName: meal.recipe.name,
-              servings: meal.servings,
-              ingredients: meal.recipe.ingredients.map((ing) => ({
-                name: ing.foodItem.name,
-                category: ing.foodItem.category,
-                grams: ing.grams,
-              })),
-            });
-          }
-        }
-      }
-
-      const aggregated = aggregateShoppingList(plannedRecipes);
-      const rawNeeded: Array<{ name: string; amount: number; unit: string; category: string }> = [];
-
-      for (const cat of Object.keys(aggregated)) {
-        for (const item of aggregated[cat]) {
-          rawNeeded.push({
-            name: item.name,
-            amount: item.totalGrams,
-            unit: 'g',
-            category: item.category,
-          });
-        }
-      }
-
-      // Kiler stoklarını düşme (Pantry Host mantığı)
-      let finalItemsToSave = rawNeeded;
-      if (deductPantry && rawNeeded.length > 0) {
-        const netResult = await calculateNetShoppingList(rawNeeded);
-        pantrySummary = netResult.summary;
-        finalItemsToSave = netResult.itemsToBuy.map((b) => ({
-          name: b.name,
-          amount: b.amount,
-          unit: b.unit,
-          category: b.category,
-        }));
-      }
-
-      // Veritabanına kaydet
-      for (const item of finalItemsToSave) {
-        const created = await prisma.shoppingListItem.create({
-          data: {
-            weekStart,
-            category: item.category,
-            name: item.name,
-            amount: item.amount,
-            unit: item.amount >= 1000 ? 'kg' : 'g',
-            checked: false,
-          },
-        });
-        items.push(created);
-      }
-    }
-
-    // Kategorilerine göre grupla
-    const grouped: Record<string, typeof items> = {};
-    for (const item of items) {
-      if (!grouped[item.category]) {
-        grouped[item.category] = [];
-      }
-      grouped[item.category].push(item);
-    }
-
-    return NextResponse.json({
-      weekStart,
-      items,
-      grouped,
-      pantrySummary,
-    });
+    return NextResponse.json(await getShoppingList(param ?? getLocalDateString()));
   } catch (error) {
     console.error('Shopping GET error:', error);
-    return NextResponse.json(
-      { error: 'Alışveriş listesi getirilemedi' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Alışveriş listesi getirilemedi' }, { status: 500 });
   }
 }
 
 export async function PUT(req: Request) {
+  const parsed = ShoppingToggleSchema.safeParse(await req.json().catch(() => undefined));
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'id ve checked alanları zorunludur.' }, { status: 400 });
+  }
   try {
-    const body = await req.json();
-    const { id, checked } = z
-      .object({ id: z.string(), checked: z.boolean() })
-      .parse(body);
-
-    const updated = await prisma.shoppingListItem.update({
-      where: { id },
-      data: { checked },
+    const res = await prisma.shoppingListItem.updateMany({
+      where: { id: parsed.data.id },
+      data: { checked: parsed.data.checked },
     });
-
-    return NextResponse.json(updated);
-  } catch (error: any) {
+    if (res.count === 0) {
+      return NextResponse.json({ error: 'Alışveriş kalemi bulunamadı.' }, { status: 404 });
+    }
+    return NextResponse.json(await prisma.shoppingListItem.findUnique({ where: { id: parsed.data.id } }));
+  } catch (error) {
     console.error('Shopping PUT error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Güncelleme başarısız' },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: 'Güncelleme başarısız' }, { status: 500 });
   }
 }
 
-// POST: Alışveriş listesini kiler stoklarını düşerek yeniden oluşturma
+/** Haftalık listeyi plandan yeniden oluşturur (kiler stokları düşülerek). */
 export async function POST(req: Request) {
+  const parsed = ShoppingGenerateSchema.safeParse((await req.json().catch(() => ({}))) ?? {});
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Geçersiz istek.' }, { status: 400 });
+  }
   try {
-    const body = await req.json();
-    const { weekStart, deductPantry = true } = body;
-
-    const targetWeek = weekStart || getLocalDateString();
-
-    // Mevcut haftalık listeyi temizle
-    await prisma.shoppingListItem.deleteMany({
-      where: { weekStart: targetWeek },
+    const result = await generateShoppingList(parsed.data.weekStart ?? getLocalDateString(), {
+      deductPantry: parsed.data.deductPantry,
     });
-
-    // GET mantığını tetikleyerek yeni listeyi oluştur
-    const plans = await prisma.mealPlan.findMany({
-      where: {
-        date: {
-          gte: targetWeek,
-          lt: addDaysToDateString(targetWeek, 7),
-        },
-      },
-      include: {
-        meals: {
-          include: {
-            recipe: {
-              include: {
-                ingredients: { include: { foodItem: true } },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    const plannedRecipes = [];
-    for (const plan of plans) {
-      for (const meal of plan.meals) {
-        if (meal.recipe) {
-          plannedRecipes.push({
-            recipeName: meal.recipe.name,
-            servings: meal.servings,
-            ingredients: meal.recipe.ingredients.map((ing) => ({
-              name: ing.foodItem.name,
-              category: ing.foodItem.category,
-              grams: ing.grams,
-            })),
-          });
-        }
-      }
-    }
-
-    const aggregated = aggregateShoppingList(plannedRecipes);
-    const rawNeeded: Array<{ name: string; amount: number; unit: string; category: string }> = [];
-
-    for (const cat of Object.keys(aggregated)) {
-      for (const item of aggregated[cat]) {
-        rawNeeded.push({
-          name: item.name,
-          amount: item.totalGrams,
-          unit: 'g',
-          category: item.category,
-        });
-      }
-    }
-
-    let finalItemsToSave = rawNeeded;
-    let pantrySummary = 'Kiler kontrolü yapılmadı.';
-    if (deductPantry && rawNeeded.length > 0) {
-      const netResult = await calculateNetShoppingList(rawNeeded);
-      pantrySummary = netResult.summary;
-      finalItemsToSave = netResult.itemsToBuy.map((b) => ({
-        name: b.name,
-        amount: b.amount,
-        unit: b.unit,
-        category: b.category,
-      }));
-    }
-
-    const createdItems = [];
-    for (const item of finalItemsToSave) {
-      const created = await prisma.shoppingListItem.create({
-        data: {
-          weekStart: targetWeek,
-          category: item.category,
-          name: item.name,
-          amount: item.amount,
-          unit: item.amount >= 1000 ? 'kg' : 'g',
-          checked: false,
-        },
-      });
-      createdItems.push(created);
-    }
-
     return NextResponse.json({
       success: true,
-      weekStart: targetWeek,
-      items: createdItems,
-      pantrySummary,
-      message: `Alışveriş listesi güncellendi (${createdItems.length} kalem).`,
+      ...result,
+      message: `Alışveriş listesi güncellendi (${result.items.length} kalem).`,
     });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error?.message || 'Alışveriş listesi yenilenemedi.' },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error('Shopping POST error:', error);
+    return NextResponse.json({ error: 'Alışveriş listesi yenilenemedi.' }, { status: 500 });
   }
 }

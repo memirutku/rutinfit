@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { resetDatabase } from "./helpers/db";
 import { prisma } from "../src/lib/prisma";
 import { GET as exportBackup } from "../src/app/api/backup/export/route";
 import { POST as importBackup } from "../src/app/api/backup/import/route";
@@ -7,11 +8,7 @@ describe("Yedekleme ve Geri Yükleme Tam Döngü (Round-Trip) Bütünlük Testi"
   const TEST_DATE = "2026-10-18";
   const TEST_PREFIX = "TEST_ROUNDTRIP_";
 
-  beforeEach(async () => {
-    // Test öncesi temizlik
-    await prisma.foodLog.deleteMany({ where: { name: { startsWith: TEST_PREFIX } } });
-    await prisma.pantryItem.deleteMany({ where: { name: { startsWith: TEST_PREFIX } } });
-  });
+  beforeEach(resetDatabase);
 
   it("dışa aktarılan verilerin tüm tabloları ve Kiler (Pantry) kayıtlarını içermesini doğrulamalı", async () => {
     // 1. Örnek kiler ve besin kaydı oluştur
@@ -45,14 +42,15 @@ describe("Yedekleme ve Geri Yükleme Tam Döngü (Round-Trip) Bütünlük Testi"
     const jsonText = await exportResponse.text();
     const backupJson = JSON.parse(jsonText);
 
-    expect(backupJson.version).toBe("1.1");
+    // v2: tablo başına düz satırlar (Prisma model adlarıyla)
+    expect(backupJson.version).toBe("2.0");
     expect(backupJson.data).toBeDefined();
-    expect(Array.isArray(backupJson.data.pantryItems)).toBe(true);
-    expect(Array.isArray(backupJson.data.foodLogs)).toBe(true);
+    expect(Array.isArray(backupJson.data.pantryItem)).toBe(true);
+    expect(Array.isArray(backupJson.data.foodLog)).toBe(true);
 
     // Dışa aktarılan veri içinde oluşturduğumuz test kayıtlarının varlığını kontrol et
-    const exportedPantry = backupJson.data.pantryItems.find((p: any) => p.name === pantryItem.name);
-    const exportedFoodLog = backupJson.data.foodLogs.find((f: any) => f.name === foodLog.name);
+    const exportedPantry = backupJson.data.pantryItem.find((p: any) => p.name === pantryItem.name);
+    const exportedFoodLog = backupJson.data.foodLog.find((f: any) => f.name === foodLog.name);
 
     expect(exportedPantry).toBeDefined();
     expect(exportedFoodLog).toBeDefined();

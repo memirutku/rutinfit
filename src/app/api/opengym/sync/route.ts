@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { apiError } from "@/lib/api-error";
 import {
   getOpenGymLocalState,
   mapOpenGymWorkoutToRutinFit,
@@ -55,11 +56,7 @@ export async function POST() {
       syncedWeights,
       message: `Senkronizasyon tamamlandı: ${importedWorkouts} antrenman aktarıldı, ${syncedWeights} tartı kaydı eşitlendi.`,
     });
-  } catch (error: any) {
-    console.error("openGym sync hatası:", error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+  } catch (error) {
+    return apiError(error, "openGym senkronizasyonu başarısız oldu.", "openGym sync");
   }
 }

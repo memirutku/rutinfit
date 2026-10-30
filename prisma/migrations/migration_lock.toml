@@ -1,0 +1,2 @@
+# Prisma Migrate kilidi: sağlayıcı değiştirilmemeli.
+provider = "sqlite"

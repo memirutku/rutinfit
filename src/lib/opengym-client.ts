@@ -47,30 +47,33 @@ export interface OpenGymState {
  * OpenGym veri dizinini çevre değişkenine veya OS uygulama depolama dizinine göre çözümler.
  */
 export function getOpenGymDataDir(): string {
+  // turbopackIgnore: kullanıcı verisi klasörü; derleyicinin dosya izleyicisi bu yolları takip edip
+  // pakete katmasın (aksi halde dinamik yol yüzünden tüm proje standalone çıktıya girer).
   if (process.env.OPENGYM_DATA_DIR) {
-    return path.resolve(process.env.OPENGYM_DATA_DIR);
+    return path.resolve(/*turbopackIgnore: true*/ process.env.OPENGYM_DATA_DIR);
   }
   try {
     const appStorageDir = getStoragePaths().dataDir;
-    const appDataOpenGym = path.join(appStorageDir, "opengym", "data");
-    if (fs.existsSync(appDataOpenGym)) {
+    const appDataOpenGym = path.join(/*turbopackIgnore: true*/ appStorageDir, "opengym", "data");
+    if (fs.existsSync(/*turbopackIgnore: true*/ appDataOpenGym)) {
       return appDataOpenGym;
     }
   } catch {
     // getStoragePaths hatası durumunda varsayılan yola geçilir
   }
-  return path.join(process.cwd(), "opengym", "data");
+  return path.join(/*turbopackIgnore: true*/ process.cwd(), "opengym", "data");
 }
 
 /**
  * openGym HTTP API sağlık durumunu kontrol eder.
  */
 export async function checkOpenGymHealth(
-  baseUrl = "http://localhost:8080"
+  baseUrl = process.env.OPENGYM_BASE_URL || "http://localhost:8080",
+  timeoutMs = 3000
 ): Promise<OpenGymHealth> {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     const res = await fetch(`${baseUrl}/api/health`, {
       signal: controller.signal,
@@ -184,17 +187,21 @@ export async function syncWeightsToOpenGymState(
  * openGym formatındaki antrenmanları RutinFit formatına dönüştürür.
  */
 export function mapOpenGymWorkoutToRutinFit(ogWorkout: OpenGymWorkout) {
+  // Yalnız SetLog tablosundaki alanlar üretilir (fazla alan Prisma create'i düşürür).
   const setLogs = (ogWorkout.exercises || []).flatMap((ex) =>
-    (ex.sets || []).map((s, idx) => ({
-      exerciseName: ex.name || ex.exerciseId || "Egzersiz",
-      setNumber: idx + 1,
-      weightKg: s.weight || 0,
-      reps: s.reps || 0,
-      targetRepMin: 8,
-      targetRepMax: 12,
-      isTargetMet: (s.reps || 0) >= 10,
-    }))
+    (ex.sets || [])
+      .filter((s) => !s.isWarmup)
+      .map((s, idx) => ({
+        exerciseName: ex.name || ex.exerciseId || "Egzersiz",
+        setNumber: idx + 1,
+        weightKg: Math.max(0, Number(s.weight) || 0),
+        reps: Math.max(0, Math.round(Number(s.reps) || 0)),
+        isTargetMet: (s.reps || 0) >= 10,
+      }))
   );
+
+  const rawRpe = Number(ogWorkout.exercises?.[0]?.sets?.[0]?.rpe);
+  const rpe = Number.isFinite(rawRpe) && rawRpe > 0 ? Math.min(10, Math.max(1, Math.round(rawRpe))) : 7;
 
   return {
     date: ogWorkout.date,
@@ -202,21 +209,35 @@ export function mapOpenGymWorkoutToRutinFit(ogWorkout: OpenGymWorkout) {
     durationMinutes: ogWorkout.durationSeconds
       ? Math.round(ogWorkout.durationSeconds / 60)
       : 40,
-    rpe: ogWorkout.exercises?.[0]?.sets?.[0]?.rpe || 7,
+    rpe,
     notes: ogWorkout.notes || "openGym üzerinden kaydedildi",
     completed: true,
     setLogs,
   };
 }
 
+
 /**
- * RutinFit kilo kayıtlarını openGym formatına dönüştürür.
+ * AI koçunun sistem promptu için openGym özeti. Her sohbet mesajında çağrıldığı için
+ * sağlık kontrolü kısa zaman aşımıyla yapılır (openGym kapalıyken yanıtı geciktirmez).
  */
-export function mapRutinFitWeightsToOpenGym(
-  rutinFitWeights: { date: string; weightKg: number }[]
-): OpenGymBodyWeight[] {
-  return rutinFitWeights.map((w) => ({
-    date: w.date,
-    weight: w.weightKg,
-  }));
+export async function getOpenGymSummary() {
+  const [health, state] = await Promise.all([
+    checkOpenGymHealth(undefined, 800),
+    getOpenGymLocalState(),
+  ]);
+
+  return {
+    isOnline: health.isOnline,
+    serviceUrl: health.url,
+    totalWorkouts: state?.workouts?.length ?? 0,
+    recentWorkouts: (state?.workouts ?? []).slice(-5).map((w) => ({
+      id: w.id,
+      date: w.date,
+      name: w.name,
+      exerciseCount: w.exercises.length,
+      totalSets: w.exercises.reduce((acc, ex) => acc + ex.sets.length, 0),
+    })),
+    recentWeights: (state?.bodyWeight ?? []).slice(-7).map((b) => ({ date: b.date, weightKg: b.weight })),
+  };
 }

@@ -1,18 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { z } from "zod";
-
-const FoodItemSchema = z.object({
-  name: z.string().min(1),
-  category: z.string().default("Genel"),
-  basisGrams: z.number().positive().default(100),
-  calories: z.number().nonnegative(),
-  proteinG: z.number().nonnegative(),
-  carbsG: z.number().nonnegative(),
-  fatG: z.number().nonnegative(),
-  source: z.string().default("Kullanıcı"),
-  confidence: z.string().default("Yüksek"),
-});
+import { apiError } from "@/lib/api-error";
+import { includesTr } from "@/lib/text";
+import { FoodItemInputSchema } from "@/lib/schemas/food";
 
 export async function GET(req: Request) {
   try {
@@ -22,45 +12,31 @@ export async function GET(req: Request) {
     const limitParam = searchParams.get("limit");
     const take = limitParam ? Math.min(Math.max(1, parseInt(limitParam, 10) || 50), 200) : 100;
 
-    const where: any = {};
-    if (search) {
-      where.name = { contains: search };
-    }
-    if (category) {
-      where.category = category;
-    }
-
-    const foods = await prisma.foodItem.findMany({
-      where,
+    // SQLite LIKE yalnız ASCII'de büyük/küçük harf duyarsızdır; Türkçe arama bellekte yapılır
+    // (katalog küçük: birkaç yüz kayıt).
+    const all = await prisma.foodItem.findMany({
+      where: category ? { category } : undefined,
       orderBy: { name: "asc" },
-      take,
     });
+    const foods = (search ? all.filter((f) => includesTr(f.name, search) || includesTr(f.brand, search)) : all).slice(0, take);
 
     return NextResponse.json(foods);
   } catch (error) {
-    console.error("Foods GET error:", error);
-    return NextResponse.json(
-      { error: "Besinler getirilemedi" },
-      { status: 500 }
-    );
+    return apiError(error, "Besinler getirilemedi", "Foods GET");
   }
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const validated = FoodItemSchema.parse(body);
+    const validated = FoodItemInputSchema.parse(body);
 
     const created = await prisma.foodItem.create({
       data: validated,
     });
 
     return NextResponse.json(created, { status: 201 });
-  } catch (error: any) {
-    console.error("Foods POST error:", error);
-    return NextResponse.json(
-      { error: error.message || "Besin kaydedilemedi" },
-      { status: 400 }
-    );
+  } catch (error) {
+    return apiError(error, "Besin kaydedilemedi", "Foods POST");
   }
 }

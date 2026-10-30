@@ -1,21 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { z } from "zod";
+import { apiError } from "@/lib/api-error";
 import { calculateRecipeMacros } from "@/lib/nutrition-calculator";
-
-const RecipeIngredientSchema = z.object({
-  foodItemId: z.string().min(1),
-  grams: z.number().positive(),
-});
-
-const RecipeSchema = z.object({
-  name: z.string().min(1),
-  instructions: z.string().optional(),
-  prepMinutes: z.number().int().positive().default(15),
-  servings: z.number().int().positive().default(1),
-  tags: z.array(z.string()).optional(),
-  ingredients: z.array(RecipeIngredientSchema).min(1),
-});
+import { RecipeInputSchema } from "@/lib/schemas/food";
 
 export async function GET() {
   try {
@@ -52,18 +39,14 @@ export async function GET() {
 
     return NextResponse.json(enrichedRecipes);
   } catch (error) {
-    console.error("Recipes GET error:", error);
-    return NextResponse.json(
-      { error: "Tarifler getirilemedi" },
-      { status: 500 }
-    );
+    return apiError(error, "Tarifler getirilemedi", "Recipes GET");
   }
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const validated = RecipeSchema.parse(body);
+    const validated = RecipeInputSchema.parse(body);
 
     const recipe = await prisma.recipe.create({
       data: {
@@ -89,11 +72,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(recipe, { status: 201 });
-  } catch (error: any) {
-    console.error("Recipes POST error:", error);
-    return NextResponse.json(
-      { error: error.message || "Tarif oluşturulamadı" },
-      { status: 400 }
-    );
+  } catch (error) {
+    return apiError(error, "Tarif oluşturulamadı", "Recipes POST");
   }
 }
