@@ -48,6 +48,7 @@ model UserProfile {
   ramadanImsakAdjust Int     @default(0) // dakika
   ramadanIftarAdjust Int     @default(0) // dakika
   fastingTargetHours Int? // null: zamanlayıcı kapalı
+  cycleTracking      Boolean @default(false) // F82: isteğe bağlı adet döngüsü notu
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -360,6 +361,7 @@ model DailyWellbeing {
   stress1to5   Int      @default(3)
   soreness1to5 Int? // F51: kas ağrısı (1 yok, 5 çok)
   mood1to5     Int? // F51: ruh hâli
+  cycleNote    String? // F82: period_start, period, spotting (yalnız döngü notu açıksa)
   notes        String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

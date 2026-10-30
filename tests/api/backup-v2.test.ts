@@ -72,6 +72,8 @@ async function seedRichData() {
   await prisma.bodyMeasurement.create({ data: { date: "2026-10-18", waistCm: 99, hipCm: 105, restingHr: 60, systolic: 120, diastolic: 80, notes: "Sabah" } });
   // F62: Apple Sağlık özeti.
   await prisma.healthRecord.create({ data: { key: "steps:2026-10-18", type: "steps", date: "2026-10-18", value: 8000, unit: "count", source: "Apple Watch" } });
+  // F82: döngü notu.
+  await prisma.dailyWellbeing.create({ data: { date: "2026-10-17", cycleNote: "period_start" } });
   // F49: haftalık değerlendirme.
   await prisma.weeklyCheckin.create({
     data: { weekStart: "2026-10-12", metrics: JSON.stringify({ loggedDays: 6 }), summary: "İyi hafta.", aiGenerated: true, suggestion: JSON.stringify({ kind: "keep", text: "Devam" }) },

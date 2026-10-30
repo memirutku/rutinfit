@@ -195,7 +195,7 @@ export default function DashboardPage() {
       {/* İkinci Sıra: Günün Antrenmanı & İyilik Hali */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <TodayWorkoutCard template={todayTemplate} isCompleted={isWorkoutCompleted} readiness={readiness} />
-        <WellbeingCard today={progress.data?.today} onSave={handleSaveWellbeing} />
+        <WellbeingCard today={progress.data?.today} onSave={handleSaveWellbeing} cycleTracking={profile.data?.cycleTracking ?? false} />
       </div>
 
       {/* F13: sıvı, kafein ve alkol · F15: takviyeler */}

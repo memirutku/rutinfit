@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CYCLE_NOTES } from "./enums";
 
 /** POST /api/progress: kilo, iyilik hali ve kreatin kaydı (gönderilen alanlar güncellenir). */
 export const ProgressLogSchema = z.object({
@@ -12,6 +13,8 @@ export const ProgressLogSchema = z.object({
   /** F51 */
   soreness1to5: z.number().int().min(1).max(5).optional(),
   mood1to5: z.number().int().min(1).max(5).optional(),
+  /** F82: null verilirse silinir. */
+  cycleNote: z.enum(CYCLE_NOTES).nullable().optional(),
   notes: z.string().optional(),
   creatineTaken: z.boolean().optional(),
   creatineDoseGrams: z.number().positive().default(5.0),
@@ -46,6 +49,8 @@ export const ProgressResponseSchema = z.object({
     stress1to5: z.number().nullable().optional(),
     soreness1to5: z.number().nullable().optional(),
     mood1to5: z.number().nullable().optional(),
+    /** F82 */
+    cycleNote: z.string().nullable().optional(),
   }),
 });
 export type ProgressResponse = z.infer<typeof ProgressResponseSchema>;

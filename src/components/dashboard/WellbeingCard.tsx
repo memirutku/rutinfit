@@ -6,6 +6,7 @@ import type { ProgressResponse } from "@/lib/schemas/progress";
 import { WELLBEING_SECTION_ID } from "./rhythm";
 import { parseDecimalTr } from "@/lib/format";
 import { computeReadiness, READINESS_BAND_LABELS, type ReadinessBand } from "@/lib/readiness";
+import { CYCLE_NOTES, CYCLE_NOTE_LABELS, type CycleNote } from "@/lib/schemas/enums";
 
 const READINESS_TONE: Record<ReadinessBand, string> = { low: "text-rose-700", medium: "text-amber-700", high: "text-emerald-700" };
 
@@ -17,6 +18,8 @@ export interface WellbeingValues {
   stress1to5?: number;
   soreness1to5?: number;
   mood1to5?: number;
+  /** F82: yalnız döngü notu açıksa gönderilir; null siler. */
+  cycleNote?: CycleNote | null;
 }
 
 type Scales = Pick<WellbeingValues, "stress1to5" | "soreness1to5" | "mood1to5">;
@@ -66,16 +69,19 @@ interface WellbeingCardProps {
   today?: ProgressResponse["today"];
   /** true dönerse "Kayıt güncellendi ✓" gösterilir; hata mesajını çağıran gösterir. */
   onSave: (values: WellbeingValues) => Promise<boolean>;
+  /** F82: ayarlarda açıksa döngü notu seçimi gösterilir. */
+  cycleTracking?: boolean;
 }
 
 /** Günlük iyilik hâli hızlı girişi (takviyeler F15 ile ayrı kartta). */
-export function WellbeingCard({ today, onSave }: WellbeingCardProps) {
+export function WellbeingCard({ today, onSave, cycleTracking = false }: WellbeingCardProps) {
   const [weight, setWeight] = useState("");
   const [energy, setEnergy] = useState(3);
   const [sleep, setSleep] = useState("7");
   const [stress, setStress] = useState<number | null>(null);
   const [soreness, setSoreness] = useState<number | null>(null);
   const [mood, setMood] = useState<number | null>(null);
+  const [cycle, setCycle] = useState<CycleNote | "">("");
   const [saving, setSaving] = useState(false);
   const saved = useTimedMessage<string>(3000);
 
@@ -83,7 +89,7 @@ export function WellbeingCard({ today, onSave }: WellbeingCardProps) {
   // gibi formda olmayan alanlar değiştiğinde veya aynı veri yeniden geldiğinde kullanıcının yazdıkları ezilmez.
   // Effect yerine render sırasında: boş formla bir kare çizilmez.
   const signature = today
-    ? [today.date, today.weightKg, today.energy1to5, today.sleepMinutes, today.stress1to5, today.soreness1to5, today.mood1to5].join("|")
+    ? [today.date, today.weightKg, today.energy1to5, today.sleepMinutes, today.stress1to5, today.soreness1to5, today.mood1to5, today.cycleNote].join("|")
     : null;
   const [seededSignature, setSeededSignature] = useState<string | null>(null);
   if (today && signature !== seededSignature) {
@@ -94,6 +100,7 @@ export function WellbeingCard({ today, onSave }: WellbeingCardProps) {
     if (today.stress1to5) setStress(today.stress1to5);
     if (today.soreness1to5) setSoreness(today.soreness1to5);
     if (today.mood1to5) setMood(today.mood1to5);
+    setCycle((today.cycleNote as CycleNote | null | undefined) ?? "");
   }
 
   // F51: formdaki değerlerden canlı hazır olma skoru.
@@ -112,7 +119,9 @@ export function WellbeingCard({ today, onSave }: WellbeingCardProps) {
     setSaving(true);
     saved.clear();
     try {
-      if (await onSave(toWellbeingValues(weight, sleep, energy, scales))) saved.show("Kayıt güncellendi ✓");
+      const values = toWellbeingValues(weight, sleep, energy, scales);
+      if (cycleTracking) values.cycleNote = cycle || null;
+      if (await onSave(values)) saved.show("Kayıt güncellendi ✓");
     } finally {
       setSaving(false);
     }
@@ -192,6 +201,27 @@ export function WellbeingCard({ today, onSave }: WellbeingCardProps) {
             <Scale label="Kas ağrısı" hint="1 yok, 5 çok" value={soreness} onChange={setSoreness} />
             <Scale label="Ruh hâli" hint="1 kötü, 5 iyi" value={mood} onChange={setMood} />
           </div>
+
+          {cycleTracking && (
+            <div className="max-w-[14rem]">
+              <label htmlFor="dash-cycle" className="block text-[11px] font-semibold text-slate-600 mb-1">
+                Döngü <span className="font-normal text-slate-400">(isteğe bağlı)</span>
+              </label>
+              <select
+                id="dash-cycle"
+                value={cycle}
+                onChange={(e) => setCycle(e.target.value as CycleNote | "")}
+                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+              >
+                <option value="">—</option>
+                {CYCLE_NOTES.map((c) => (
+                  <option key={c} value={c}>
+                    {CYCLE_NOTE_LABELS[c]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {readiness && (
             <p className="text-xs text-slate-600">

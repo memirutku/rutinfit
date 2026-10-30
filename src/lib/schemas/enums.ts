@@ -23,3 +23,12 @@ export function mealTypeLabel(type: MealType, ramadan = false): string {
   if (ramadan && type === "dinner") return "İftar";
   return MEAL_TYPE_LABELS[type];
 }
+
+/** F82: Günlük döngü notu (isteğe bağlı). */
+export const CYCLE_NOTES = ["period_start", "period", "spotting"] as const;
+export type CycleNote = (typeof CYCLE_NOTES)[number];
+export const CYCLE_NOTE_LABELS: Record<CycleNote, string> = {
+  period_start: "Adet başladı",
+  period: "Adet",
+  spotting: "Lekelenme",
+};
