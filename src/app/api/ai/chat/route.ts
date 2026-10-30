@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createActionDraft } from '@/lib/ai-tools/action-tools';
 import { calculateRecipeNutrition } from '@/lib/ai-tools/draft-tools';
+import { stripActionBlocks } from '@/lib/ai-schema';
 import { ChatRequestSchema } from '@/lib/schemas/chat';
 import { checkAIBaseUrl, shouldSendOpenAIKey, DEFAULT_AI_BASE_URL } from '@/lib/security/ai-endpoint';
 import { buildSystemPrompt, extractActionProposal, loadCoachContext } from '@/lib/services/coach-context';
@@ -256,12 +257,15 @@ export async function POST(req: Request) {
         }
       }
 
+      // B29: öneri JSON'u sohbet metninden çıkarılır (kartta gösterilir); kayda da temiz metin yazılır.
+      const replyText = stripActionBlocks(rawContent);
+
       // Persist assistant message in AIMessage
       await prisma.aIMessage.create({
         data: {
           conversationId: convId,
           role: 'assistant',
-          content: rawContent,
+          content: replyText,
           draftId,
           // Ham onay anahtarı kalıcı olarak saklanmaz; yalnız bu yanıtta istemciye verilir.
           actionProposal: actionProposal
@@ -277,7 +281,7 @@ export async function POST(req: Request) {
       });
 
       return NextResponse.json({
-        reply: rawContent,
+        reply: replyText,
         conversationId: convId,
         actionProposal,
         isError: false,

@@ -196,3 +196,22 @@ describe("AI Yanıt ve Öneri Şeması Doğrulama", () => {
     });
   });
 });
+
+describe("B29: öneri JSON'u sohbet metninden çıkarılır", () => {
+  const meal = { type: "meal_proposal", mealType: "dinner", title: "Fırın somon", rationale: "r", ingredients: [{ foodName: "Somon", grams: 150 }], estimatedMacros: { calories: 600, proteinG: 40, carbsG: 45, fatG: 22 } };
+
+  it("öneri bloğu (```json ya da etiketsiz) metinden silinir, kalan metin korunur", async () => {
+    const { stripActionBlocks } = await import("../src/lib/ai-schema");
+    expect(stripActionBlocks(`Akşam için önerim:\n\n\`\`\`json\n${JSON.stringify(meal, null, 2)}\n\`\`\`\n\nAfiyet olsun.`)).toBe("Akşam için önerim:\n\nAfiyet olsun.");
+    expect(stripActionBlocks(`Öneri:\n\`\`\`\n${JSON.stringify(meal)}\n\`\`\``)).toBe("Öneri:");
+    expect(stripActionBlocks(`Öneri:\n\`\`\`json\n${JSON.stringify({ type: "workout_adjustment", title: "x" })}\n\`\`\``)).toBe("Öneri:");
+  });
+
+  it("öneri olmayan kod blokları ve düz metin olduğu gibi kalır; yalnız blok varsa kart yönlendirmesi döner", async () => {
+    const { stripActionBlocks } = await import("../src/lib/ai-schema");
+    const other = "Örnek:\n```json\n{\"a\":1}\n```";
+    expect(stripActionBlocks(other)).toBe(other);
+    expect(stripActionBlocks("Sadece metin")).toBe("Sadece metin");
+    expect(stripActionBlocks(`\`\`\`json\n${JSON.stringify(meal)}\n\`\`\``)).toBe("Önerimi aşağıdaki kartta bulabilirsin.");
+  });
+});

@@ -1,5 +1,5 @@
 import type { APIRequestContext, Page } from "@playwright/test";
-import { test, expect } from "./fixtures";
+import { test, expect, actionBlock, uniq } from "./fixtures";
 
 /** Dalga 6, alan E (AI koç). Ayar veya profil değiştiren testler sonunda geri alır. */
 
@@ -94,5 +94,33 @@ test.describe("Dalga 6 · AI koç", () => {
     await page.goto("/coach");
     await expect(page.getByTestId("ai-status-badge")).toHaveText(/Model hazır · mock-llama/);
     await expect(page.getByText("Koç kapalı: yerel model bulunamadı")).toHaveCount(0);
+  });
+
+  test("B29: öneri JSON'u balonda görünmez, eksik malzemede 'Hesaplandı' yazmaz, onaydan sonra rozet 'Onaylandı'", async ({ page, mocks }) => {
+    const title = uniq("E2E Fırın Somon");
+    await mocks.queueLLM(
+      actionBlock("Akşam için önerim:", {
+        type: "meal_proposal",
+        mealType: "dinner",
+        title,
+        rationale: "Protein ve omega-3",
+        prepMinutes: 25,
+        ingredients: [
+          { foodName: "Zzyzx Balığı", grams: 150 },
+          { foodName: "Qwfp Tahılı", grams: 60 },
+        ],
+        estimatedMacros: { calories: 600, proteinG: 40, carbsG: 45, fatG: 22 },
+      })
+    );
+    await page.goto("/coach");
+    await ask(page, "akşam ne yiyeyim?");
+    await expect(page.getByText("Akşam için önerim:", { exact: true })).toBeVisible();
+    await expect(page.getByText(/meal_proposal/)).toHaveCount(0);
+    await expect(page.getByText("Eksik malzeme")).toBeVisible();
+    await expect(page.getByText("Hesaplandı", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Kalori hesaplanamadı")).toBeVisible();
+    await page.getByRole("button", { name: "Yalnız adıyla plana ekle" }).click();
+    await expect(page.getByText("Onaylandı", { exact: true })).toBeVisible();
+    await expect(page.getByText("Onay Bekliyor")).toHaveCount(0);
   });
 });

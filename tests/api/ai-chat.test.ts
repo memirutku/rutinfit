@@ -138,6 +138,11 @@ describe("POST /api/ai/chat", () => {
     expect(draft?.status).toBe("pending");
     expect(await prisma.foodLog.count()).toBe(0);
     expect(await prisma.plannedMeal.count()).toBe(0);
+    // B29: öneri JSON'u sohbet metninde görünmez; kayıtlı mesajda da yoktur.
+    expect(res.json.reply).toBe("Akşam için önerim:");
+    const stored = await prisma.aIMessage.findFirst({ where: { role: "assistant" } });
+    expect(stored?.content).toBe("Akşam için önerim:");
+    expect(stored?.actionProposal).toContain("meal_proposal");
   });
 
   it("model sunucusu hata verirse kullanıcıya anlaşılır mesaj döner", async () => {

@@ -505,3 +505,82 @@ describe("B28: model yokken koç sayfası durumu söyler ve çözüm gösterir",
     expect(s.calls.filter((c) => c.url.includes("/api/ai/status")).length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe("B29: öneri kartı", () => {
+  const card = (proposal: CardProposal, over: Partial<Parameters<typeof ActionProposalCard>[0]> = {}) =>
+    render(
+      <ActionProposalCard
+        proposal={proposal}
+        isApplied={false}
+        isEditing={false}
+        isBusy={false}
+        onApprove={vi.fn()}
+        onReject={vi.fn()}
+        onToggleEdit={vi.fn()}
+        onEditTitle={vi.fn()}
+        {...over}
+      />
+    );
+  const allMissing = {
+    ...mealProposal,
+    deterministicMacros: { totalCalories: 0, totalProteinG: 0, totalCarbsG: 0, totalFatG: 0, missingIngredients: ["Tavuk Göğsü", "Pirinç"] },
+  };
+
+  it("onay bekleyen kart 'Onay Bekliyor', onaylanan kart 'Onaylandı' der", () => {
+    const { unmount } = card(parseProposal(mealProposal)!);
+    expect(screen.getByText("Onay Bekliyor")).toBeTruthy();
+    unmount();
+    card(parseProposal(mealProposal)!, { isApplied: true });
+    expect(screen.getByText("Onaylandı")).toBeTruthy();
+    expect(screen.queryByText("Onay Bekliyor")).toBeNull();
+  });
+
+  it("hiçbir malzeme katalogda yoksa '0 kcal · Hesaplandı' yazmaz; eksik malzeme ve seçenekler sunar", () => {
+    const onApprove = vi.fn();
+    card(parseProposal(allMissing)!, { onApprove });
+    expect(screen.queryByText("Hesaplandı")).toBeNull();
+    expect(screen.queryByText("0 kcal")).toBeNull();
+    expect(screen.getByText("Eksik malzeme")).toBeTruthy();
+    expect(screen.getByText("Kalori hesaplanamadı")).toBeTruthy();
+    expect(screen.getByText(/model tahmini: 999 kcal/)).toBeTruthy();
+    expect(screen.getByRole("note").textContent).toMatch(/Tavuk Göğsü, Pirinç/);
+    expect(screen.getByRole("link", { name: "Eksikleri kataloğa ekle" }).getAttribute("href")).toBe("/foods");
+    fireEvent.click(screen.getByRole("button", { name: "Yalnız adıyla plana ekle" }));
+    expect(onApprove).toHaveBeenCalled();
+  });
+
+  it("bir kısmı eksikse toplamın eksikler hariç olduğu yazılır ve katalogdakilerle ekleme önerilir", () => {
+    card(parseProposal({ ...mealProposal, deterministicMacros: { ...mealProposal.deterministicMacros, missingIngredients: ["Pirinç"] } })!);
+    expect(screen.queryByText("Hesaplandı")).toBeNull();
+    expect(screen.getByText("420 kcal")).toBeTruthy();
+    expect(screen.getByText("(eksik malzemeler hariç)")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Katalogdakilerle plana ekle" })).toBeTruthy();
+  });
+
+  it("geçmiş sohbetteki öneri mesajında JSON bloğu gösterilmez", async () => {
+    stubCoach({
+      conversations: [{ id: "c9", title: "Eski" }],
+      detail: {
+        conversation: {
+          id: "c9",
+          title: "Eski",
+          messages: [
+            {
+              id: "m2",
+              role: "assistant",
+              content: "Önerim:\n```json\n" + JSON.stringify({ ...mealProposal, approvalToken: undefined }) + "\n```",
+              draftId: "d1",
+              actionProposal: JSON.stringify({ ...mealProposal, approvalToken: undefined }),
+              draft: { id: "d1", status: "pending" },
+            },
+          ],
+        },
+      },
+    });
+    const user = userEvent.setup();
+    renderWithQuery(<CoachPage />);
+    await user.selectOptions(await screen.findByLabelText("Geçmiş sohbetler"), "c9");
+    expect(await screen.findByText("Önerim:")).toBeTruthy();
+    expect(screen.queryByText(/meal_proposal/)).toBeNull();
+  });
+});

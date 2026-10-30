@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { errorMessage } from "@/lib/client/api";
+import { stripActionBlocks } from "@/lib/ai-schema";
 import { clientId } from "@/lib/client/keys";
 import { useTimedMessage } from "@/hooks/useTimedMessage";
 import {
@@ -78,7 +79,8 @@ export function useCoachChat(welcome: string) {
         return {
           id: m.id,
           role: m.role === "user" ? "user" : "assistant",
-          content: m.content,
+          // B29: eski kayıtlarda öneri JSON'u metnin içinde kalmış olabilir.
+          content: m.role === "user" ? m.content : stripActionBlocks(m.content),
           proposal: parseStoredProposal(m.actionProposal),
           aiGenerated: m.role === "assistant",
         };
