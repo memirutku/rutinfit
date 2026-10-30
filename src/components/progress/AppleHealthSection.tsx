@@ -7,6 +7,7 @@ import { apiFetch, errorMessage } from "@/lib/client/api";
 import { queryKeys } from "@/lib/client/queries/keys";
 import { readAppleHealthExport, type SourceBreakdown } from "@/lib/apple-health";
 import { formatDateTr, formatNumberTr } from "@/lib/format";
+import { FilePicker } from "@/components/ui/FilePicker";
 import type { healthSummary } from "@/lib/services/health-import";
 
 type Summary = Awaited<ReturnType<typeof healthSummary>>;
@@ -133,22 +134,13 @@ export function AppleHealthSection() {
         kendi kilo ve kardiyo kayıtlarına eklenmez; aynı tartı ya da antrenman iki kez sayılmaz.
       </p>
 
-      <div>
-        <label htmlFor="apple-health-file" className="block text-xs font-semibold text-slate-600 mb-1">
-          Apple Sağlık dışa aktarımı (export.zip)
-        </label>
-        <input
-          id="apple-health-file"
-          type="file"
-          accept=".zip,.xml,application/zip,text/xml"
-          disabled={progress !== null}
-          onChange={(e) => {
-            void onFile(e.target.files?.[0]);
-            e.target.value = "";
-          }}
-          className="text-xs"
-        />
-      </div>
+      <FilePicker
+        id="apple-health-file"
+        label="Apple Sağlık dışa aktarımı (export.zip)"
+        accept=".zip,.xml,application/zip,text/xml"
+        disabled={progress !== null}
+        onFile={(file) => void onFile(file)}
+      />
       {progress !== null && (
         <div role="progressbar" aria-label="Okunuyor" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
           <div className="h-full bg-rose-500 transition-all" style={{ width: `${progress}%` }} />

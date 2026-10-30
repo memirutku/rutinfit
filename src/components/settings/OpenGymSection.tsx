@@ -14,24 +14,24 @@ export function OpenGymSection() {
 
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+        <div className="flex items-center gap-2 min-w-0">
           <span className="w-5 h-5 rounded-lg bg-emerald-600 text-white font-bold text-xs flex items-center justify-center">OG</span>
-          <h3 className="font-bold text-slate-900 text-base">openGym Entegrasyonu (İsteğe Bağlı Yan Servis)</h3>
+          <h3 className="font-bold text-slate-900 text-base">openGym bağlantısı</h3>
         </div>
-        <span className="text-xs bg-emerald-50 text-emerald-700 font-semibold px-2.5 py-1 rounded-full">Port 8080 (Opsiyonel)</span>
+        <span className="text-xs bg-emerald-50 text-emerald-700 font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">İsteğe bağlı</span>
       </div>
 
       <p className="text-xs text-slate-600 leading-relaxed">
-        RutinFit masaüstü uygulaması Kas Haritası ve Plaka Hesabını yerel olarak bünyesinde barındırır. openGym ise harici bir yan servis
-        (sidecar) olarak çalıştırılabilir; bağlandığında 5.600+ hareket kataloğu ve iki yönlü tartı senkronizasyonu sağlar. Docker zorunlu
-        değildir.
+        Kas haritası ve plaka hesabı RutinFit'in içinde çalışır; openGym gerekmez. openGym bu bilgisayarda ayrıca çalıştırabileceğin
+        açık kaynaklı bir antrenman uygulamasıdır (varsayılan adres: port 8080). Bağlarsan 5.600'den fazla hareketlik katalog ve tartı
+        kayıtlarının iki yönlü eşitlenmesi eklenir.
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label htmlFor="settings-field-15" className="block text-xs font-semibold text-slate-600 mb-1">
-            openGym Web Adresi
+            openGym adresi
           </label>
           <input
             id="settings-field-15"
@@ -42,7 +42,7 @@ export function OpenGymSection() {
           />
         </div>
 
-        <div className="flex items-end gap-2">
+        <div className="flex flex-wrap items-end gap-2">
           <button
             type="button"
             onClick={() => test.mutate()}
@@ -72,7 +72,7 @@ export function OpenGymSection() {
         >
           <p className="font-bold">
             {result.isOnline
-              ? `Bağlantı Başarılı! openGym v${result.version || "1.4.1"} aktif olarak çalışıyor.`
+              ? `Bağlantı Başarılı! openGym${result.version ? ` v${result.version}` : ""} aktif olarak çalışıyor.`
               : `Bağlantı Hatası: ${result.error}`}
           </p>
         </div>

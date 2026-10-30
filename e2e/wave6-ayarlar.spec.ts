@@ -140,4 +140,22 @@ test.describe("Dalga 6 · Ayarlar", () => {
       await api.delete(`/api/reminders?id=${created.id}`);
     }
   });
+
+  test("B35: 390 px'te şeffaflık tablosu karta döner, sayfa yatay kaymaz; dosya seçiciler Türkçe", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/settings#seffaflik");
+    await expect(page.locator("#seffaflik table")).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    // Kart görünümünde başlık satırı gizli, hücreler alt alta.
+    expect(await page.locator("#seffaflik tbody tr").first().evaluate((tr) => getComputedStyle(tr).display)).toBe("block");
+    await expect(page.locator("#backup-import")).toBeAttached();
+    await pageHasText(page, "Yedek dosyası seç (JSON)");
+
+    await page.goto("/progress");
+    await pageHasText(page, "Fotoğraf seç");
+    for (const id of ["#photo-file", "#apple-health-file"]) {
+      // Tarayıcının kendi (İngilizce) dosya düğmesi görünmez; girdi yalnız ekran okuyucu içindir.
+      expect(await page.locator(id).evaluate((el) => el.getBoundingClientRect().width)).toBeLessThanOrEqual(1);
+    }
+  });
 });

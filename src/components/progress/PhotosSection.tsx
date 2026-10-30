@@ -8,6 +8,7 @@ import { queryKeys } from "@/lib/client/queries/keys";
 import { getLocalDateString } from "@/lib/date-utils";
 import { formatDateTr } from "@/lib/format";
 import { PathActions } from "@/components/ui/PathActions";
+import { FilePicker } from "@/components/ui/FilePicker";
 
 type Pose = "front" | "side" | "back";
 const POSES: Array<{ value: Pose; label: string }> = [
@@ -128,11 +129,16 @@ export function PhotosSection() {
       )}
 
       <div className="pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
-        <div className="sm:col-span-2">
-          <label htmlFor="photo-file" className="block text-xs font-semibold text-slate-600 mb-1">
-            Fotoğraf
-          </label>
-          <input id="photo-file" type="file" accept="image/jpeg,image/png,image/webp,image/heic" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-xs" />
+        <div className="sm:col-span-2 min-w-0">
+          {/* B35: Türkçe seçici; yüklemeden sonra seçim temizlenir. */}
+          <FilePicker
+            id="photo-file"
+            label="Fotoğraf"
+            accept="image/jpeg,image/png,image/webp,image/heic"
+            buttonText="Fotoğraf seç"
+            fileName={file?.name ?? null}
+            onFile={(f) => setFile(f ?? null)}
+          />
         </div>
         <div>
           <label htmlFor="photo-pose" className="block text-xs font-semibold text-slate-600 mb-1">

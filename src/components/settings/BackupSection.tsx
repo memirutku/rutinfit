@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, Check, Download, Upload } from "lucide-react";
+import { AlertCircle, Check, Download } from "lucide-react";
 import { ApiError, errorMessage } from "@/lib/client/api";
 import { useImportBackup } from "@/lib/client/queries/system";
 import type { ConfirmOptions } from "@/components/ui/ConfirmDialog";
@@ -11,6 +11,7 @@ import { useAutoBackup } from "@/lib/client/queries/auto-backup";
 import { queryKeys } from "@/lib/client/queries/keys";
 import { useQueryClient } from "@tanstack/react-query";
 import { PathActions } from "@/components/ui/PathActions";
+import { FilePicker } from "@/components/ui/FilePicker";
 
 interface ImportResult {
   ok: boolean;
@@ -108,13 +109,8 @@ export function BackupSection({ confirm }: { confirm: (options: ConfirmOptions) 
     }
   }
 
-  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
-    const input = e.target;
-    const file = input.files?.[0];
-    // Aynı dosya tekrar seçilebilsin diye input her durumda sıfırlanır.
-    const reset = () => {
-      input.value = "";
-    };
+  // B35: Türkçe dosya seçici girdiyi her seçimden sonra kendisi sıfırlar (aynı dosya yeniden seçilebilir).
+  async function handleImport(file: File | undefined) {
     if (!file) return;
 
     const ok = await confirm({
@@ -127,12 +123,9 @@ export function BackupSection({ confirm }: { confirm: (options: ConfirmOptions) 
       ),
       confirmLabel: "Geri Yükle",
     });
-    if (!ok) {
-      reset();
-      return;
-    }
+    if (!ok) return;
 
-    try {
+    {
       let backup: unknown;
       try {
         backup = JSON.parse(await file.text());
@@ -147,8 +140,6 @@ export function BackupSection({ confirm }: { confirm: (options: ConfirmOptions) 
       } catch (err) {
         setImportResult({ ok: false, message: `Hata: ${importErrorText(err)}`, counts: null });
       }
-    } finally {
-      reset();
     }
   }
 
@@ -156,16 +147,13 @@ export function BackupSection({ confirm }: { confirm: (options: ConfirmOptions) 
     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
       <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
         <Download className="w-5 h-5 text-slate-700" />
-        <h3 className="font-bold text-slate-900 text-base">Yerel Veri Yedekleme & Geri Yükleme</h3>
-        <span className="text-[11px] bg-blue-50 text-blue-700 font-semibold px-2.5 py-0.5 rounded-full ml-auto">
-          Akıllı Birleştirme (Upsert)
-        </span>
+        <h3 className="font-bold text-slate-900 text-base">Yedek ve dışa aktarma</h3>
       </div>
 
       <p className="text-xs text-slate-500 leading-relaxed">
-        Tüm besin kataloğunuz, antrenman geçmişiniz, yemek planlarınız, kiler envanteriniz ve kilo kayıtlarınız tek bir JSON dosyasında
-        yedeklenir. Geri yükleme işlemi <strong>Akıllı Birleştirme (Smart Merge)</strong> prensibiyle çalışır: Mevcut kayıtlarınız
-        silinmez; yedekteki aynı kimliğe sahip kayıtlar güncellenir, yeni kayıtlar eklenir.
+        Besin kataloğun, öğün ve antrenman geçmişin, yemek planların, kilerin ve kilo kayıtların tek bir JSON dosyasına yedeklenir.
+        Geri yükleme <strong>birleştirerek</strong> çalışır: mevcut kayıtların silinmez; yedekteki aynı kayıtlar güncellenir, yeniler
+        eklenir.
       </p>
 
       <p className="text-[11px] text-slate-500">
@@ -211,18 +199,22 @@ export function BackupSection({ confirm }: { confirm: (options: ConfirmOptions) 
           <span>Tüm Verileri JSON Olarak İndir</span>
         </button>
 
-        <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 cursor-pointer border border-slate-200">
-          <Upload className="w-4 h-4" />
-          <span>{importBackup.isPending ? "Geri yükleniyor..." : "Yedekten Geri Yükle (JSON Seç)"}</span>
-          <input type="file" accept=".json" disabled={importBackup.isPending} onChange={handleImport} className="hidden" />
-        </label>
       </div>
+
+      <FilePicker
+        id="backup-import"
+        label="Yedekten geri yükle"
+        accept=".json,application/json"
+        buttonText={importBackup.isPending ? "Geri yükleniyor..." : "Yedek dosyası seç (JSON)"}
+        disabled={importBackup.isPending}
+        onFile={handleImport}
+      />
 
       <div className="pt-3 border-t border-slate-100 space-y-2">
         <p className="text-xs font-bold text-slate-700">CSV olarak dışa aktar</p>
         <p className="text-[11px] text-slate-500">
-          Tablolama programlarında ve diğer uygulamalarda açılır. Antrenman dosyası Strong biçimindedir; RutinFit'e geri içe
-          aktarılabilir. Biçimler: docs/CSV_FORMATS.md
+          Excel, Numbers ve diğer uygulamalarda açılır. Antrenman dosyası Strong uygulamasının biçimindedir; RutinFit'e geri
+          içe aktarılabilir.
         </p>
         <div className="flex flex-wrap gap-2">
           {CSV_EXPORTS.map((c) => (

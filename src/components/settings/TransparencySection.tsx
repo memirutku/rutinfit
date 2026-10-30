@@ -11,6 +11,10 @@ interface EgressRow {
   endpoint?: "local" | "cloud";
 }
 
+/** Dar ekranda hücrenin üstüne başlığı yazılır (kart görünümü). */
+const CELL =
+  "block sm:table-cell py-1 sm:py-2 sm:pr-3 before:block before:text-[10px] before:font-semibold before:uppercase before:text-slate-400 before:content-[attr(data-label)] sm:before:content-none";
+
 const ROWS: EgressRow[] = [
   {
     feature: "AI koçu (yerel model)",
@@ -54,32 +58,38 @@ export function TransparencySection() {
         bu bilgisayardan dışarı çıkabilen her şeyi gösterir.
       </p>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs text-left">
-          <caption className="sr-only">Cihazdan ne çıkar?</caption>
-          <thead>
-            <tr className="text-slate-500 border-b border-slate-200">
-              <th scope="col" className="py-2 pr-3 font-semibold">Özellik</th>
-              <th scope="col" className="py-2 pr-3 font-semibold">Ne gider</th>
-              <th scope="col" className="py-2 font-semibold">Nereye</th>
+      {/* B35: dar ekranda her satır bir karta dönüşür; hücre başlığı data-label'dan gelir. */}
+      <table className="w-full text-xs text-left block sm:table">
+        <caption className="sr-only">Cihazdan ne çıkar?</caption>
+        <thead className="sr-only sm:not-sr-only sm:table-header-group">
+          <tr className="text-slate-500 border-b border-slate-200">
+            <th scope="col" className="py-2 pr-3 font-semibold">Özellik</th>
+            <th scope="col" className="py-2 pr-3 font-semibold">Ne gider</th>
+            <th scope="col" className="py-2 font-semibold">Nereye</th>
+          </tr>
+        </thead>
+        <tbody className="block sm:table-row-group space-y-2 sm:space-y-0">
+          {ROWS.map((row) => (
+            <tr
+              key={row.feature}
+              className="block sm:table-row rounded-xl border border-slate-200 p-3 sm:p-0 sm:rounded-none sm:border-0 sm:border-b sm:border-slate-100 align-top"
+            >
+              <td data-label="Özellik" className={`${CELL} font-semibold text-slate-800`}>
+                {row.feature}
+                {row.endpoint && row.endpoint === active && (
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded bg-brand-50 text-brand-700 text-[10px] font-bold whitespace-nowrap">Şu an kullanılan</span>
+                )}
+              </td>
+              <td data-label="Ne gider" className={`${CELL} text-slate-600`}>
+                {row.what}
+              </td>
+              <td data-label="Nereye" className={`${CELL} text-slate-800 font-mono break-all`}>
+                {row.where}
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {ROWS.map((row) => (
-              <tr key={row.feature} className="border-b border-slate-100 align-top">
-                <td className="py-2 pr-3 font-semibold text-slate-800">
-                  {row.feature}
-                  {row.endpoint && row.endpoint === active && (
-                    <span className="ml-1.5 px-1.5 py-0.5 rounded bg-brand-50 text-brand-700 text-[10px] font-bold">Şu an kullanılan</span>
-                  )}
-                </td>
-                <td className="py-2 pr-3 text-slate-600">{row.what}</td>
-                <td className="py-2 text-slate-800 font-mono">{row.where}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
 
       {exposure.data?.applicable &&
         (exposure.data.exposed ? (

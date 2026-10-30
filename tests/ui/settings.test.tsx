@@ -648,6 +648,26 @@ describe("Ayarlar — B36 dosyanın yeri, Finder'da göster, yolu kopyala, klas�
   });
 });
 
+describe("Ayarlar — B35 dil ve dar ekran", () => {
+  it("karışık İngilizce ifadeler yok; yedek dosyası Türkçe seçiciyle seçilir", async () => {
+    setup();
+    await screen.findByLabelText("Boy (cm)");
+    const text = document.body.textContent ?? "";
+    for (const word of ["Upsert", "Smart Merge", "sidecar", "Opsiyonel", "Yerel-First", "Choose File", "docs/CSV_FORMATS"]) expect(text).not.toContain(word);
+    expect(screen.getByText("Yedek dosyası seç (JSON)")).toBeTruthy();
+    expect(screen.getByLabelText<HTMLInputElement>("Yedekten geri yükle").type).toBe("file");
+  });
+
+  it("şeffaflık tablosu dar ekranda karta dönüşür: her hücre kendi başlığını taşır", async () => {
+    setup();
+    const table = (await screen.findByRole("table", { name: "Cihazdan ne çıkar?" })) as HTMLTableElement;
+    for (const row of Array.from(table.tBodies[0].rows)) {
+      expect(row.className).toContain("block");
+      expect(Array.from(row.cells).map((c) => c.dataset.label)).toEqual(["Özellik", "Ne gider", "Nereye"]);
+    }
+  });
+});
+
 describe("Ayarlar — sistem tanılama", () => {
   it("B38: tam yollar, iki yedek klasörü, bütün tablolar, sürüm ve günlük dosyası görünür; Yenile yeniden çeker", async () => {
     const { calls } = setup();
