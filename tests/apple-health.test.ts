@@ -118,4 +118,19 @@ describe("F62: Apple Sağlık dışa aktarımı", () => {
     await expect(readAppleHealthExport(new Blob(["merhaba"]))).rejects.toThrow(/Apple Sağlık/);
   });
 
+  it("B37: çift sayım önleminin kaynak dökümünü verir (hangi gün hangi kaynak alındı, kaç antrenman kopyası atlandı)", async () => {
+    const { breakdown } = await readAppleHealthExport(new Blob([XML]));
+    const steps = breakdown.metrics.find((m) => m.type === "steps")!;
+    expect(steps).toMatchObject({ days: 3, overlapDays: 1 });
+    expect(steps.sources).toEqual([
+      { source: "iPhone", days: 3, chosenDays: 2 },
+      { source: "Ali's Apple Watch", days: 1, chosenDays: 1 },
+    ]);
+    // Çakışan günlerde en çok seçilen kaynak.
+    expect(steps.overlapWinner).toBe("Ali's Apple Watch");
+    const kcal = breakdown.metrics.find((m) => m.type === "active_kcal")!;
+    expect(kcal).toMatchObject({ days: 1, overlapDays: 0, overlapWinner: null, sources: [{ source: "Ali's Apple Watch", days: 1, chosenDays: 1 }] });
+    expect(breakdown.duplicateWorkouts).toBe(1);
+  });
+
 });

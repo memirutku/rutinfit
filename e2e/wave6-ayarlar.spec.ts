@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { test, expect } from "./fixtures";
+import { test, expect, todayStr } from "./fixtures";
 
 const pageHasText = (page: import("@playwright/test").Page, text: string) =>
   page.waitForFunction((t) => document.body.innerText.includes(t), text);
@@ -78,6 +78,26 @@ test.describe("Dalga 6 · Ayarlar", () => {
       await expect(page.locator("#auto-backup-folder")).toHaveValue(fs.realpathSync(folder));
     } finally {
       await api.put("/api/backup/auto", { data: { enabled: false, folderPath: before.folderPath } });
+    }
+  });
+
+  test("B37: Apple Sağlık içe aktarımı hangi kaynağın alındığını ve kaynak dökümünü gösterir", async ({ page, api }) => {
+    const day = todayStr();
+    const xml = [
+      `<?xml version="1.0" encoding="UTF-8"?>`,
+      `<HealthData locale="tr_TR">`,
+      ` <Record type="HKQuantityTypeIdentifierStepCount" sourceName="E2E iPhone" unit="count" startDate="${day} 09:00:00 +0300" endDate="${day} 09:30:00 +0300" value="6000"/>`,
+      ` <Record type="HKQuantityTypeIdentifierStepCount" sourceName="E2E Apple Watch" unit="count" startDate="${day} 09:00:00 +0300" endDate="${day} 09:30:00 +0300" value="6400"/>`,
+      `</HealthData>`,
+    ].join("\n");
+    try {
+      await page.goto("/progress");
+      await page.locator("#apple-health-file").setInputFiles({ name: "export.xml", mimeType: "text/xml", buffer: Buffer.from(xml) });
+      await pageHasText(page, "Adım: 1 günde birden çok kaynak vardı; aynı gün için yalnız yüksek kaynak alındı (E2E Apple Watch).");
+      await page.locator("details:has(table) > summary").first().click();
+      await pageHasText(page, "E2E iPhone");
+    } finally {
+      await api.delete("/api/apple-health");
     }
   });
 });
