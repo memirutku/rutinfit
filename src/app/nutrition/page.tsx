@@ -71,8 +71,9 @@ export default function NutritionPage() {
           selectedDate={selectedDate}
           onDateChange={setSelectedDate}
           multipliers={portionMultipliers}
-          onMultiplierChange={(type, m) => setPortionMultipliers((prev) => ({ ...prev, [type]: m }))}
+          onMultiplierChange={(mealId, m) => setPortionMultipliers((prev) => ({ ...prev, [mealId]: m }))}
           onMessage={showMessage}
+          onOpenWeek={() => setActiveTab("week")}
         />
       )}
 

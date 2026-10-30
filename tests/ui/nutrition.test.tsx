@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ShoppingListTab } from "@/components/nutrition/ShoppingListTab";
 import { useShoppingList } from "@/lib/client/queries/shopping";
 import { MealPlanTab } from "@/components/nutrition/MealPlanTab";
-import { DEFAULT_MEAL_TEMPLATES, PlannedMealCard } from "@/components/nutrition/PlannedMealCard";
+import { PlannedMealCard } from "@/components/nutrition/PlannedMealCard";
 import { MealPrepGuide } from "@/components/nutrition/MealPrepGuide";
 import NutritionPage from "@/app/nutrition/page";
 import type { ShoppingList } from "@/lib/schemas/shopping";
@@ -145,18 +145,41 @@ describe("ShoppingListTab", () => {
   });
 });
 
-function MealPlanHarness({ onMessage }: { onMessage: (text: string, ms?: number) => void }) {
+const freeTextPlan: MealPlan = {
+  id: "p2",
+  date: "2026-10-20",
+  notes: null,
+  meals: [
+    {
+      id: "m2",
+      mealType: "breakfast",
+      recipeId: null,
+      customName: "2 yumurta, 1 dilim tam buğday ekmeği, 5 zeytin, domates",
+      servings: 1,
+      isCompleted: false,
+      adherence: null,
+      recipe: null,
+      calculatedMacros: null,
+    },
+    { ...bulgurPlan.meals[0], id: "m3", mealType: "lunch" },
+  ],
+};
+
+function MealPlanHarness({ onMessage, onOpenWeek = vi.fn() }: { onMessage: (text: string, ms?: number) => void; onOpenWeek?: () => void }) {
   const [multipliers, setMultipliers] = useState<Record<string, number>>({});
   return (
     <MealPlanTab
       selectedDate="2026-10-20"
       onDateChange={vi.fn()}
       multipliers={multipliers}
-      onMultiplierChange={(type, m) => setMultipliers((p) => ({ ...p, [type]: m }))}
+      onMultiplierChange={(id, m) => setMultipliers((p) => ({ ...p, [id]: m }))}
       onMessage={onMessage}
+      onOpenWeek={onOpenWeek}
     />
   );
 }
+
+const SAMPLE_MEALS = /Yulaflı Lorlu|Izgara Tavuklu Bulgur Pilavı|Muzlu Yoğurt|Fırın Tavuk Göğsü/;
 
 describe("MealPlanTab", () => {
   it("1.5x porsiyon gösterilen kaloriyle aynı porsiyonu (servings × 1.5) kaydeder", async () => {
@@ -168,11 +191,10 @@ describe("MealPlanTab", () => {
     const onMessage = vi.fn();
     renderWithQuery(<MealPlanHarness onMessage={onMessage} />);
 
-    const heading = await screen.findByRole("heading", { name: "Bulgur Kasesi" });
-    const card = heading.parentElement as HTMLElement;
+    const card = await screen.findByRole("article", { name: "Bulgur Kasesi" });
     fireEvent.click(within(card).getByRole("button", { name: "1.5x" }));
     expect(card.textContent).toContain("600 kcal");
-    expect(card.textContent).toContain("Malzemeler (1.5 porsiyon)");
+    expect(card.textContent).toContain("Malzemeler (1,5 porsiyon)");
     expect(card.textContent).toContain("300 g");
 
     fireEvent.click(within(card).getByRole("button", { name: "1.5x Porsiyon Olarak Kaydet" }));
@@ -182,15 +204,35 @@ describe("MealPlanTab", () => {
     expect(onMessage.mock.calls[0][0]).toContain("600 kcal");
   });
 
-  it("tarifi olmayan öğün kaydedilmez, yönlendirme mesajı gösterilir", async () => {
-    const s = stubFetch([["/api/meal-plans", () => jsonResponse([])]]);
-    restore = s.restore;
-    const onMessage = vi.fn();
-    renderWithQuery(<MealPlanHarness onMessage={onMessage} />);
-    const heading = await screen.findByRole("heading", { name: DEFAULT_MEAL_TEMPLATES[1].example });
-    fireEvent.click(within(heading.parentElement as HTMLElement).getByRole("button", { name: "Yedim Olarak Kaydet" }));
-    expect(onMessage).toHaveBeenCalledWith(expect.stringContaining("Bu öğüne bağlı bir tarif yok"), 4000);
-    expect(s.calls.some((c) => c.url.includes("/api/food-logs"))).toBe(false);
+  it("B08: haftalık editörde girilen öğünleri adıyla gösterir; sabit örnek öğün yoktur", async () => {
+    restore = stubFetch([["/api/meal-plans", () => jsonResponse([freeTextPlan])]]).restore;
+    renderWithQuery(<MealPlanHarness onMessage={vi.fn()} />);
+
+    const breakfast = await screen.findByRole("article", { name: /2 yumurta, 1 dilim tam buğday ekmeği/ });
+    expect(within(breakfast).getByText("Kahvaltı")).toBeTruthy();
+    // Tarife bağlı olmayan öğünde uydurma makro yerine açıklama görünür.
+    expect(breakfast.textContent).not.toMatch(/kcal/);
+    expect(breakfast.textContent).toMatch(/Tarife bağlı değil/);
+
+    const lunch = screen.getByRole("article", { name: "Bulgur Kasesi" });
+    expect(within(lunch).getByText("Öğle Yemeği")).toBeTruthy();
+    expect(lunch.textContent).toContain("400 kcal");
+
+    expect(screen.getAllByRole("article")).toHaveLength(2);
+    expect(document.body.textContent).not.toMatch(SAMPLE_MEALS);
+  });
+
+  it("B08: plan yoksa boş durum ve Hafta'dan ekle bağlantısı gösterir", async () => {
+    restore = stubFetch([["/api/meal-plans", () => jsonResponse([])]]).restore;
+    const onOpenWeek = vi.fn();
+    renderWithQuery(<MealPlanHarness onMessage={vi.fn()} onOpenWeek={onOpenWeek} />);
+
+    expect(await screen.findByText(/Bu gün için planlı öğün yok/)).toBeTruthy();
+    expect(screen.queryByRole("article")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Yedim/ })).toBeNull();
+    expect(document.body.textContent).not.toMatch(SAMPLE_MEALS);
+    fireEvent.click(screen.getByRole("link", { name: "Hafta'dan ekle" }));
+    expect(onOpenWeek).toHaveBeenCalled();
   });
 
   it("kayıt hatası mesajla bildirilir", async () => {
@@ -200,8 +242,8 @@ describe("MealPlanTab", () => {
     ]).restore;
     const onMessage = vi.fn();
     renderWithQuery(<MealPlanHarness onMessage={onMessage} />);
-    const heading = await screen.findByRole("heading", { name: "Bulgur Kasesi" });
-    fireEvent.click(within(heading.parentElement as HTMLElement).getByRole("button", { name: "Yedim Olarak Kaydet" }));
+    const card = await screen.findByRole("article", { name: "Bulgur Kasesi" });
+    fireEvent.click(within(card).getByRole("button", { name: "Yedim Olarak Kaydet" }));
     await waitFor(() => expect(onMessage).toHaveBeenCalledWith("Kaydedilemedi: Gramaj hesaplanamadı.", 4000));
   });
 });
@@ -216,8 +258,7 @@ describe("F78: plana uyum", () => {
     restore = s.restore;
     renderWithQuery(<MealPlanHarness onMessage={vi.fn()} />);
     expect(await screen.findByText(/Bu hafta plana uyum: %88/)).toBeTruthy();
-    const heading = await screen.findByRole("heading", { name: "Bulgur Kasesi" });
-    const card = heading.parentElement as HTMLElement;
+    const card = await screen.findByRole("article", { name: "Bulgur Kasesi" });
     expect(within(card).getByRole("button", { name: "Uygulandı" }).getAttribute("aria-pressed")).toBe("true");
 
     fireEvent.click(within(card).getByRole("button", { name: "Kısmen" }));
@@ -232,38 +273,44 @@ describe("F78: plana uyum", () => {
   });
 });
 
-describe("F31: serbest porsiyon çarpanı", () => {
-  it("hazır düğmeler dışında istenen çarpan yazılabilir", () => {
-    const onMultiplierChange = vi.fn();
-    renderWithQuery(
-      <PlannedMealCard template={DEFAULT_MEAL_TEMPLATES[0]} planned={undefined} multiplier={1} onMultiplierChange={onMultiplierChange} onLogEaten={vi.fn()} />
-    );
-    fireEvent.change(screen.getByLabelText("Porsiyon çarpanı"), { target: { value: "2,5" } });
-    expect(onMultiplierChange).toHaveBeenLastCalledWith(2.5);
-  });
-});
-
 describe("PlannedMealCard", () => {
-  it("plan yokken rehber örneğini ve hedefleri gösterir; çarpan düğmeleri bildirir", () => {
+  const meal = bulgurPlan.meals[0];
+
+  it("serbest çarpan yazılabilir; hazır düğmeler ve kaydet düğmesi bildirir (F31)", () => {
     const onMultiplierChange = vi.fn();
     const onLogEaten = vi.fn();
-    const template = DEFAULT_MEAL_TEMPLATES[0];
-    renderWithQuery(
-      <PlannedMealCard template={template} planned={undefined} multiplier={0.5} onMultiplierChange={onMultiplierChange} onLogEaten={onLogEaten} />
-    );
-    expect(screen.getByRole("heading", { name: template.example })).toBeTruthy();
-    expect(screen.getByText(`${Math.round(template.targetKcal * 0.5)} kcal`)).toBeTruthy();
+    renderWithQuery(<PlannedMealCard meal={meal} label="Kahvaltı" multiplier={0.5} onMultiplierChange={onMultiplierChange} onLogEaten={onLogEaten} />);
+    expect(screen.getByText("200 kcal")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Porsiyon çarpanı"), { target: { value: "2,5" } });
+    expect(onMultiplierChange).toHaveBeenLastCalledWith(2.5);
     fireEvent.click(screen.getByRole("button", { name: "1.5x" }));
     expect(onMultiplierChange).toHaveBeenCalledWith(1.5);
     fireEvent.click(screen.getByRole("button", { name: "0.5x Porsiyon Olarak Kaydet" }));
     expect(onLogEaten).toHaveBeenCalled();
   });
+
+  it("planlanan saat varsa gösterir", () => {
+    renderWithQuery(<PlannedMealCard meal={{ ...meal, plannedTime: "08:15" } as typeof meal} label="Kahvaltı" multiplier={1} onMultiplierChange={vi.fn()} onLogEaten={vi.fn()} />);
+    expect(screen.getByText("08:15")).toBeTruthy();
+  });
 });
 
 describe("MealPrepGuide ve sayfa", () => {
-  it("rehber dört hazırlık kartını gösterir", () => {
+  it("rehber dört hazırlık kartını gösterir; kişisel saat ya da iş düzeni varsaymaz", () => {
     renderWithQuery(<MealPrepGuide />);
     expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(4);
+    expect(document.body.textContent).not.toMatch(/\d{1,2}:\d{2}/);
+    expect(document.body.textContent).not.toMatch(/iş çıkışı|eve varış/i);
+  });
+
+  it("B08: boş günde 'Hafta'dan ekle' haftalık editörü açar", async () => {
+    restore = stubFetch([
+      ["/api/meal-plans", () => jsonResponse([])],
+      [/\/api\/shopping\?weekStart=/, () => jsonResponse(shoppingList())],
+    ]).restore;
+    renderWithQuery(<NutritionPage />);
+    fireEvent.click(await screen.findByRole("link", { name: "Hafta'dan ekle" }));
+    expect(await screen.findByRole("region", { name: /^Pazartesi/ })).toBeTruthy();
   });
 
   it("sayfa açılınca alışveriş listesi yüklenir; sekmeler içeriği değiştirir", async () => {

@@ -24,6 +24,8 @@ export const PlannedMealSchema = z.object({
   mealType: z.string(),
   recipeId: z.string().nullable(),
   customName: z.string().nullable(),
+  /** Planlanan saat (SS:DD); girilmediyse null. */
+  plannedTime: z.string().nullable().optional(),
   servings: z.number(),
   isCompleted: z.boolean(),
   /** F78: uygulandı / kısmen / atlandı (işaretlenmemişse null). */
