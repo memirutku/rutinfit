@@ -80,4 +80,67 @@ test.describe("Dalga 6 · plan, alışveriş ve rapor", () => {
       await api.put("/api/profile", { data: original });
     }
   });
+
+  test("B09: tarifsiz plan öğünü kalori girilerek ya da katalogla eşleştirilerek kaydedilir", async ({ page, api }) => {
+    const date = uniqDate();
+    const menu = uniq("Zeytinyağlı taze fasulye, laktozsuz yoğurt");
+    const food = await (await api.post("/api/foods", { data: { name: uniq("E2E Bulgur"), calories: 350, proteinG: 12, carbsG: 70, fatG: 2 } })).json();
+    const matchable = `120 g ${food.name}`;
+    for (const [mealType, customName] of [["dinner", menu], ["lunch", matchable]]) {
+      expect((await api.post("/api/meal-plans/meals", { data: { date, mealType, customName, servings: 1 } })).ok()).toBe(true);
+    }
+    await openDay(page, date);
+
+    // 1) Kalori girerek
+    const dinner = page.getByRole("article", { name: menu });
+    await dinner.getByRole("button", { name: "Yedim Olarak Kaydet" }).click();
+    let dialog = page.getByRole("dialog", { name: "Planlı öğünü kaydet" });
+    await dialog.getByLabel("Kalori (kcal)").fill("420");
+    await dialog.getByLabel("Protein (g)").fill("18,5");
+    await dialog.getByRole("button", { name: "Kaydet", exact: true }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByText(/günlüğe kaydedildi/)).toBeVisible();
+    await expect(dinner.getByRole("button", { name: "Uygulandı" })).toHaveAttribute("aria-pressed", "true");
+
+    // 2) Katalogla eşleştirerek
+    await page.getByRole("article", { name: matchable }).getByRole("button", { name: "Yedim Olarak Kaydet" }).click();
+    dialog = page.getByRole("dialog", { name: "Planlı öğünü kaydet" });
+    await dialog.getByRole("tab", { name: "Katalogla eşleştir" }).click();
+    await expect(dialog.getByText("420 kcal")).toBeVisible();
+    await dialog.getByRole("button", { name: "1 kalemi kaydet" }).click();
+    await expect(dialog).toBeHidden();
+
+    const logs = (await (await api.get(`/api/food-logs?date=${date}`)).json()).logs;
+    expect(logs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: menu, mealType: "dinner", caloriesSnapshot: 420, proteinSnapshot: 18.5, grams: 0 }),
+        expect.objectContaining({ name: food.name, mealType: "lunch", foodItemId: food.id, grams: 120, caloriesSnapshot: 420 }),
+      ])
+    );
+  });
+
+  test("B09: alışveriş listesi tarifsiz öğünlerin nedenini yazar; elle kalem eklenir ve yenilemede kalır", async ({ page, api }) => {
+    const date = uniqDate();
+    const menu = uniq("2 yumurta, 1 dilim ekmek");
+    const item = uniq("Laktozsuz yoğurt");
+    await api.post("/api/meal-plans/meals", { data: { date, mealType: "breakfast", customName: menu, servings: 1 } });
+    await openDay(page, date);
+    await page.getByRole("button", { name: "Alışveriş Listesi" }).click();
+
+    const note = page.getByRole("note", { name: "Listeye girmeyen öğünler" });
+    await expect(note).toContainText("1 öğün tarife bağlı değil");
+    await expect(note).toContainText(menu);
+
+    await page.getByLabel("Kalem adı").fill(item);
+    await page.getByLabel("Miktar").fill("2");
+    await page.getByRole("button", { name: "Kalemi ekle" }).click();
+    await expect(page.getByRole("checkbox", { name: new RegExp(item) })).toContainText("2 adet");
+
+    await page.getByRole("button", { name: "Kileri Düşerek Yenile" }).click();
+    await expect(page.getByText(/kiler stokları düşülerek güncellendi/)).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: new RegExp(item) })).toBeVisible();
+
+    await page.getByRole("button", { name: `${item} sil` }).click();
+    await expect(page.getByRole("checkbox", { name: new RegExp(item) })).toHaveCount(0);
+  });
 });

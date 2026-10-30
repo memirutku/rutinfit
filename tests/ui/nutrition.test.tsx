@@ -6,6 +6,7 @@ import { useShoppingList } from "@/lib/client/queries/shopping";
 import { MealPlanTab } from "@/components/nutrition/MealPlanTab";
 import { PlannedMealCard } from "@/components/nutrition/PlannedMealCard";
 import { MealPrepGuide } from "@/components/nutrition/MealPrepGuide";
+import { TodayMealsList } from "@/components/dashboard/TodayMealsList";
 import NutritionPage from "@/app/nutrition/page";
 import type { ShoppingList } from "@/lib/schemas/shopping";
 import type { MealPlan } from "@/lib/schemas/meal-plan";
@@ -76,6 +77,71 @@ function ShoppingHarness({ onMessage }: { onMessage: (text: string, ms?: number)
   const shopping = useShoppingList("2026-10-20");
   return <ShoppingListTab weekDate="2026-10-20" list={shopping.data} isLoading={shopping.isPending} onMessage={onMessage} />;
 }
+
+describe("B09: alışveriş listesi boşluğun nedenini söyler ve elle kalem eklenir", () => {
+  it("tarifsiz planlı öğünleri nedeniyle birlikte gösterir", async () => {
+    restore = stubFetch([
+      [/\/api\/shopping\?weekStart=/, () => jsonResponse({ weekStart: WEEK, items: [], grouped: {}, generated: false, plannedMeals: 2, unlinkedMeals: ["2 yumurta, 1 dilim ekmek", "Taze fasulye"] })],
+      ["/api/shopping", () => jsonResponse({ weekStart: WEEK, items: [], grouped: {}, pantrySummary: "Kiler kontrolü yapılmadı.", plannedMeals: 2, unlinkedMeals: ["2 yumurta, 1 dilim ekmek", "Taze fasulye"] })],
+    ]).restore;
+    renderWithQuery(<ShoppingHarness onMessage={vi.fn()} />);
+    const note = await screen.findByRole("note", { name: "Listeye girmeyen öğünler" });
+    expect(note.textContent).toMatch(/2 öğün tarife bağlı değil/);
+    expect(note.textContent).toContain("2 yumurta, 1 dilim ekmek");
+    expect(note.textContent).toContain("Taze fasulye");
+  });
+
+  it("haftada plan yoksa bunu söyler", async () => {
+    restore = stubFetch([
+      [/\/api\/shopping\?weekStart=/, () => jsonResponse({ weekStart: WEEK, items: [], grouped: {}, generated: false, plannedMeals: 0, unlinkedMeals: [] })],
+      ["/api/shopping", () => jsonResponse({ weekStart: WEEK, items: [], grouped: {}, plannedMeals: 0, unlinkedMeals: [] })],
+    ]).restore;
+    renderWithQuery(<ShoppingHarness onMessage={vi.fn()} />);
+    expect(await screen.findByText(/Bu hafta planlı öğün yok/)).toBeTruthy();
+  });
+
+  it("elle kalem eklenir ve silinir; liste yeniden çekilmez", async () => {
+    const s = stubFetch([
+      [/\/api\/shopping\?weekStart=/, () => jsonResponse(shoppingList())],
+      ["/api/shopping/items", (_u, init) =>
+        init?.method === "DELETE"
+          ? jsonResponse({ success: true })
+          : jsonResponse({ id: "s9", weekStart: WEEK, category: "Süt Ürünleri & Yumurta", name: "Laktozsuz yoğurt", amount: 2, unit: "adet", checked: false, manual: true }, 201)],
+    ]);
+    restore = s.restore;
+    const onMessage = vi.fn();
+    renderWithQuery(<ShoppingHarness onMessage={onMessage} />);
+    await screen.findByRole("checkbox", { name: /Yulaf/ });
+
+    fireEvent.change(screen.getByLabelText("Kalem adı"), { target: { value: "Laktozsuz yoğurt" } });
+    fireEvent.change(screen.getByLabelText("Miktar"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Kalemi ekle" }));
+    const row = await screen.findByRole("checkbox", { name: /Laktozsuz yoğurt/ });
+    expect(row.textContent).toContain("2 adet");
+    expect(JSON.parse(String(s.calls.find((c) => c.url.includes("/api/shopping/items"))?.init?.body))).toEqual({ weekStart: "2026-10-20", name: "Laktozsuz yoğurt", amount: 2, unit: "adet" });
+    expect((screen.getByLabelText("Kalem adı") as HTMLInputElement).value).toBe("");
+    // Plandan gelen kalemde silme düğmesi yoktur.
+    expect(screen.queryByRole("button", { name: "Yulaf sil" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Laktozsuz yoğurt sil" }));
+    await waitFor(() => expect(screen.queryByRole("checkbox", { name: /Laktozsuz yoğurt/ })).toBeNull());
+    expect(s.calls.some((c) => c.init?.method === "DELETE" && c.url.includes("id=s9"))).toBe(true);
+    expect(s.calls.filter((c) => /\/api\/shopping\?weekStart=/.test(c.url))).toHaveLength(1);
+  });
+
+  it("ekleme hatası bildirilir", async () => {
+    restore = stubFetch([
+      [/\/api\/shopping\?weekStart=/, () => jsonResponse(shoppingList())],
+      ["/api/shopping/items", () => jsonResponse({ error: "\"Yulaf\" bu haftanın listesinde zaten var." }, 409)],
+    ]).restore;
+    const onMessage = vi.fn();
+    renderWithQuery(<ShoppingHarness onMessage={onMessage} />);
+    await screen.findByRole("checkbox", { name: /Yulaf/ });
+    fireEvent.change(screen.getByLabelText("Kalem adı"), { target: { value: "Yulaf" } });
+    fireEvent.click(screen.getByRole("button", { name: "Kalemi ekle" }));
+    await waitFor(() => expect(onMessage).toHaveBeenCalledWith(expect.stringContaining("zaten var"), 4000));
+  });
+});
 
 describe("ShoppingListTab", () => {
   it("işaret anında değişir; sunucu 500 dönerse geri alınır ve hata bildirilir", async () => {
@@ -245,6 +311,103 @@ describe("MealPlanTab", () => {
     const card = await screen.findByRole("article", { name: "Bulgur Kasesi" });
     fireEvent.click(within(card).getByRole("button", { name: "Yedim Olarak Kaydet" }));
     await waitFor(() => expect(onMessage).toHaveBeenCalledWith("Kaydedilemedi: Gramaj hesaplanamadı.", 4000));
+  });
+});
+
+describe("B09: tarifsiz plan öğünü kaydedilir", () => {
+  const plan = { ...freeTextPlan, meals: [freeTextPlan.meals[0]] };
+  const menu = freeTextPlan.meals[0].customName!;
+
+  it("kalori (ve isteğe bağlı makro) girilerek kaydedilir; öğün plana uygulandı sayılır", async () => {
+    const s = stubFetch([
+      ["/api/meal-plans/adherence", (_u, init) => (init?.method === "PATCH" ? jsonResponse({ id: "m2" }) : jsonResponse({ planned: 1, marked: 0, done: 0, partial: 0, skipped: 0, percent: null }))],
+      ["/api/meal-plans", () => jsonResponse([plan])],
+      ["/api/food-logs", () => jsonResponse({ id: "log1" }, 201)],
+    ]);
+    restore = s.restore;
+    const onMessage = vi.fn();
+    renderWithQuery(<MealPlanHarness onMessage={onMessage} />);
+
+    const card = await screen.findByRole("article", { name: menu });
+    fireEvent.click(within(card).getByRole("button", { name: "Yedim Olarak Kaydet" }));
+    const dialog = screen.getByRole("dialog", { name: "Planlı öğünü kaydet" });
+    expect(within(dialog).getByText(menu)).toBeTruthy();
+    const save = within(dialog).getByRole("button", { name: "Kaydet" }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+
+    fireEvent.change(within(dialog).getByLabelText("Kalori (kcal)"), { target: { value: "350" } });
+    fireEvent.change(within(dialog).getByLabelText("Protein (g)"), { target: { value: "20,5" } });
+    expect(save.disabled).toBe(false);
+    fireEvent.click(save);
+
+    await waitFor(() => expect(onMessage).toHaveBeenCalledWith(expect.stringContaining("günlüğe kaydedildi"), 3000));
+    const body = JSON.parse(String(s.calls.find((c) => c.url.includes("/api/food-logs"))?.init?.body));
+    expect(body).toMatchObject({ date: "2026-10-20", mealType: "breakfast", name: menu, caloriesSnapshot: 350, proteinSnapshot: 20.5 });
+    expect(body).not.toHaveProperty("grams");
+    expect(body).not.toHaveProperty("carbsSnapshot");
+    await waitFor(() => expect(s.calls.some((c) => c.init?.method === "PATCH")).toBe(true));
+    expect(JSON.parse(String(s.calls.find((c) => c.init?.method === "PATCH")?.init?.body))).toEqual({ plannedMealId: "m2", adherence: "done" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("katalogla eşleştirilir: eşleşen kalemler gramıyla kaydedilir, eşleşmeyen açıkça gösterilir", async () => {
+    const s = stubFetch([
+      ["/api/meal-plans/adherence", (_u, init) => (init?.method === "PATCH" ? jsonResponse({ id: "m2" }) : jsonResponse({ planned: 1, marked: 0, done: 0, partial: 0, skipped: 0, percent: null }))],
+      ["/api/meal-plans", () => jsonResponse([plan])],
+      ["/api/food-logs/parse", () =>
+        jsonResponse({
+          items: [
+            { raw: "2 yumurta", quantity: 2, unit: null, match: { type: "food", id: "f-egg", name: "Yumurta" }, alternatives: [], grams: 100, macros: { calories: 155, proteinG: 13, carbsG: 1, fatG: 11 } },
+            { raw: "5 zeytin", quantity: 5, unit: null, match: null, alternatives: [], grams: null, macros: null, note: "Katalogda bulunamadı." },
+          ],
+        })],
+      ["/api/food-logs", () => jsonResponse({ id: "log1" }, 201)],
+    ]);
+    restore = s.restore;
+    const onMessage = vi.fn();
+    renderWithQuery(<MealPlanHarness onMessage={onMessage} />);
+
+    fireEvent.click(within(await screen.findByRole("article", { name: menu })).getByRole("button", { name: "Yedim Olarak Kaydet" }));
+    const dialog = screen.getByRole("dialog", { name: "Planlı öğünü kaydet" });
+    fireEvent.click(within(dialog).getByRole("tab", { name: "Katalogla eşleştir" }));
+    expect(await within(dialog).findByText("155 kcal")).toBeTruthy();
+    expect(within(dialog).getByText("Katalogda bulunamadı.")).toBeTruthy();
+    const parseBody = JSON.parse(String(s.calls.find((c) => c.url.includes("/parse"))?.init?.body));
+    expect(parseBody).toEqual({ text: menu });
+
+    fireEvent.change(within(dialog).getByLabelText("2 yumurta gramı"), { target: { value: "120" } });
+    expect(within(dialog).getByText("186 kcal")).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: "1 kalemi kaydet" }));
+    await waitFor(() => expect(onMessage).toHaveBeenCalledWith(expect.stringContaining("günlüğe kaydedildi"), 3000));
+    const logs = s.calls.filter((c) => c.url.endsWith("/api/food-logs")).map((c) => JSON.parse(String(c.init?.body)));
+    expect(logs).toEqual([expect.objectContaining({ foodItemId: "f-egg", name: "Yumurta", grams: 120, mealType: "breakfast", date: "2026-10-20" })]);
+  });
+
+  it("kayıt hatası pencerede gösterilir ve pencere açık kalır", async () => {
+    restore = stubFetch([
+      ["/api/meal-plans/adherence", () => jsonResponse({ planned: 1, marked: 0, done: 0, partial: 0, skipped: 0, percent: null })],
+      ["/api/meal-plans", () => jsonResponse([plan])],
+      ["/api/food-logs", () => jsonResponse({ error: "Sunucu hatası" }, 500)],
+    ]).restore;
+    renderWithQuery(<MealPlanHarness onMessage={vi.fn()} />);
+    fireEvent.click(within(await screen.findByRole("article", { name: menu })).getByRole("button", { name: "Yedim Olarak Kaydet" }));
+    const dialog = screen.getByRole("dialog", { name: "Planlı öğünü kaydet" });
+    fireEvent.change(within(dialog).getByLabelText("Kalori (kcal)"), { target: { value: "300" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Kaydet" }));
+    expect(await within(dialog).findByRole("alert")).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Planlı öğünü kaydet" })).toBeTruthy();
+  });
+});
+
+describe("B09: kaloriyle girilen kayıt panoda", () => {
+  it("gramı bilinmeyen (0) kayıtta '0g' yazmaz", () => {
+    const log = {
+      id: "l1", date: "2026-10-20", time: "08:10", mealType: "breakfast", foodItemId: null, recipeId: null, name: "Diyetisyen kahvaltısı",
+      grams: 0, caloriesSnapshot: 350, proteinSnapshot: 20, carbsSnapshot: 0, fatSnapshot: 0, createdAt: "2026-10-20T05:10:00.000Z",
+    };
+    const { container } = renderWithQuery(<TodayMealsList logs={[log] as never} onAdd={vi.fn()} onDelete={vi.fn()} />);
+    expect(container.textContent).toContain("350 kcal");
+    expect(container.textContent).not.toContain("0g · 350 kcal");
   });
 });
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { CalendarPlus } from "lucide-react";
 import { errorMessage } from "@/lib/client/api";
 import { useAdherenceSummary, useCreateFoodLog, useMealPlans, useSetAdherence } from "@/lib/client/queries/nutrition";
@@ -8,6 +9,7 @@ import { formatNumberTr } from "@/lib/format";
 import { MEAL_TYPES, mealTypeLabel, type MealType } from "@/lib/schemas/enums";
 import type { PlannedMeal } from "@/lib/schemas/meal-plan";
 import { PlannedMealCard, plannedMealName } from "./PlannedMealCard";
+import { LogPlannedMealModal } from "./LogPlannedMealModal";
 
 interface MealPlanTabProps {
   selectedDate: string;
@@ -44,10 +46,24 @@ export function MealPlanTab({ selectedDate, onDateChange, multipliers, onMultipl
   const weekFrom = startOfWeek(selectedDate);
   const adherence = useAdherenceSummary(weekFrom, addDaysToDateString(weekFrom, 6));
   const percent = adherence.data?.percent;
+  // B09: tarifsiz öğün "Yedim" ile kalori girilerek ya da katalogla eşlenerek kaydedilir.
+  const [logging, setLogging] = useState<PlannedMeal | null>(null);
+
+  /** F78: işaretlenmemiş öğün yenince plana uygulandı sayılır. */
+  function markDone(meal: PlannedMeal) {
+    if (!meal.adherence) setAdherence.mutate({ plannedMealId: meal.id, adherence: "done" });
+  }
+
+  function handleFreeMealLogged(meal: PlannedMeal, kcal: number | null) {
+    setLogging(null);
+    const detail = kcal === null || hideNumbers ? "" : ` (${formatNumberTr(Math.round(kcal))} kcal)`;
+    onMessage(`"${plannedMealName(meal)}"${detail} günlüğe kaydedildi! ✓`, 3000);
+    markDone(meal);
+  }
 
   function handleLogPlannedMealAsEaten(meal: PlannedMeal, multiplier: number) {
     if (!meal.recipeId || !meal.calculatedMacros) {
-      onMessage("Bu öğüne bağlı bir tarif yok. Ana Panel'deki Hızlı Öğün ile kaydedebilirsiniz.", 4000);
+      setLogging(meal);
       return;
     }
     // Gösterilen değerle kaydedilen değer aynı formülden gelir: planlanan porsiyon × çarpan.
@@ -66,8 +82,7 @@ export function MealPlanTab({ selectedDate, onDateChange, multipliers, onMultipl
         onSuccess: () => {
           const detail = hideNumbers ? `${multiplier}x porsiyon` : `${multiplier}x porsiyon - ${formatNumberTr(scaledCalories)} kcal`;
           onMessage(`"${name}" (${detail}) günlüğe kaydedildi! ✓`, 3000);
-          // F78: işaretlenmemiş öğün yenince plana uygulandı sayılır.
-          if (!meal.adherence) setAdherence.mutate({ plannedMealId: meal.id, adherence: "done" });
+          markDone(meal);
         },
         onError: (e) => onMessage(`Kaydedilemedi: ${errorMessage(e, "bilinmeyen hata")}`, 4000),
       }
@@ -148,6 +163,8 @@ export function MealPlanTab({ selectedDate, onDateChange, multipliers, onMultipl
           })}
         </div>
       )}
+
+      <LogPlannedMealModal meal={logging} date={selectedDate} onClose={() => setLogging(null)} onLogged={handleFreeMealLogged} />
     </div>
   );
 }

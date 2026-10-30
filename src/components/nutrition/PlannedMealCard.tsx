@@ -113,7 +113,8 @@ export function PlannedMealCard({ meal, label, multiplier: mult, onMultiplierCha
           </>
         ) : (
           <p className="mb-4 text-xs text-slate-500">
-            {formatNumberTr(meal.servings)} porsiyon · Tarife bağlı değil, besin değeri hesaplanamıyor.
+            {formatNumberTr(meal.servings)} porsiyon · Tarife bağlı değil, besin değeri hesaplanamıyor. &quot;Yedim&quot; ile kalori girerek ya da
+            katalogla eşleştirerek kaydedebilirsin.
           </p>
         )}
 

@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/client/api";
 import { queryKeys } from "./keys";
-import { groupShoppingItems, type ShoppingList, type ShoppingListItem } from "@/lib/schemas/shopping";
+import { groupShoppingItems, type ShoppingList, type ShoppingListItem, type ShoppingManualItemInput } from "@/lib/schemas/shopping";
 
 const generate = (weekStart: string) =>
   apiFetch<ShoppingList>("/api/shopping", { method: "POST", json: { weekStart, deductPantry: true } });
@@ -55,6 +55,39 @@ export function useToggleShoppingItem(weekStart: string) {
     },
     onError: (_error, _vars, context) => {
       if (context?.previous) qc.setQueryData(key, context.previous);
+    },
+  });
+}
+
+/** Önbellekteki listeye kalem ekler ya da çıkarır (gruplar yeniden kurulur, kiler özeti korunur). */
+function withItems(list: ShoppingList, items: ShoppingListItem[]): ShoppingList {
+  const sorted = [...items].sort((a, b) => a.category.localeCompare(b.category, "tr") || a.name.localeCompare(b.name, "tr"));
+  return { ...list, items: sorted, grouped: groupShoppingItems(sorted) };
+}
+
+/** B09: haftanın listesine elle kalem ekler; yanıt önbelleğe yazılır (liste yeniden kurulmaz). */
+export function useAddShoppingItem(weekDate: string) {
+  const qc = useQueryClient();
+  const key = queryKeys.shopping.week(weekDate);
+  return useMutation({
+    mutationFn: (input: Omit<ShoppingManualItemInput, "weekStart">) =>
+      apiFetch<ShoppingListItem>("/api/shopping/items", { method: "POST", json: { weekStart: weekDate, ...input } }),
+    onSuccess: (item) => {
+      const list = qc.getQueryData<ShoppingList>(key);
+      if (list) qc.setQueryData(key, withItems(list, [...list.items, item]));
+    },
+  });
+}
+
+/** B09: elle eklenen kalemi siler. */
+export function useDeleteShoppingItem(weekDate: string) {
+  const qc = useQueryClient();
+  const key = queryKeys.shopping.week(weekDate);
+  return useMutation({
+    mutationFn: (id: string) => apiFetch(`/api/shopping/items?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
+    onSuccess: (_res, id) => {
+      const list = qc.getQueryData<ShoppingList>(key);
+      if (list) qc.setQueryData(key, withItems(list, list.items.filter((i) => i.id !== id)));
     },
   });
 }

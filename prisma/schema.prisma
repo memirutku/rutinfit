@@ -441,6 +441,7 @@ model ShoppingListItem {
   amount    Float
   unit      String   @default("g")
   checked   Boolean  @default(false)
+  manual    Boolean  @default(false) // B09: kullanıcının elle eklediği kalem (plandan yenilemede silinmez)
   createdAt DateTime @default(now())
 
   // Aynı hafta için aynı kalem iki kez oluşamaz (eşzamanlı yenilemeye karşı).
