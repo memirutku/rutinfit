@@ -17,6 +17,7 @@ import {
   Legend,
 } from "recharts";
 import { useProgress } from "@/lib/client/queries/progress";
+import { formatDateTr } from "@/lib/format";
 
 export default function ProgressPage() {
   const { data, isPending } = useProgress();
@@ -36,13 +37,13 @@ export default function ProgressPage() {
 
   // Enerji & Uyku Grafiği için verileri birleştir
   const energySleepChartData = wellbeings.map((w) => ({
-    date: w.date.slice(5), // MM-DD
+    date: formatDateTr(w.date, { short: true }), // gg.aa
     enerji: w.energy1to5,
     uykuSaat: w.sleepMinutes ? Math.round((w.sleepMinutes / 60) * 10) / 10 : 7,
   }));
 
   const weightChartData = weights.map((w) => ({
-    date: w.date.slice(5), // MM-DD
+    date: formatDateTr(w.date, { short: true }), // gg.aa
     gunlukKilo: w.weightKg,
     haftalikOrtalama: w.rollingAvg,
   }));
@@ -104,7 +105,7 @@ export default function ProgressPage() {
             {creatineList.map((c) => (
               <span
                 key={c.date}
-                title={`${c.date}: ${c.taken ? "Alındı" : "Alınmadı"}`}
+                title={`${formatDateTr(c.date)}: ${c.taken ? "Alındı" : "Alınmadı"}`}
                 className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
                   c.taken
                     ? "bg-emerald-500 text-white"

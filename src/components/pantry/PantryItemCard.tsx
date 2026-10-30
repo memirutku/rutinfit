@@ -1,7 +1,7 @@
 "use client";
 
 import { Calendar, Edit2, Trash2 } from "lucide-react";
-import { formatAmount } from "@/lib/format";
+import { formatAmount, formatDateTr } from "@/lib/format";
 import type { PantryItem } from "@/lib/schemas/pantry";
 
 interface PantryItemCardProps {
@@ -67,7 +67,7 @@ export function PantryItemCard({ item, onEdit, onDelete, onAdjust }: PantryItemC
           {item.expiryDate ? (
             <span className="flex items-center gap-1">
               <Calendar className="w-3 h-3 text-slate-400" />
-              SKT: {item.expiryDate}
+              SKT: {formatDateTr(item.expiryDate)}
             </span>
           ) : (
             <span />

@@ -11,7 +11,7 @@ export function classifyContent(
   text: string,
   tableData?: Array<Record<string, any>>
 ): AnalysisResult {
-  const lower = text.toLowerCase();
+  const lower = text.toLocaleLowerCase("tr-TR");
   const uncertainties: string[] = [];
 
   // Keyword scoring

@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/Modal";
 import { errorMessage } from "@/lib/client/api";
 import { useCreateFood } from "@/lib/client/queries/nutrition";
 import { FOOD_CATEGORIES } from "./constants";
+import { DecimalInput } from "@/components/ui/DecimalInput";
 
 interface NewFoodModalProps {
   open: boolean;
@@ -48,8 +49,8 @@ export function NewFoodModal({ open, onClose, prefillName }: NewFoodModalProps) 
     }
   }
 
-  const num = (key: "calories" | "proteinG" | "carbsG" | "fatG") => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((f) => ({ ...f, [key]: parseFloat(e.target.value) || 0 }));
+  const num = (key: "calories" | "proteinG" | "carbsG" | "fatG") => (v: number) =>
+    setForm((f) => ({ ...f, [key]: Math.max(0, v) }));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -108,19 +109,17 @@ export function NewFoodModal({ open, onClose, prefillName }: NewFoodModalProps) 
             <label htmlFor="food-field-3" className={LABEL}>
               Kalori (kcal/100g)
             </label>
-            <input id="food-field-3" type="number" required value={form.calories} onChange={num("calories")} className={INPUT} />
+            <DecimalInput id="food-field-3" required value={form.calories} onValueChange={num("calories")} className={INPUT} />
           </div>
           <div>
             <label htmlFor="food-field-4" className={LABEL}>
               Protein (g/100g)
             </label>
-            <input
+            <DecimalInput
               id="food-field-4"
-              type="number"
-              step="0.1"
               required
               value={form.proteinG}
-              onChange={num("proteinG")}
+              onValueChange={num("proteinG")}
               className={INPUT}
             />
           </div>
@@ -131,13 +130,11 @@ export function NewFoodModal({ open, onClose, prefillName }: NewFoodModalProps) 
             <label htmlFor="food-field-5" className={LABEL}>
               Karbonhidrat (g/100g)
             </label>
-            <input
+            <DecimalInput
               id="food-field-5"
-              type="number"
-              step="0.1"
               required
               value={form.carbsG}
-              onChange={num("carbsG")}
+              onValueChange={num("carbsG")}
               className={INPUT}
             />
           </div>
@@ -145,13 +142,11 @@ export function NewFoodModal({ open, onClose, prefillName }: NewFoodModalProps) 
             <label htmlFor="food-field-6" className={LABEL}>
               Yağ (g/100g)
             </label>
-            <input
+            <DecimalInput
               id="food-field-6"
-              type="number"
-              step="0.1"
               required
               value={form.fatG}
-              onChange={num("fatG")}
+              onValueChange={num("fatG")}
               className={INPUT}
             />
           </div>

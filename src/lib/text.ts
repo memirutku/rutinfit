@@ -16,3 +16,10 @@ export function wordsTr(value: string | null | undefined): string[] {
     .split(/[^\p{L}\p{N}]+/u)
     .filter(Boolean);
 }
+
+const collator = new Intl.Collator("tr-TR", { sensitivity: "base", numeric: true });
+
+/** Türk alfabesine göre karşılaştırma (Ç, Ğ, I/İ, Ö, Ş, Ü yerinde; büyük/küçük harf duyarsız). */
+export function compareTr(a: string | null | undefined, b: string | null | undefined): number {
+  return collator.compare(a ?? "", b ?? "");
+}

@@ -2,6 +2,7 @@
 
 import { Plus, Trash2, Utensils } from "lucide-react";
 import type { FoodLog } from "@/lib/schemas/food";
+import { formatNumberTr } from "@/lib/format";
 
 /** Ana paneldeki kısa öğün etiketleri (Hızlı Ekle penceresindeki uzun adlardan farklıdır). */
 export function dashboardMealLabel(mealType: string): string {
@@ -72,8 +73,8 @@ export function TodayMealsList({ logs, onAdd, onDelete }: TodayMealsListProps) {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-800 truncate">{log.name}</p>
                   <p className="text-xs text-slate-400">
-                    {log.grams}g · {log.caloriesSnapshot} kcal · P: {log.proteinSnapshot}g · K: {log.carbsSnapshot}g · Y:{" "}
-                    {log.fatSnapshot}g
+                    {formatNumberTr(log.grams)}g · {formatNumberTr(log.caloriesSnapshot)} kcal · P: {formatNumberTr(log.proteinSnapshot)}g · K: {formatNumberTr(log.carbsSnapshot)}g · Y:{" "}
+                    {formatNumberTr(log.fatSnapshot)}g
                   </p>
                 </div>
               </div>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import type { PantryItem, PantryItemInput } from "@/lib/schemas/pantry";
 import { PANTRY_ALL, PANTRY_CATEGORIES } from "./PantryFilters";
+import { parseDecimalTr } from "@/lib/format";
 
 interface FormState {
   name: string;
@@ -51,11 +52,12 @@ export function PantryItemModal({ open, onClose, editingItem, onSubmit }: Pantry
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.amount) return;
+    const amount = parseDecimalTr(formData.amount);
+    if (!formData.name.trim() || amount === null) return;
     await onSubmit({
       id: editingItem ? editingItem.id : undefined,
       name: formData.name.trim(),
-      amount: parseFloat(formData.amount),
+      amount,
       unit: formData.unit,
       category: formData.category,
       expiryDate: formData.expiryDate || null,
@@ -84,8 +86,8 @@ export function PantryItemModal({ open, onClose, editingItem, onSubmit }: Pantry
             <label htmlFor="pantry-field-2" className="block text-xs font-bold text-slate-700 mb-1">Miktar *</label>
             <input
               id="pantry-field-2"
-              type="number"
-              step="any"
+              type="text"
+              inputMode="decimal"
               required
               value={formData.amount}
               onChange={(e) => setFormData({ ...formData, amount: e.target.value })}

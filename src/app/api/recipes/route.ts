@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
 import { calculateRecipeMacros } from "@/lib/nutrition-calculator";
 import { RecipeInputSchema } from "@/lib/schemas/food";
+import { compareTr } from "@/lib/text";
 
 export async function GET() {
   try {
@@ -14,8 +15,8 @@ export async function GET() {
           },
         },
       },
-      orderBy: { name: "asc" },
     });
+    recipes.sort((a, b) => compareTr(a.name, b.name));
 
     const enrichedRecipes = recipes.map((recipe) => {
       const macros = calculateRecipeMacros(

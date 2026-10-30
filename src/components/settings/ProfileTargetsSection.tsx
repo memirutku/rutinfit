@@ -6,6 +6,7 @@ import { errorMessage } from "@/lib/client/api";
 import { useSaveProfile } from "@/lib/client/queries/system";
 import { useTimedMessage } from "@/hooks/useTimedMessage";
 import type { Profile, ProfileInput } from "@/lib/schemas/profile";
+import { DecimalInput } from "@/components/ui/DecimalInput";
 
 /** Formdaki yerel taslak: profil yüklenemediyse alanlar boş başlar (varsayılanlar gösterilir). */
 type ProfileDraft = Partial<Profile>;
@@ -27,6 +28,8 @@ interface NumberFieldDef {
   fallback: number;
   parse: (raw: string) => number;
   step?: string;
+  /** F80: virgüllü ondalık kabul eden alan. */
+  decimal?: boolean;
   tone?: string;
 }
 
@@ -34,7 +37,7 @@ const LABEL = "block text-xs font-semibold text-slate-600 mb-1";
 const INPUT = "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm";
 const int = (raw: string) => parseInt(raw, 10);
 
-const HEIGHT: NumberFieldDef = { id: "settings-field-1", label: "Boy (cm)", key: "heightCm", fallback: 181, parse: parseFloat };
+const HEIGHT: NumberFieldDef = { id: "settings-field-1", label: "Boy (cm)", key: "heightCm", fallback: 181, parse: parseFloat, decimal: true };
 const AGE: NumberFieldDef = { id: "settings-field-2", label: "Yaş", key: "age", fallback: 25, parse: int };
 const WEIGHT: NumberFieldDef = {
   id: "settings-field-4",
@@ -43,6 +46,7 @@ const WEIGHT: NumberFieldDef = {
   fallback: 112,
   parse: parseFloat,
   step: "0.1",
+  decimal: true,
 };
 const TARGETS: NumberFieldDef[] = [
   { id: "settings-field-5", label: "Kalori Hedefi (kcal)", key: "calorieTarget", fallback: 2080, parse: int, tone: "font-bold text-slate-900" },
@@ -58,14 +62,23 @@ function NumberField({ field, draft, onChange }: { field: NumberFieldDef; draft:
       <label htmlFor={field.id} className={LABEL}>
         {field.label}
       </label>
-      <input
-        id={field.id}
-        type="number"
-        step={field.step}
-        value={draft[field.key] || field.fallback}
-        onChange={(e) => onChange(field.key, field.parse(e.target.value))}
-        className={field.tone ? `${INPUT} ${field.tone}` : INPUT}
-      />
+      {field.decimal ? (
+        <DecimalInput
+          id={field.id}
+          value={draft[field.key] || field.fallback}
+          onValueChange={(v) => onChange(field.key, v)}
+          className={field.tone ? `${INPUT} ${field.tone}` : INPUT}
+        />
+      ) : (
+        <input
+          id={field.id}
+          type="number"
+          step={field.step}
+          value={draft[field.key] || field.fallback}
+          onChange={(e) => onChange(field.key, field.parse(e.target.value))}
+          className={field.tone ? `${INPUT} ${field.tone}` : INPUT}
+        />
+      )}
     </div>
   );
 }

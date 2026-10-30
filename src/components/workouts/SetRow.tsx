@@ -4,6 +4,7 @@ import { useId } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { RPE_OPTIONS } from "@/lib/rpe";
 import type { SessionSet } from "./session-form";
+import { DecimalInput } from "@/components/ui/DecimalInput";
 
 interface SetRowProps {
   set: SessionSet;
@@ -44,12 +45,10 @@ export function SetRow({ set, onChange, onToggle }: SetRowProps) {
           <label htmlFor={weightId} className="text-xs font-semibold text-slate-600">
             Ağırlık:
           </label>
-          <input
+          <DecimalInput
             id={weightId}
-            type="number"
-            step="0.5"
             value={set.weightKg}
-            onChange={(e) => onChange({ weightKg: parseFloat(e.target.value) || 0 })}
+            onValueChange={(v) => onChange({ weightKg: Math.max(0, v) })}
             className="w-20 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-900 text-center"
           />
           <span className="text-xs text-slate-400">kg</span>

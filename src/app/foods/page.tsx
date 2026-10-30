@@ -15,6 +15,7 @@ import { PackagedFoodTab } from "@/components/foods/PackagedFoodTab";
 import { RecipesTab } from "@/components/foods/RecipesTab";
 import { usePackagedSearch } from "@/components/foods/usePackagedSearch";
 import type { FoodsNotice, FoodsTab } from "@/components/foods/constants";
+import { formatNumberTr } from "@/lib/format";
 
 export default function FoodsPage() {
   const [activeTab, setActiveTab] = useState<FoodsTab>("foods");
@@ -74,7 +75,7 @@ export default function FoodsPage() {
         carbsSnapshot: Math.round(product.carbsG * factor * 10) / 10,
         fatSnapshot: Math.round(product.fatG * factor * 10) / 10,
       });
-      notice.show({ type: "success", text: `"${product.name}" (${grams}g) bugünkü günlüğe eklendi!` });
+      notice.show({ type: "success", text: `"${product.name}" (${formatNumberTr(grams)}g) bugünkü günlüğe eklendi!` });
     } catch (err) {
       notice.show({ type: "error", text: errorMessage(err, "Öğün kaydedilemedi.") });
     }

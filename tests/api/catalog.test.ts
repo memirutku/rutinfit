@@ -23,6 +23,12 @@ describe("/api/foods", () => {
     expect((await callRoute(foodsGet, { query: { search: "inek" } })).json.map((f: any) => f.name)).toEqual(["İnek Sütü"]);
   });
 
+  it("F80: listeyi Türk alfabesine göre sıralar (Ç, I/İ, Ş yerinde)", async () => {
+    for (const name of ["Zeytin", "Şeftali", "İncir", "Ispanak", "Çilek", "Elma"]) await createFood({ name });
+    const names = (await callRoute(foodsGet)).json.map((f: any) => f.name);
+    expect(names).toEqual(["Çilek", "Elma", "Ispanak", "İncir", "Şeftali", "Zeytin"]);
+  });
+
   it("negatif makroyu 400, yinelenen barkodu 409 ile reddeder", async () => {
     const base = { name: "X", calories: 10, proteinG: 1, carbsG: 1, fatG: 1 };
     expect((await callRoute(foodsPost, { body: { ...base, calories: -1 } })).status).toBe(400);

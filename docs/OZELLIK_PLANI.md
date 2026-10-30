@@ -28,7 +28,7 @@ Dal: `ozellik/dalga-1`
 
 | Sıra | Madde | Ne yapılır | Şema |
 | --- | --- | --- | --- |
-| 1 | F20 | Set başına RPE (ve isteğe bağlı RIR) alanı; kayıt ekranında seçim | `SetLog.rpe`, `SetLog.rir` |
+| 1 | F20 | Set başına RPE (yarım puanlı; RIR = 10 − RPE olduğundan ayrı alan yok); kayıt ekranında seçim | `SetLog.rpe` |
 | 2 | H1, H3, H4 | CSV başlıklarında birim ekleri ve lbs→kg; RPE `SetLog`'a yazılır; "hedef tuttu" şablonun tekrar aralığından | — |
 | 3 | H2 | Atlanan sütunlar içe aktarma özetinde listelenir; notlar ve süre seansa yazılır | — |
 | 4 | F80 | Virgüllü ondalık girişi, gg.aa.yyyy gösterimi, `tr-TR` arama ve sıralama tek yardımcıdan | — |

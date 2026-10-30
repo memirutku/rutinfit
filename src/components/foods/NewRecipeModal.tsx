@@ -7,6 +7,7 @@ import { errorMessage } from "@/lib/client/api";
 import { clientId } from "@/lib/client/keys";
 import { useCreateRecipe } from "@/lib/client/queries/nutrition";
 import type { FoodItem } from "@/lib/schemas/food";
+import { DecimalInput } from "@/components/ui/DecimalInput";
 
 interface IngredientRow {
   /** Satırın React anahtarı (sunucuya gönderilmez). */
@@ -160,12 +161,10 @@ export function NewRecipeModal({ open, onClose, foods }: NewRecipeModalProps) {
                   ))}
                 </select>
 
-                <input
+                <DecimalInput
                   aria-label={`Malzeme ${idx + 1} gramajı`}
-                  type="number"
-                  min="1"
                   value={ing.grams}
-                  onChange={(e) => updateRow(ing.key, { grams: parseFloat(e.target.value) || 0 })}
+                  onValueChange={(v) => updateRow(ing.key, { grams: Math.max(0, v) })}
                   className="w-20 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs"
                   placeholder="g"
                   required

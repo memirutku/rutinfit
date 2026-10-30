@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import { AlertCircle } from "lucide-react";
+import { DecimalInput } from "@/components/ui/DecimalInput";
+import { formatNumberTr } from "@/lib/format";
 
 interface Plate {
   weight: number;
@@ -99,13 +101,10 @@ export function PlateCalculator() {
               Hedef Toplam Ağırlık (kg)
             </label>
             <div className="relative">
-              <input
-                type="number"
-                step="2.5"
-                min="10"
-                max="500"
+              <DecimalInput
+                aria-label="Hedef Toplam Ağırlık (kg)"
                 value={targetWeight}
-                onChange={(e) => setTargetWeight(parseFloat(e.target.value) || 0)}
+                onValueChange={(v) => setTargetWeight(Math.max(0, v))}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-extrabold text-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
               <span className="absolute right-3.5 top-3 text-xs font-bold text-slate-400">
@@ -172,10 +171,10 @@ export function PlateCalculator() {
               </span>
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-extrabold text-emerald-400">
-                  {result.perSideWeight} kg
+                  {formatNumberTr(result.perSideWeight)} kg
                 </span>
                 <span className="text-xs text-slate-400">
-                  (Toplam: Bar {barWeight} kg + 2 × {result.perSideWeight} kg)
+                  (Toplam: Bar {formatNumberTr(barWeight)} kg + 2 × {formatNumberTr(result.perSideWeight)} kg)
                 </span>
               </div>
             </div>
@@ -196,7 +195,7 @@ export function PlateCalculator() {
               {/* Halter Barı (Merkez) */}
               <div className="w-24 h-5 bg-gradient-to-r from-slate-400 via-slate-200 to-slate-400 rounded-l shadow-inner border border-slate-500 relative flex items-center justify-center">
                 <span className="text-[10px] font-bold text-slate-800">
-                  BAR {barWeight}kg
+                  BAR {formatNumberTr(barWeight)}kg
                 </span>
               </div>
 
@@ -275,11 +274,10 @@ export function PlateCalculator() {
             <label className="text-xs font-bold text-slate-700 block mb-1">
               Kaldırılan Ağırlık (kg)
             </label>
-            <input
-              type="number"
-              step="2.5"
+            <DecimalInput
+              aria-label="Kaldırılan Ağırlık (kg)"
               value={oneRmWeight}
-              onChange={(e) => setOneRmWeight(parseFloat(e.target.value) || 0)}
+              onValueChange={(v) => setOneRmWeight(Math.max(0, v))}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-sm"
             />
           </div>

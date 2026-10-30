@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
-import { includesTr } from "@/lib/text";
+import { compareTr, includesTr } from "@/lib/text";
 import { FoodItemInputSchema } from "@/lib/schemas/food";
 
 export async function GET(req: Request) {
@@ -14,10 +14,10 @@ export async function GET(req: Request) {
 
     // SQLite LIKE yalnız ASCII'de büyük/küçük harf duyarsızdır; Türkçe arama bellekte yapılır
     // (katalog küçük: birkaç yüz kayıt).
-    const all = await prisma.foodItem.findMany({
-      where: category ? { category } : undefined,
-      orderBy: { name: "asc" },
-    });
+    // SQLite ikili sıralar (Ç, Ş, İ Z'den sonra gelir); F80: Türk alfabesine göre bellekte sıralanır.
+    const all = (await prisma.foodItem.findMany({ where: category ? { category } : undefined })).sort((a, b) =>
+      compareTr(a.name, b.name)
+    );
     const foods = (search ? all.filter((f) => includesTr(f.name, search) || includesTr(f.brand, search)) : all).slice(0, take);
 
     return NextResponse.json(foods);

@@ -2,6 +2,7 @@ import { Search } from "lucide-react";
 import { includesTr } from "@/lib/text";
 import type { FoodItem } from "@/lib/schemas/food";
 import { FOOD_CATEGORIES } from "./constants";
+import { formatNumberTr } from "@/lib/format";
 
 interface FoodCatalogTabProps {
   foods: FoodItem[];
@@ -110,15 +111,15 @@ function FoodCard({ food: f }: { food: FoodItem }) {
         </div>
         <div>
           <div className="text-[10px] text-slate-400">Protein</div>
-          <div className="font-bold text-emerald-600">{f.proteinG}g</div>
+          <div className="font-bold text-emerald-600">{formatNumberTr(f.proteinG)}g</div>
         </div>
         <div>
           <div className="text-[10px] text-slate-400">Karb</div>
-          <div className="font-bold text-amber-600">{f.carbsG}g</div>
+          <div className="font-bold text-amber-600">{formatNumberTr(f.carbsG)}g</div>
         </div>
         <div>
           <div className="text-[10px] text-slate-400">Yağ</div>
-          <div className="font-bold text-purple-600">{f.fatG}g</div>
+          <div className="font-bold text-purple-600">{formatNumberTr(f.fatG)}g</div>
         </div>
       </div>
 
