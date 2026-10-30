@@ -11,9 +11,20 @@ const nextConfig = {
   // Kök sabit: üst klasörde başka bir lockfile olsa bile (ör. git worktree) Next kökü yanlış
   // tahmin edip server.js'i .next/standalone/<alt/yol>/ altına koymasın.
   outputFileTracingRoot: projectRoot,
-  // Açılışta uygulanan migration dosyaları sunucuyla birlikte paketlenir.
+  // pdf-parse (içinde pdfjs) derleyiciyle sunucu parçasına gömülürse yanındaki dosyaları
+  // bulamaz: `@napi-rs/canvas`'ı `createRequire(__filename)` ile, `./pdf.worker.mjs`'i kendi
+  // klasörüne göreli yükler. Dış paket olarak node_modules'tan, düz Node'daki gibi çalışır.
+  serverExternalPackages: ["pdf-parse"],
   outputFileTracingIncludes: {
+    // Açılışta uygulanan migration dosyaları sunucuyla birlikte paketlenir.
     "/*": ["./prisma/migrations/**/*"],
+    // pdf-parse'ın dinamik yüklediği, dosya izleyicinin göremediği parçalar. canvas yoksa
+    // modül yüklenirken "DOMMatrix is not defined" atar ve PDF'den metin çıkmaz.
+    "/api/files/upload": [
+      "./node_modules/pdf-parse/dist/pdf-parse/cjs/pdf.worker.mjs",
+      // Platforma özgü yerel eklenti paketi (ör. @napi-rs/canvas-darwin-arm64) dahil.
+      "./node_modules/@napi-rs/canvas*/**/*",
+    ],
   },
   // Kod process.cwd() altındaki veri klasörlerine dokunduğu için dosya izleyici onları da
   // pakete katıyordu (yedekler, dev.db, openGym anahtarları, yüklemeler). Kullanıcı verisi

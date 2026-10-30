@@ -8,12 +8,14 @@
  * 3. Gömülü Node çalışma zamanını (sabit sürüm + sabit SHA-256) indirip
  *    src-tauri/binaries/node-<hedef> olarak yerleştirir (Tauri sidecar adlandırması).
  * 4. SQLite yerel eklentisinin (better-sqlite3) bu gömülü Node ile yüklenebildiğini doğrular.
+ * 5. Paketteki pdf-parse'ın bu gömülü Node ile PDF'den metin çıkarabildiğini doğrular.
  */
 import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { minimalPdf } from "./lib/minimal-pdf.cjs";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const standalone = path.join(root, ".next", "standalone");
@@ -155,6 +157,41 @@ function verifyNativeAddon(nodeBinary) {
   log(`SQLite yerel eklentisi gömülü Node ${NODE_VERSION} ile yüklendi.`);
 }
 
+/**
+ * pdf-parse `@napi-rs/canvas`'ı ve `pdf.worker.mjs`'i çalışma anında yükler; dosya izleyici onları
+ * göremez (next.config.mjs → outputFileTracingIncludes). Pakette eksiklerse yüklenen PDF'ler sessizce
+ * boş kalır ("DOMMatrix is not defined"). Paketin dışından (ör. depodaki node_modules) yüklenen her
+ * modül de eksik sayılır: uygulama kurulduğu Mac'te o klasörü bulamaz.
+ */
+function verifyPdfParser(nodeBinary) {
+  // Sunucu parçası pdf-parse'ı Turbopack takma adıyla yükler (.next/node_modules/pdf-parse-<hash>;
+  // standalone'da sembolik link, pakette kopya).
+  const aliasDir = path.join(serverOut, ".next", "node_modules");
+  const alias = fs.existsSync(aliasDir) ? fs.readdirSync(aliasDir).find((name) => /^pdf-parse-[0-9a-f]+$/.test(name)) : undefined;
+  const pkg = alias ? path.join(aliasDir, alias) : path.join(serverOut, "node_modules", "pdf-parse");
+  const text = "RutinFit PDF probe: yulaf 80 g";
+  // pdfjs uyarılarını console.log ile yazar; stdout yalnız sonuç JSON'u taşısın diye stderr'e yönlenir.
+  const probe = `
+    console.log = console.warn = (...a) => process.stderr.write(a.join(" ") + "\\n");
+    (async () => {
+      const { PDFParse } = require(${JSON.stringify(pkg)});
+      const parser = new PDFParse({ data: require("node:fs").readFileSync(0) });
+      const { text } = await parser.getText();
+      await parser.destroy();
+      const outside = Object.keys(require.cache).filter((f) => !f.startsWith(${JSON.stringify(serverOut + path.sep)}));
+      process.stdout.write(JSON.stringify({ text, outside }));
+    })().catch((err) => { process.stderr.write(String(err && err.message) + "\\n"); process.exit(1); });`;
+  let result;
+  try {
+    result = JSON.parse(execFileSync(nodeBinary, ["-e", probe], { input: minimalPdf(text), stdio: "pipe" }).toString());
+  } catch (err) {
+    throw new Error(`Paketteki pdf-parse gömülü Node ile çalışmadı:\n  ${String(err.stderr || err.message).trim()}`);
+  }
+  if (!result.text.includes(text)) throw new Error(`Paketteki pdf-parse PDF'den metin çıkaramadı: ${JSON.stringify(result.text)}`);
+  if (result.outside.length) throw new Error(`pdf-parse paket dışından modül yükledi (pakette eksik): ${result.outside.join(", ")}`);
+  log(`PDF'den metin çıkarma gömülü Node ${NODE_VERSION} ile doğrulandı (${path.relative(serverOut, pkg)}).`);
+}
+
 async function ensureNode() {
   const target = hostTarget();
   const spec = NODE_SHA256[target];
@@ -197,7 +234,9 @@ async function ensureNode() {
 try {
   copyServer();
   verifyServer();
-  verifyNativeAddon(await ensureNode());
+  const nodeBinary = await ensureNode();
+  verifyNativeAddon(nodeBinary);
+  verifyPdfParser(nodeBinary);
 } catch (err) {
   console.error(`[prepare-desktop] HATA: ${err.message}`);
   process.exit(1);
