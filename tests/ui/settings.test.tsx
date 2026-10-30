@@ -579,7 +579,7 @@ describe("Ayarlar — B34 içindekiler, Gelişmiş ve anında kaydeden anahtarla
     expect(toggle).toHaveProperty("checked", false);
   });
 
-  it("otomatik yedek anahtarı ve sıklık dokununca kaydeder (klasör seçilmemişse önerilen klasörle); ayrı 'Kaydet' düğmesi yok", async () => {
+  it("otomatik yedek anahtarı ve sıklık dokununca kaydeder (klasör seçilmemişse önerilen klasör önce onaylatılır); ayrı 'Kaydet' düğmesi yok", async () => {
     const state = { enabled: false, folderPath: null as string | null, frequency: "daily", keepCount: 10, lastRunAt: null, lastStatus: null, lastMessage: null, lastFile: null, suggestedFolder: "/Users/ben/Documents/RutinFit Yedekleri", exportCopies: true };
     const { calls } = setup([
       [
@@ -591,6 +591,11 @@ describe("Ayarlar — B34 içindekiler, Gelişmiş ve anında kaydeden anahtarla
       ],
     ]);
     fireEvent.click(await screen.findByRole("checkbox", { name: /Otomatik yedek açık/ }));
+    // Recheck (Can): klasör seçilmeden önerilen klasör sessizce kaydedilmez; önce sorulur.
+    const confirm = await screen.findByRole("group", { name: "Yedek klasörünü onayla" });
+    expect(confirm.textContent).toContain("/Users/ben/Documents/RutinFit Yedekleri");
+    expect(callsTo(calls, "/api/backup/auto", "PUT")).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: "Bu klasörü kullan" }));
     await waitFor(() => expect(callsTo(calls, "/api/backup/auto", "PUT")).toHaveLength(1));
     expect(body(callsTo(calls, "/api/backup/auto", "PUT")[0].init)).toEqual({ enabled: true, folderPath: "/Users/ben/Documents/RutinFit Yedekleri" });
 

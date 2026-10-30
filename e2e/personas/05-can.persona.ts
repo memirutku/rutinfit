@@ -94,6 +94,9 @@ test("Can: gizlilik, yerel model, yedek ve Apple Sağlık", async ({ page, reque
   });
   await step("Otomatik yedek kurar", "Günlük otomatik yedeği açar, klasörü kabul eder ve hemen bir yedek alır", async () => {
     await page.getByLabel("Otomatik yedek açık").check();
+    // Recheck: klasör seçilmemişse önerilen klasör önce onaylatılır.
+    const useSuggested = page.getByRole("button", { name: "Bu klasörü kullan" });
+    if (await useSuggested.isVisible({ timeout: 1000 }).catch(() => false)) await useSuggested.click();
     // Dalga 6 (B34): anahtar dokununca kaydeder; eski sürümde ayrı bir düğme vardı.
     const save = page.getByRole("button", { name: "Otomatik yedeği kaydet" });
     if (await save.isVisible().catch(() => false)) await save.click();

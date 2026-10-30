@@ -51,10 +51,24 @@ export function AutoBackupPanel() {
   const frequency = pending?.frequency ?? data?.frequency ?? "daily";
   const last = data?.lastRunAt ? new Date(data.lastRunAt).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" }) : null;
   const error = save.error ?? run.error ?? pick.error;
+  // Recheck (Can): klasör seçilmemişken açılırsa önerilen klasör sessizce kaydedilmez; önce onay istenir.
+  const [confirmFolder, setConfirmFolder] = useState<string | null>(null);
 
   function toggle(on: boolean) {
-    // Klasör seçilmemişse önerilen klasör kullanılır (sunucu oluşturur).
-    commit(on ? { enabled: true, folderPath: data?.folderPath ?? (folder.trim() || data?.suggestedFolder || null) } : { enabled: false }, "enabled");
+    if (!on) {
+      setConfirmFolder(null);
+      commit({ enabled: false }, "enabled");
+      return;
+    }
+    const chosen = data?.folderPath ?? (folder.trim() || null);
+    if (chosen) commit({ enabled: true, folderPath: chosen }, "enabled");
+    else setConfirmFolder(data?.suggestedFolder ?? "");
+  }
+
+  function acceptSuggested() {
+    if (!confirmFolder) return;
+    commit({ enabled: true, folderPath: confirmFolder }, "enabled");
+    setConfirmFolder(null);
   }
 
   function commitFolder() {
@@ -64,9 +78,12 @@ export function AutoBackupPanel() {
 
   // B36: macOS'un klasör seçme penceresi; seçilen klasör hemen kaydedilir.
   function chooseFolder() {
+    const enabling = confirmFolder !== null;
     pick.mutate(undefined, {
       onSuccess: ({ path }) => {
-        if (path) commit({ folderPath: path }, "folder");
+        if (!path) return;
+        commit(enabling ? { enabled: true, folderPath: path } : { folderPath: path }, enabling ? "enabled" : "folder");
+        setConfirmFolder(null);
       },
     });
   }
@@ -88,10 +105,40 @@ export function AutoBackupPanel() {
         </p>
       )}
       <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-        <input id="auto-backup-enabled" type="checkbox" checked={enabled} disabled={save.isPending} onChange={(e) => toggle(e.target.checked)} />
+        <input
+          id="auto-backup-enabled"
+          type="checkbox"
+          checked={enabled || confirmFolder !== null}
+          disabled={save.isPending}
+          onChange={(e) => toggle(e.target.checked)}
+        />
         Otomatik yedek açık
         <SavedNote show={done.message === "enabled"} />
       </label>
+      {confirmFolder !== null && (
+        <div role="group" aria-label="Yedek klasörünü onayla" className="p-3 rounded-xl border border-amber-200 bg-amber-50 space-y-2 text-[11px] text-amber-900">
+          <p className="[overflow-wrap:anywhere]">
+            Yedekler şu klasöre alınacak: <span className="font-mono font-semibold">{confirmFolder || "(önerilen klasör yok)"}</span>. Yedek
+            dosyası şifrelenmez; bu klasör iCloud ile eşitleniyorsa yedek de Apple sunucularına gider.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={!confirmFolder || save.isPending}
+              onClick={acceptSuggested}
+              className="px-3 py-1.5 rounded-lg bg-amber-600 text-white font-bold disabled:opacity-50"
+            >
+              Bu klasörü kullan
+            </button>
+            <button type="button" disabled={pick.isPending} onClick={chooseFolder} className="px-3 py-1.5 rounded-lg border border-amber-300 font-bold">
+              Başka klasör seç…
+            </button>
+            <button type="button" onClick={() => setConfirmFolder(null)} className="px-3 py-1.5 rounded-lg font-semibold">
+              Vazgeç
+            </button>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="sm:col-span-2 min-w-0">
           <div className="flex items-center gap-2">
