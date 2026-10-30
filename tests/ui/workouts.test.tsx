@@ -13,6 +13,7 @@ import {
   addSet,
   addWarmupSets,
   buildSessionForm,
+  completeSet,
   exerciseGroups,
   incompleteSetCount,
   removeSet,
@@ -83,6 +84,25 @@ describe("seans formu (saf fonksiyonlar)", () => {
     expect(new Set(form.setLogs.map((s) => s.exerciseName))).toEqual(new Set(["Squat", "Bench Press", "Barbell Row"]));
     expect(form).toMatchObject({ name: "Ağırlık A (25 dk Hafifletilmiş)", durationMinutes: 25, rpe: 5, templateId: "t-a" });
     expect(form.notes).toMatch(/kısaltılmış/);
+  });
+
+  it("recheck (Mert): tamamlanan setin ağırlığı aynı egzersizin boş sonraki setlerine geçer; dolu set ve diğer egzersiz değişmez", () => {
+    let form = buildSessionForm(strength, false);
+    const squat = form.setLogs.filter((s) => s.exerciseName === "Squat");
+    form = updateSet(form, squat[0].key, { weightKg: 60 });
+    form = updateSet(form, squat[2].key, { weightKg: 50 });
+    form = completeSet(form, squat[0].key);
+    const after = form.setLogs.filter((s) => s.exerciseName === "Squat");
+    expect(after.map((s) => [s.weightKg, !!s.completed])).toEqual([[60, true], [60, false], [50, false]]);
+    expect(form.setLogs.filter((s) => s.exerciseName !== "Squat").every((s) => s.weightKg === null)).toBe(true);
+  });
+
+  it("recheck (Mert): süre elle girilmediyse 'Başla'dan 'Bitir'e geçen süredir; 4 saati aşarsa bilinmiyor (0)", () => {
+    const t0 = 1_000_000;
+    const form = { ...markAllCompleted(buildSessionForm(strength, false)), startedAt: t0 };
+    expect(toWorkoutPayload(form, "2026-10-20", t0 + 47 * 60_000).durationMinutes).toBe(47);
+    expect(toWorkoutPayload({ ...form, durationEdited: true, durationMinutes: 33 }, "2026-10-20", t0 + 47 * 60_000).durationMinutes).toBe(33);
+    expect(toWorkoutPayload(form, "2026-10-20", t0 + 5 * 3_600_000).durationMinutes).toBe(0);
   });
 
   it("normal mod tüm egzersizlerden 3'er set kurar; her setin benzersiz anahtarı vardır", () => {

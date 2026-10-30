@@ -51,7 +51,12 @@ export interface SessionSet {
 export interface SessionForm {
   templateId: string;
   name: string;
+  /** Hedef süre; kullanıcı elle girdiyse (durationEdited) gerçekleşen süre. */
   durationMinutes: number;
+  /** Recheck: süre elle girildi mi (girilmediyse başla–bitir arası geçen süre kaydedilir). */
+  durationEdited?: boolean;
+  /** Recheck: seansın başladığı an (ms). Eski taslaklarda yoktur. */
+  startedAt?: number;
   rpe: number;
   notes: string;
   setLogs: SessionSet[];
@@ -152,6 +157,7 @@ export function buildSessionForm(template: SessionTemplate, shortened: boolean, 
     templateId: template.id,
     name: shortened ? `${template.name} (25 dk Hafifletilmiş)` : template.name,
     durationMinutes: shortened ? 25 : template.targetDurationMinutes,
+    startedAt: Date.now(),
     rpe: shortened ? 5 : 7,
     notes,
     setLogs,
@@ -167,6 +173,33 @@ export function withSetKeys(form: StoredForm): SessionForm {
 /** Tek bir seti değiştirir; diğer setler ve form nesnesi yerinde değiştirilmez. */
 export function updateSet(form: SessionForm, key: string, patch: Partial<SessionSet>): SessionForm {
   return { ...form, setLogs: form.setLogs.map((s) => (s.key === key ? { ...s, ...patch } : s)) };
+}
+
+/**
+ * Seti tamamlar. Recheck (Mert): ağırlığı aynı egzersizin sonraki BOŞ setlerine taşınır, her sete
+ * yeniden yazmak gerekmez. Taşınan setler tamamlanmış sayılmaz (B17: yalnız "Tamamla" denen set kaydedilir).
+ */
+export function completeSet(form: SessionForm, key: string): SessionForm {
+  const done = form.setLogs.find((s) => s.key === key);
+  if (!done) return form;
+  return {
+    ...form,
+    setLogs: form.setLogs.map((s) => {
+      if (s.key === key) return { ...s, completed: true };
+      if (done.weightKg !== null && !s.completed && s.weightKg === null && s.exerciseName === done.exerciseName && s.setNumber > done.setNumber) {
+        return { ...s, weightKg: done.weightKg };
+      }
+      return s;
+    }),
+  };
+}
+
+/** Elle girilmemiş süre: başlangıçtan bu yana geçen dakika; 4 saati aşarsa (unutulmuş seans) bilinmiyor (0). */
+const MAX_AUTO_MINUTES = 240;
+export function sessionDuration(form: SessionForm, now = Date.now()): number {
+  if (form.durationEdited || form.startedAt === undefined) return form.durationMinutes;
+  const minutes = Math.round((now - form.startedAt) / 60_000);
+  return minutes > MAX_AUTO_MINUTES ? 0 : Math.max(1, minutes);
 }
 
 /** Egzersizin setlerine 1'den başlayarak yeniden numara verir. */
@@ -262,13 +295,13 @@ export function markAllCompleted(form: SessionForm): SessionForm {
  * gider; set numaraları egzersiz içinde 1'den yeniden sıralanır. Boş ağırlık 0 kg'dır
  * (vücut ağırlığı hareketi).
  */
-export function toWorkoutPayload(form: SessionForm, date: string): WorkoutSessionInput {
+export function toWorkoutPayload(form: SessionForm, date: string, now = Date.now()): WorkoutSessionInput {
   const counters = new Map<string, number>();
   return {
     date,
     templateId: form.templateId || undefined,
     name: form.name,
-    durationMinutes: form.durationMinutes,
+    durationMinutes: sessionDuration(form, now),
     rpe: form.rpe,
     notes: form.notes,
     completed: true,

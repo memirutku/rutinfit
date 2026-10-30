@@ -15,6 +15,7 @@ import {
   markAllCompleted,
   removeSet,
   replaceExercise,
+  completeSet,
   updateSet,
   workingWeight,
   type SessionForm,
@@ -69,7 +70,7 @@ export function ActiveSessionForm({
   }
 
   function toggleSet(key: string, completed: boolean) {
-    onChange(updateSet(form, key, { completed: !completed }));
+    onChange(completed ? updateSet(form, key, { completed: false }) : completeSet(form, key));
     // Otomatik dinlenme sayacını başlat (son seçilen süreyle)
     if (!completed) restTimer.start(restTimer.totalSeconds || 90);
   }
@@ -186,8 +187,13 @@ export function ActiveSessionForm({
             <input
               id={durationId}
               type="number"
-              value={form.durationMinutes}
-              onChange={(e) => onChange({ ...form, durationMinutes: parseInt(e.target.value) || 30 })}
+              value={form.durationEdited ? form.durationMinutes || "" : ""}
+              placeholder={form.startedAt !== undefined ? "Otomatik: başla–bitir arası" : String(form.durationMinutes)}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10);
+                // Boş bırakılırsa süre yine otomatik ölçülür.
+                onChange(Number.isFinite(v) && v > 0 ? { ...form, durationMinutes: v, durationEdited: true } : { ...form, durationEdited: false });
+              }}
               className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
             />
           </div>

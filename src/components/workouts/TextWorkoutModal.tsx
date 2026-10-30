@@ -32,7 +32,8 @@ export function TextWorkoutModal({ open, date, onClose, onSaved }: TextWorkoutMo
   const [sessionDate, setSessionDate] = useState(date);
   const dateError = !isDateString(sessionDate) ? "Tarih seçin." : sessionDate > date ? "Gelecek bir gün seçilemez." : null;
   const [name, setName] = useState("Serbest antrenman");
-  const [duration, setDuration] = useState(45);
+  // Recheck (Mert): süre girilmezse uydurulmaz (0 = girilmedi); şablon kaydında 45 dk varsayılır.
+  const [duration, setDuration] = useState(0);
   const parsed = useMemo(() => parseWorkoutText(text), [text]);
   const finish = useFinishWorkout();
   const saveTemplate = useSaveTemplate();
@@ -75,7 +76,7 @@ export function TextWorkoutModal({ open, date, onClose, onSaved }: TextWorkoutMo
       name: name.trim() || "Serbest antrenman",
       type: "strength",
       dayOfWeek: weekdayOf(sessionDate),
-      targetDurationMinutes: duration,
+      targetDurationMinutes: duration || 45,
       notes: null,
       exercises: groups.map(([exerciseName, reps]) => ({
         exerciseName,
@@ -141,13 +142,14 @@ export function TextWorkoutModal({ open, date, onClose, onSaved }: TextWorkoutMo
           </div>
           <div>
             <label htmlFor="text-workout-duration" className={LABEL}>
-              Süre (dk)
+              Süre (dk, isteğe bağlı)
             </label>
             <input
               id="text-workout-duration"
               type="number"
-              value={duration}
-              onChange={(e) => setDuration(Math.max(1, parseInt(e.target.value, 10) || 45))}
+              value={duration || ""}
+              placeholder="Girilmedi"
+              onChange={(e) => setDuration(Math.max(0, parseInt(e.target.value, 10) || 0))}
               className={INPUT}
             />
           </div>

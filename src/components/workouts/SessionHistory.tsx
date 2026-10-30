@@ -85,7 +85,7 @@ export function SessionHistory({ today }: { today: string }) {
                     </p>
                     <p className="font-bold text-slate-900 text-sm truncate">{s.name}</p>
                     <p className="text-xs text-slate-500">
-                      {s.setLogs.length} set · {formatDecimalTr(sessionVolume(s))} kg · {s.durationMinutes} dk
+                      {s.setLogs.length} set · {formatDecimalTr(sessionVolume(s))} kg · {s.durationMinutes ? `${s.durationMinutes} dk` : "süre girilmedi"}
                     </p>
                   </div>
                   <div className="flex gap-1.5 shrink-0">
