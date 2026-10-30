@@ -60,4 +60,24 @@ test.describe("Dalga 6 · plan, alışveriş ve rapor", () => {
     await expect(page.getByRole("article")).toHaveCount(2);
     await expect(page.getByText(/Yulaflı Lorlu|Fırın Tavuk Göğsü|Muzlu Yoğurt/)).toHaveCount(0);
   });
+
+  test("B03: Yemek Planı başlığı profildeki hedefi gösterir ve 'sayıları gizle'ye uyar", async ({ page, api }) => {
+    const { id: _id, createdAt: _c, updatedAt: _u, ...original } = await (await api.get("/api/profile")).json();
+    try {
+      const put = await api.put("/api/profile", {
+        data: { ...original, sex: "female", calorieTarget: 1500, calorieCeiling: 1600, proteinTargetG: 110, carbTargetG: 150, fatTargetG: 50, isOnboarded: true, hideNumbers: false },
+      });
+      expect(put.ok()).toBe(true);
+      await page.goto("/nutrition");
+      await expect(page.getByText("Hedef: 1.500 kcal · 110 g protein · 150 g karbonhidrat · 50 g yağ")).toBeVisible();
+      await expect(page.getByText(/2\.080/)).toHaveCount(0);
+
+      await api.put("/api/profile", { data: { ...original, sex: "female", calorieTarget: 1500, calorieCeiling: 1600, isOnboarded: true, hideNumbers: true } });
+      await page.reload();
+      await expect(page.getByText(/Sayılar gizli/)).toBeVisible();
+      await expect(page.getByText(/1\.500 kcal/)).toHaveCount(0);
+    } finally {
+      await api.put("/api/profile", { data: original });
+    }
+  });
 });

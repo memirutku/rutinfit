@@ -295,6 +295,48 @@ describe("PlannedMealCard", () => {
   });
 });
 
+const profile = (over: Record<string, unknown> = {}) => ({
+  id: "default-user", heightCm: 160, age: 41, sex: "female", currentWeightKg: 78, calorieTarget: 1500, calorieCeiling: 1600,
+  proteinTargetG: 122, fatTargetG: 42, carbTargetG: 131, wakeTime: "06:00", workdayHomeTime: "18:00", isOnboarded: true,
+  hideNumbers: false, ...over,
+});
+
+describe("B03: Yemek Planı başlığı profildeki hedefi gösterir", () => {
+  function setupPage(p: ReturnType<typeof profile>, plans: MealPlan[] = []) {
+    restore = stubFetch([
+      ["/api/profile", () => jsonResponse(p)],
+      ["/api/meal-plans", () => jsonResponse(plans)],
+      [/\/api\/shopping\?weekStart=/, () => jsonResponse(shoppingList())],
+    ]).restore;
+    renderWithQuery(<NutritionPage />);
+  }
+
+  it("hedef kalori ve makrolar profilden gelir (Türkçe biçimle); sabit 2.080 yazmaz", async () => {
+    setupPage(profile());
+    expect(await screen.findByText("Hedef: 1.500 kcal · 122 g protein · 131 g karbonhidrat · 42 g yağ")).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/2\.080|165 ?g/);
+  });
+
+  it("sihirbaz tamamlanmadıysa hedef tahmini diye işaretlenir", async () => {
+    setupPage(profile({ isOnboarded: false, calorieTarget: 2000, proteinTargetG: 100, carbTargetG: 250, fatTargetG: 65 }));
+    expect(await screen.findByText("Tahmini hedef: 2.000 kcal · 100 g protein · 250 g karbonhidrat · 65 g yağ")).toBeTruthy();
+  });
+
+  it("'sayıları gizle' açıkken başlıkta ve öğün kartında sayı görünmez", async () => {
+    setupPage(profile({ hideNumbers: true }), [bulgurPlan]);
+    expect(await screen.findByText(/Sayılar gizli/)).toBeTruthy();
+    const card = await screen.findByRole("article", { name: "Bulgur Kasesi" });
+    await waitFor(() => expect(card.textContent).not.toMatch(/kcal/));
+    expect(document.body.textContent).not.toMatch(/1\.500|122 g/);
+  });
+
+  it("Ramazan modunda kahvaltı Sahur diye yazılır", async () => {
+    setupPage(profile({ ramadanMode: true }), [bulgurPlan]);
+    const card = await screen.findByRole("article", { name: "Bulgur Kasesi" });
+    await waitFor(() => expect(within(card).getByText("Sahur")).toBeTruthy());
+  });
+});
+
 describe("MealPrepGuide ve sayfa", () => {
   it("rehber dört hazırlık kartını gösterir; kişisel saat ya da iş düzeni varsaymaz", () => {
     renderWithQuery(<MealPrepGuide />);
@@ -305,6 +347,7 @@ describe("MealPrepGuide ve sayfa", () => {
 
   it("B08: boş günde 'Hafta'dan ekle' haftalık editörü açar", async () => {
     restore = stubFetch([
+      ["/api/profile", () => jsonResponse(profile())],
       ["/api/meal-plans", () => jsonResponse([])],
       [/\/api\/shopping\?weekStart=/, () => jsonResponse(shoppingList())],
     ]).restore;
@@ -315,6 +358,7 @@ describe("MealPrepGuide ve sayfa", () => {
 
   it("sayfa açılınca alışveriş listesi yüklenir; sekmeler içeriği değiştirir", async () => {
     const s = stubFetch([
+      ["/api/profile", () => jsonResponse(profile())],
       ["/api/meal-plans", () => jsonResponse([])],
       [/\/api\/shopping\?weekStart=/, () => jsonResponse(shoppingList())],
     ]);
