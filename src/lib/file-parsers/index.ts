@@ -5,6 +5,7 @@ import { parsePdfFile } from './pdf';
 import { parseSpreadsheetFile } from './spreadsheet';
 import { parseTextFile } from './text';
 import { ParseFileInput, ParsedFileResult } from './types';
+import { formatDecimalTr } from "../format";
 
 export * from './types';
 export * from './sanitizer';
@@ -56,7 +57,7 @@ export async function parseFile(input: ParseFileInput): Promise<
   const sizeBytes = buffer.length;
 
   if (sizeBytes > MAX_FILE_SIZE_BYTES) {
-    throw new Error(`Dosya boyutu (${(sizeBytes / (1024 * 1024)).toFixed(1)} MB) izin verilen 20 MB sınırını aşıyor.`);
+    throw new Error(`Dosya boyutu (${formatDecimalTr(sizeBytes / (1024 * 1024), 1)} MB) izin verilen 20 MB sınırını aşıyor.`);
   }
 
   const hash = computeFileHash(buffer);

@@ -170,7 +170,7 @@ async function main() {
       type: "strength",
       dayOfWeek: 1, // Pazartesi
       targetDurationMinutes: 40,
-      notes: "İş çıkışı 19:40 başlangıç. Kontrollü tempo.",
+      notes: "Kontrollü tempo.",
       exercises: [
         { exerciseName: "Squat", targetSets: 3, repMin: 8, repMax: 10, restSeconds: 120, orderIndex: 1 },
         { exerciseName: "Bench Press", targetSets: 3, repMin: 8, repMax: 10, restSeconds: 90, orderIndex: 2 },

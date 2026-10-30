@@ -4,6 +4,9 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import type { DailySummary } from "@/lib/schemas/food";
 import type { DailyTargets } from "./CalorieCard";
+import { formatDecimalTr } from "@/lib/format";
+
+const g = (n: number) => `${formatDecimalTr(n, 1)}g`;
 
 interface MacroBarProps {
   label: string;
@@ -19,11 +22,11 @@ function MacroBar({ label, target, consumed, remaining, percent, barClass, hideN
   return (
     <div>
       <div className="flex justify-between text-sm mb-1">
-        <span className="font-semibold text-slate-700">{hideNumbers ? label : `${label} (Hedef: ${target}g)`}</span>
+        <span className="font-semibold text-slate-700">{hideNumbers ? label : `${label} (Hedef: ${g(target)})`}</span>
         {!hideNumbers && (
           <span className="font-bold text-slate-900">
-            {consumed || 0}g / {target}g{" "}
-            <span className="text-xs text-slate-400 font-normal">(Kalan: {remaining ?? target}g)</span>
+            {g(consumed || 0)} / {g(target)}{" "}
+            <span className="text-xs text-slate-400 font-normal">(Kalan: {g(remaining ?? target)})</span>
           </span>
         )}
       </div>

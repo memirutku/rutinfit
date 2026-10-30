@@ -162,6 +162,12 @@ describe("dashboard kartları", () => {
     expect(screen.getByRole("link", { name: /Detaylı Plan/ }).getAttribute("href")).toBe("/nutrition");
   });
 
+  it("B23: makro gramları Türkçe ondalıkla gösterilir", () => {
+    render(<MacroBalanceCard summary={summary({ consumedFat: 12.5, remainingFat: 47.5 })} targets={targets} />);
+    expect(screen.getByText("(Kalan: 47,5g)")).toBeTruthy();
+    expect(screen.getByText(/12,5g \/ 60g/)).toBeTruthy();
+  });
+
   it("F56: sayıları gizleme modunda kalori, makro ve öğün sayıları görünmez; ilerleme sözle anlatılır", () => {
     const { container: cal } = render(<CalorieCard summary={summary()} targets={targets} hideNumbers />);
     expect(cal.textContent).not.toMatch(/\d+\s*kcal/);

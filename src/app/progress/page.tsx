@@ -19,7 +19,7 @@ import {
   Legend,
 } from "recharts";
 import { useProgress } from "@/lib/client/queries/progress";
-import { formatDateTr, formatNumberTr } from "@/lib/format";
+import { formatDateTr, formatDecimalTr, formatNumberTr } from "@/lib/format";
 import { getLocalDateString } from "@/lib/date-utils";
 import { TrainingProgress } from "@/components/progress/StrengthSection";
 import { AdaptiveTdeeCard } from "@/components/progress/AdaptiveTdeeCard";
@@ -188,8 +188,10 @@ export default function ProgressPage() {
                   stroke="#94a3b8"
                   fontSize={12}
                   domain={["auto", "auto"]}
+                  tickFormatter={(v) => formatDecimalTr(Number(v), 1)}
                 />
                 <Tooltip
+                  formatter={(v) => (typeof v === "number" ? formatDecimalTr(v, 1) : v)}
                   contentStyle={{
                     backgroundColor: "#0f172a",
                     border: "none",
@@ -246,8 +248,10 @@ export default function ProgressPage() {
                   stroke="#94a3b8"
                   fontSize={12}
                   domain={[0, 10]}
+                  tickFormatter={(v) => formatDecimalTr(Number(v), 1)}
                 />
                 <Tooltip
+                  formatter={(v) => (typeof v === "number" ? formatDecimalTr(v, 1) : v)}
                   contentStyle={{
                     backgroundColor: "#0f172a",
                     border: "none",

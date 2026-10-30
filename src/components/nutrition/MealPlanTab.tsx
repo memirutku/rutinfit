@@ -5,7 +5,7 @@ import { CalendarPlus } from "lucide-react";
 import { errorMessage } from "@/lib/client/api";
 import { useAdherenceSummary, useCreateFoodLog, useMealPlans, useSetAdherence } from "@/lib/client/queries/nutrition";
 import { addDaysToDateString, getLocalDateString, startOfWeek } from "@/lib/date-utils";
-import { formatNumberTr } from "@/lib/format";
+import { formatDecimalTr, formatNumberTr } from "@/lib/format";
 import { MEAL_TYPES, mealTypeLabel, type MealType } from "@/lib/schemas/enums";
 import type { PlannedMeal } from "@/lib/schemas/meal-plan";
 import { PlannedMealCard, plannedMealName } from "./PlannedMealCard";
@@ -80,7 +80,9 @@ export function MealPlanTab({ selectedDate, onDateChange, multipliers, onMultipl
       },
       {
         onSuccess: () => {
-          const detail = hideNumbers ? `${multiplier}x porsiyon` : `${multiplier}x porsiyon - ${formatNumberTr(scaledCalories)} kcal`;
+          const detail = hideNumbers
+            ? `${formatDecimalTr(multiplier)}× porsiyon`
+            : `${formatDecimalTr(multiplier)}× porsiyon - ${formatNumberTr(scaledCalories)} kcal`;
           onMessage(`"${name}" (${detail}) günlüğe kaydedildi! ✓`, 3000);
           markDone(meal);
         },

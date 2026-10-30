@@ -8,6 +8,7 @@ import {
   MAX_FILE_SIZE_BYTES,
   computeFileHash,
 } from '@/lib/file-parsers';
+import { formatDecimalTr } from "@/lib/format";
 
 /** multipart sınırları ve alan başlıkları için pay. */
 const MULTIPART_OVERHEAD_BYTES = 64 * 1024;
@@ -15,7 +16,7 @@ const MULTIPART_OVERHEAD_BYTES = 64 * 1024;
 function tooLarge(sizeBytes: number) {
   return NextResponse.json(
     {
-      error: `Dosya boyutu (${(sizeBytes / (1024 * 1024)).toFixed(1)} MB) izin verilen ${MAX_FILE_SIZE_BYTES / (1024 * 1024)} MB sınırını aşıyor.`,
+      error: `Dosya boyutu (${formatDecimalTr(sizeBytes / (1024 * 1024), 1)} MB) izin verilen ${MAX_FILE_SIZE_BYTES / (1024 * 1024)} MB sınırını aşıyor.`,
     },
     { status: 413 }
   );

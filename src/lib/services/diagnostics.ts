@@ -11,6 +11,7 @@ import { BACKUP_TABLES, EXCLUDED_TABLES, delegateKey } from "./backup";
 import { getAutoBackupSettings } from "./auto-backup";
 import { desktopLogFile } from "./local-files";
 import packageJson from "../../../package.json";
+import { formatDecimalTr } from "../format";
 
 export const TABLE_LABELS: Record<string, string> = {
   UserProfile: "Profil",
@@ -94,7 +95,7 @@ export async function buildDiagnostics() {
       dataDir: paths.dataDir,
       dbPath: paths.dbPath,
       dbExists,
-      dbSizeFormatted: `${(dbSizeBytes / (1024 * 1024)).toFixed(2)} MB`,
+      dbSizeFormatted: `${formatDecimalTr(dbSizeBytes / (1024 * 1024), 2)} MB`,
       dbSizeBytes,
       backupsDir: paths.backupsDir,
       backupCount: countFiles(paths.backupsDir, (f) => f.endsWith(".db.bak") || f.endsWith(".json")),
