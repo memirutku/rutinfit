@@ -146,7 +146,7 @@ export function AIProviderSection() {
 
           <div>
             <label htmlFor="settings-field-13" className={LABEL}>
-              Base URL
+              Sunucu adresi (Base URL)
             </label>
             <input id="settings-field-13" type="text" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} className={INPUT} />
           </div>

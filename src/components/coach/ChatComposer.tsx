@@ -66,6 +66,7 @@ export function ChatComposer({
           disabled={disabled || loading || uploading}
           onClick={() => fileInputRef.current?.click()}
           title="Dosya Yükle (PDF, Excel, Word, TXT, JSON, Görsel)"
+          aria-label="Dosya ekle"
           className="p-2.5 bg-white border border-slate-200 hover:border-brand-500 text-slate-500 hover:text-brand-600 rounded-xl transition-colors shadow-2xs disabled:opacity-50"
         >
           <Paperclip className="w-4 h-4" />

@@ -79,7 +79,7 @@ describe("B15: kalori hedefi değişince makrolar", () => {
   it("profil yoksa hedef alanları ortak varsayılan hedeflerle dolar (kişisel sabit yok)", () => {
     renderWithQuery(<ProfileTargetsSection profile={undefined} />);
     expect(value("Kalori Hedefi (kcal)")).toBe(String(DEFAULT_TARGETS.calorieTarget));
-    expect(value("Üst Sınır Tavan (kcal)")).toBe(String(DEFAULT_TARGETS.calorieCeiling));
+    expect(value("Kalori tavanı (kcal)")).toBe(String(DEFAULT_TARGETS.calorieCeiling));
     expect(value("Protein Hedefi (g)")).toBe(String(DEFAULT_TARGETS.proteinTargetG));
     expect(value("Karbonhidrat (g)")).toBe(String(DEFAULT_TARGETS.carbTargetG));
     expect(value("Yağ Hedefi (g)")).toBe(String(DEFAULT_TARGETS.fatTargetG));

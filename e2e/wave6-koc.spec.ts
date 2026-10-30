@@ -129,7 +129,7 @@ test.describe("Dalga 6 · AI koç", () => {
     try {
       await page.goto("/settings#yapay-zeka");
       await page.getByLabel("Sağlayıcı").selectOption("lmstudio");
-      await page.getByLabel("Base URL").fill(original.baseUrl);
+      await page.getByLabel("Sunucu adresi (Base URL)").fill(original.baseUrl);
       await page.getByLabel("Model Adı").fill("");
       await page.getByRole("button", { name: "Bağlantıyı Test Et" }).first().click();
       await expect(page.getByText(/^Bağlantı başarılı ve kaydedildi\. Kullanılan model: mock-llama/)).toBeVisible();

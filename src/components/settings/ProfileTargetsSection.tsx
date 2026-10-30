@@ -60,7 +60,7 @@ const WEIGHT: NumberFieldDef = {
 // Profil yokken hedef alanları ortak varsayılanları gösterir (kişisel sabit sayı yok).
 const TARGETS: NumberFieldDef[] = [
   { id: "settings-field-5", label: "Kalori Hedefi (kcal)", key: "calorieTarget", fallback: DEFAULT_TARGETS.calorieTarget, parse: int, tone: "font-bold text-slate-900" },
-  { id: "settings-field-6", label: "Üst Sınır Tavan (kcal)", key: "calorieCeiling", fallback: DEFAULT_TARGETS.calorieCeiling, parse: int, tone: "font-bold text-slate-900" },
+  { id: "settings-field-6", label: "Kalori tavanı (kcal)", key: "calorieCeiling", fallback: DEFAULT_TARGETS.calorieCeiling, parse: int, tone: "font-bold text-slate-900" },
   { id: "settings-field-7", label: "Protein Hedefi (g)", key: "proteinTargetG", fallback: DEFAULT_TARGETS.proteinTargetG, parse: int, tone: "font-bold text-emerald-700" },
   { id: "settings-field-8", label: "Karbonhidrat (g)", key: "carbTargetG", fallback: DEFAULT_TARGETS.carbTargetG, parse: int, tone: "font-bold text-amber-700" },
 ];

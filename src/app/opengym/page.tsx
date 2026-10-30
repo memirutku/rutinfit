@@ -79,7 +79,7 @@ export default function OpenGymPortalPage() {
               openGym & Gelişmiş Antrenman Merkezi 🏋️‍♂️
             </h2>
             <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800">
-              ⚡ Tek Pencere / Yerel-First
+              ⚡ Tek pencere · yerel çalışır
             </span>
           </div>
           <p className="text-sm text-slate-500 mt-0.5">

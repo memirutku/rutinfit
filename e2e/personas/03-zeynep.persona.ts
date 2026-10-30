@@ -19,7 +19,7 @@ test("Zeynep: diyetisyen planı, uyum ve rapor", async ({ page, request }) => {
   await step("Diyetisyenin hedefini girer", "Ayarlarda kalori hedefini diyetisyenin verdiği 1500 kcal yapar", async () => {
     await page.getByRole("link", { name: "Ayarlar" }).click();
     await page.getByLabel("Kalori Hedefi (kcal)").fill("1500");
-    await page.getByLabel("Üst Sınır Tavan (kcal)").fill("1600");
+    await page.getByLabel("Kalori tavanı (kcal)").fill("1600");
     await page.getByLabel(/Koça notlar/).fill("Laktoz intoleransım var. Diyetisyenim 2 haftada bir kontrol ediyor.");
     await page.getByRole("button", { name: "Hedefleri Güncelle" }).click();
     await expect(page.getByText(/başarıyla güncellendi/)).toBeVisible();

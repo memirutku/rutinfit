@@ -25,7 +25,7 @@ export function CoachHeader({ conversations, conversationId, onSelect, onNew, st
           {statusBadge}
         </div>
         <p className="text-sm text-slate-500 mt-0.5">
-          Ollama / LM Studio ile yerel çalışır; çok formatlı dosya yükleme ve 2 aşamalı onaylı eylem motoru içerir.
+          Ollama / LM Studio ile bu bilgisayarda çalışır. Dosya yükleyebilirsin; koçun önerdiği değişiklikler senin onayınla uygulanır.
         </p>
       </div>
 

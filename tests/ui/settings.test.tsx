@@ -306,7 +306,7 @@ describe("Ayarlar — yapay zekâ ve openGym bağlantı testi", () => {
       ["/api/ai/test-connection", () => jsonResponse({ success: true, message: "Bağlantı kuruldu.", models: ["llama3.2", "mistral"] })],
     ]);
     fireEvent.change(await screen.findByLabelText("Sağlayıcı"), { target: { value: "lmstudio" } });
-    expect(screen.getByLabelText<HTMLInputElement>("Base URL").value).toBe("http://127.0.0.1:1234/v1");
+    expect(screen.getByLabelText<HTMLInputElement>("Sunucu adresi (Base URL)").value).toBe("http://127.0.0.1:1234/v1");
     fireEvent.click(screen.getAllByRole("button", { name: "Bağlantıyı Test Et" })[0]);
 
     expect(await screen.findByText("Bağlantı kuruldu.")).toBeTruthy();

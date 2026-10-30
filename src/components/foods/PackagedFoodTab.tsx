@@ -81,7 +81,7 @@ export function PackagedFoodTab({
             Veriler <strong>Open Food Facts</strong> açık veritabanından (ODbL lisansı) canlı veya yerel önbellekten
             sorgulanır.
           </span>
-          <span className="font-semibold text-slate-500">Yerel-First Cache Aktif</span>
+          <span className="font-semibold text-slate-500">Yerel önbellek açık</span>
         </div>
       </div>
 
