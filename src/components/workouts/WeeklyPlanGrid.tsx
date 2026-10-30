@@ -1,7 +1,9 @@
 "use client";
 
 import { useId } from "react";
-import type { WorkoutTemplate } from "@/lib/schemas/workout";
+import { startOfWeek } from "@/lib/date-utils";
+import type { WorkoutSession, WorkoutTemplate } from "@/lib/schemas/workout";
+import { describeTemplate, sessionMatchesTemplate, weekdayOf } from "@/lib/workout-day";
 import type { SessionTemplate } from "./session-form";
 
 export const DAYS_OF_WEEK = [
@@ -14,13 +16,9 @@ export const DAYS_OF_WEEK = [
   { day: 7, name: "Pazar" },
 ] as const;
 
-/** "YYYY-MM-DD" gününün haftadaki yeri: 1 = Pazartesi ... 7 = Pazar (saat diliminden bağımsız). */
-export function weekdayOf(dateStr: string): number {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).getUTCDay() || 7;
-}
-
 /** "YYYY-MM-DD" gününün Türkçe adı ("Perşembe"). */
+export { weekdayOf };
+
 export const dayNameOf = (dateStr: string) => DAYS_OF_WEEK.find((d) => d.day === weekdayOf(dateStr))?.name ?? "";
 
 /** Kolay koşu günü tek "egzersiz" olarak kaydedilir (tekrar = dakika). */
@@ -45,10 +43,19 @@ interface WeeklyPlanGridProps {
   onPickProgram?: () => void;
   /** F28: metinden antrenman penceresini açar. */
   onTextEntry?: () => void;
+  /** B20: bugün (YYYY-MM-DD); bugünün kartı vurgulanır. */
+  today?: string;
+  /** B20: son seanslar; bu hafta yapılan şablon işaretlenir. */
+  sessions?: WorkoutSession[];
 }
 
-/** Haftalık 3+2+2 planı: her gün için şablon kartı ve seans başlatma düğmeleri. */
-export function WeeklyPlanGrid({ templates, loading, onStart, onEdit, onPickProgram, onTextEntry }: WeeklyPlanGridProps) {
+/** Haftalık plan: her gün için şablon kartı ve seans başlatma düğmeleri. */
+export function WeeklyPlanGrid({ templates, loading, onStart, onEdit, onPickProgram, onTextEntry, today, sessions = [] }: WeeklyPlanGridProps) {
+  const todayWeekday = today ? weekdayOf(today) : null;
+  // B20: bu hafta (Pazartesi'den bugüne) tamamlanan seanslar.
+  const weekStart = today ? startOfWeek(today) : null;
+  const thisWeek = weekStart ? sessions.filter((x) => x.completed && x.date >= weekStart && x.date <= today!) : [];
+  const doneThisWeek = (t: WorkoutTemplate) => thisWeek.some((x) => sessionMatchesTemplate(x, t));
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -85,9 +92,20 @@ export function WeeklyPlanGrid({ templates, loading, onStart, onEdit, onPickProg
           // B18: "Plana ekle" ile aynı güne eklenen şablonların hepsi görünür (yalnız ilki değil).
           const dayTemplates = templates.filter((t) => t.dayOfWeek === d.day);
           const edit = onEdit ? (t: WorkoutTemplate | null) => onEdit(t, d.day) : undefined;
+          const isToday = d.day === todayWeekday;
           return dayTemplates.length === 0
-            ? [<DayTemplateCard key={d.day} dayName={d.name} onStart={onStart} onEdit={edit} />]
-            : dayTemplates.map((t) => <DayTemplateCard key={t.id} dayName={d.name} template={t} onStart={onStart} onEdit={edit} />);
+            ? [<DayTemplateCard key={d.day} dayName={d.name} isToday={isToday} onStart={onStart} onEdit={edit} />]
+            : dayTemplates.map((t) => (
+                <DayTemplateCard
+                  key={t.id}
+                  dayName={d.name}
+                  template={t}
+                  isToday={isToday}
+                  doneThisWeek={doneThisWeek(t)}
+                  onStart={onStart}
+                  onEdit={edit}
+                />
+              ));
         })}
       </div>
     </div>
@@ -97,20 +115,33 @@ export function WeeklyPlanGrid({ templates, loading, onStart, onEdit, onPickProg
 interface DayTemplateCardProps {
   dayName: string;
   template?: WorkoutTemplate;
+  /** B20: bugünün kartı vurgulanır. */
+  isToday?: boolean;
+  /** B20: bu hafta yapıldı. */
+  doneThisWeek?: boolean;
   onStart: StartSession;
   onEdit?: (template: WorkoutTemplate | null) => void;
 }
 
-export function DayTemplateCard({ dayName, template, onStart, onEdit }: DayTemplateCardProps) {
+export function DayTemplateCard({ dayName, template, isToday = false, doneThisWeek = false, onStart, onEdit }: DayTemplateCardProps) {
   const isStrength = template?.type === "strength";
   const isRun = template?.type === "easy_run";
   const headingId = useId();
 
   return (
-    <article aria-labelledby={headingId} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+    <article
+      aria-labelledby={headingId}
+      aria-current={isToday ? "date" : undefined}
+      className={`bg-white p-5 rounded-2xl border shadow-sm flex flex-col justify-between ${
+        isToday ? "border-brand-500 ring-2 ring-brand-200" : "border-slate-200"
+      }`}
+    >
       <div>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{dayName}</span>
+          <span className={`text-xs font-bold uppercase tracking-wider ${isToday ? "text-brand-700" : "text-slate-400"}`}>
+            {dayName}
+            {isToday && <span className="ml-1.5 normal-case tracking-normal px-1.5 py-0.5 rounded-md bg-brand-600 text-white">Bugün</span>}
+          </span>
           <span
             className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
               isStrength
@@ -139,7 +170,10 @@ export function DayTemplateCard({ dayName, template, onStart, onEdit }: DayTempl
             </button>
           )}
         </div>
-        <p className="text-xs text-slate-500 mb-3 leading-relaxed">{template?.notes || "Toparlanma günü."}</p>
+        <p className="text-xs text-slate-500 mb-3 leading-relaxed">{describeTemplate(template)}</p>
+        {doneThisWeek && (
+          <p className="mb-3 inline-block text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Bu hafta yapıldı ✓</p>
+        )}
 
         {/* Hareketler listesi */}
         {template?.exercises && template.exercises.length > 0 && (

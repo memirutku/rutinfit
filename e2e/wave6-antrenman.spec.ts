@@ -148,4 +148,63 @@ test.describe("Dalga 6 · Antrenman", () => {
     const after = (await (await api.get(`/api/workouts?date=${yesterday}`)).json()).sessions;
     expect(after.some((x: { name: string }) => x.name === renamed)).toBe(false);
   });
+
+  test("B20: pano yapılan şablona göre 'Tamamlandı' der; haftalık planda bugün vurgulanır", async ({ page, api }) => {
+    const today = todayStr();
+    const weekday = new Date(`${today}T12:00:00Z`).getUTCDay() || 7;
+    const otherDay = (weekday % 7) + 1; // bugün olmayan bir gün
+    const name = uniq("E2E Üst A");
+    const created = await api.post("/api/workouts/templates", {
+      data: {
+        name,
+        type: "strength",
+        dayOfWeek: otherDay,
+        targetDurationMinutes: 45,
+        exercises: [{ exerciseName: "Overhead Press", targetSets: 2, repMin: 5, repMax: 8, restSeconds: 120 }],
+      },
+    });
+    const templateId = (await created.json()).id;
+    let sessionId: string | undefined;
+    try {
+      await openWorkouts(page);
+      // Haftalık planda bugünün kartı vurgulu; antrenman gününe "Toparlanma" yazılmaz.
+      const todayCards = page.locator('article[aria-current="date"]');
+      await expect(todayCards.first()).toContainText("Bugün");
+      const myCard = page.getByRole("article", { name });
+      await expect(myCard).toContainText("1 hareket · 2 set: Overhead Press");
+      await expect(myCard).not.toContainText("Toparlanma");
+
+      // Bugünün değil, başka günün şablonu yapılır.
+      await myCard.getByRole("button", { name: "Başla (45 dk)" }).click();
+      await page.getByRole("group", { name: "Overhead Press" }).getByLabel("Ağırlık:").first().fill("60");
+      await page.getByRole("group", { name: "Overhead Press" }).getByRole("button", { name: "Tamamla" }).first().click();
+      const response = page.waitForResponse((r) => isWorkoutPost(r.request()));
+      await page.getByRole("button", { name: "Antrenmanı Bitir & Kaydet" }).click();
+      await page.getByRole("button", { name: "At ve kaydet" }).click();
+      sessionId = (await (await response).json()).session.id;
+      await expect(page.getByRole("article", { name }).getByText("Bu hafta yapıldı ✓")).toBeVisible();
+
+      // Pano: bugünün planlı şablonu, bu seans yüzünden "Tamamlandı" olmaz.
+      const data = await (await api.get(`/api/workouts?date=${today}`)).json();
+      const planned = data.templates.find(
+        (t: { dayOfWeek: number; id: string; name: string }) =>
+          t.dayOfWeek === weekday && data.sessions.some((x: { templateId: string | null; completed: boolean }) => x.completed && x.templateId === t.id)
+      ) ?? data.templates.find((t: { dayOfWeek: number }) => t.dayOfWeek === weekday);
+      const plannedDone = !!planned && data.sessions.some((x: { templateId: string | null; completed: boolean }) => x.completed && x.templateId === planned.id);
+
+      await page.goto("/");
+      const card = page.getByRole("region", { name: "Günün Antrenmanı" });
+      await expect(card).toContainText(`Bugün yapılan:`);
+      await expect(card).toContainText(name);
+      await expect(card.getByRole("heading", { level: 3 })).not.toHaveText(name);
+      if (planned && planned.type !== "rest") {
+        await expect(card.getByRole("heading", { level: 3 })).toHaveText(planned.name);
+        await expect(card.getByText(plannedDone ? "Tamamlandı ✓" : "Bekliyor")).toBeVisible();
+      }
+      await expect(card).not.toContainText("19:40");
+    } finally {
+      if (sessionId) await api.delete(`/api/workouts?id=${sessionId}`);
+      await api.delete(`/api/workouts/templates?id=${templateId}`);
+    }
+  });
 });

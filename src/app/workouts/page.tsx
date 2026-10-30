@@ -135,6 +135,8 @@ export default function WorkoutsPage() {
 
           <WeeklyPlanGrid
             templates={workouts.data?.templates ?? []}
+            sessions={workouts.data?.sessions ?? NO_SESSIONS}
+            today={today}
             loading={workouts.isPending}
             onStart={startSession}
             onEdit={(template, dayOfWeek) => setEditing({ template, dayOfWeek })}

@@ -451,6 +451,31 @@ describe("küçük bileşenler", () => {
     expect(onStart).toHaveBeenCalledWith(second, false);
   });
 
+  it("B20: bugünün kartı vurgulanır; gün açıklaması şablondan gelir; bu hafta yapılan işaretlenir", () => {
+    const upper: WorkoutTemplate = { ...strength, notes: null }; // Pazartesi
+    const { container } = render(
+      <WeeklyPlanGrid
+        templates={[upper, run]}
+        loading={false}
+        onStart={vi.fn()}
+        today="2026-10-27"
+        sessions={[
+          { id: "s", date: "2026-10-26", templateId: "t-a", name: "Ağırlık A", durationMinutes: 40, rpe: 7, notes: null, completed: true, setLogs: [] },
+        ]}
+      />
+    );
+    const current = container.querySelectorAll('[aria-current="date"]');
+    expect(current).toHaveLength(1);
+    expect(current[0].textContent).toMatch(/Salı/);
+    expect(current[0].textContent).toMatch(/Bugün/);
+    const upperCard = screen.getByRole("article", { name: /Ağırlık A/ });
+    expect(upperCard.textContent).not.toMatch(/Toparlanma/);
+    expect(upperCard.textContent).toMatch(/4 hareket · 12 set: Squat, Bench Press, Barbell Row ve 1 hareket daha/);
+    expect(within(upperCard).getByText("Bu hafta yapıldı ✓")).toBeTruthy();
+    expect(screen.getByRole("article", { name: /Kolay Koşu/ }).textContent).toMatch(/30 dk kolay tempo/);
+    expect(screen.getAllByRole("article", { name: "Dinlenme" })[0].textContent).toMatch(/Dinlenme ve toparlanma/);
+  });
+
   it("WeeklyPlanGrid yüklenirken durum mesajı gösterir", () => {
     render(<WeeklyPlanGrid templates={[]} loading onStart={vi.fn()} />);
     expect(screen.getByRole("status").textContent).toContain("Antrenman planı yükleniyor");
