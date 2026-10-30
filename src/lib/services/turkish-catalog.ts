@@ -24,7 +24,8 @@ export async function installTurkishCatalogTx(tx: Tx) {
     }
     const { source, ...values } = i;
     const created = await tx.foodItem.create({
-      data: { ...values, basisGrams: 100, source: source ?? "USDA FDC (yaklaşık)", confidence: "Yüksek" },
+      // Birebir karşılığı olmayan (yakın karşılık) kalemler "Tahmini" güvenle eklenir.
+      data: { ...values, basisGrams: 100, source: source ?? "USDA FDC (yaklaşık)", confidence: source?.includes("yakın karşılık") ? "Tahmini" : "Yüksek" },
     });
     foodIds.set(i.name, created.id);
     foodsCreated++;

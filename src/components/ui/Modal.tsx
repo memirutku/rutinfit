@@ -10,13 +10,18 @@ interface ModalProps {
   description?: string;
   children: ReactNode;
   widthClass?: string;
+  /**
+   * true (varsayılan): açılınca ilk form alanına odaklanır. Uzun listelerde (ör. program seçici)
+   * false verilir; odak üstteki ilk öğeye gider, sayfa listenin dibine kaymaz.
+   */
+  focusFirstField?: boolean;
 }
 
 /**
  * Erişilebilir modal: role="dialog", aria-modal, başlık bağlantısı, Esc ile kapanma,
  * açılınca ilk alana odak, kapanınca odağın önceki öğeye dönmesi, Tab ile içeride dolaşma.
  */
-export function Modal({ open, onClose, title, description, children, widthClass = "max-w-md" }: ModalProps) {
+export function Modal({ open, onClose, title, description, children, widthClass = "max-w-md", focusFirstField = true }: ModalProps) {
   const titleId = useId();
   const descId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -33,7 +38,7 @@ export function Modal({ open, onClose, title, description, children, widthClass 
           'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
         ) ?? []
       );
-    (focusables().find((el) => el.tagName !== "BUTTON") ?? focusables()[0])?.focus();
+    ((focusFirstField ? focusables().find((el) => el.tagName !== "BUTTON") : undefined) ?? focusables()[0])?.focus();
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {

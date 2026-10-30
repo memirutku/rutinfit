@@ -47,7 +47,7 @@ export function ProgramPicker({ open, onClose, onBuildOwn }: ProgramPickerProps)
   };
 
   return (
-    <Modal
+    <Modal focusFirstField={false}
       open={open}
       onClose={onClose}
       title="Hazır programlar"
