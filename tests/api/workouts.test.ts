@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { GET, POST } from "@/app/api/workouts/route";
+import { DELETE, GET, POST, PUT } from "@/app/api/workouts/route";
 import { GET as lastSetsGet } from "@/app/api/workouts/last-sets/route";
 import { prisma } from "@/lib/prisma";
 import { callRoute } from "../helpers/route";
@@ -170,5 +170,55 @@ describe("GET /api/workouts", () => {
     expect(res.status).toBe(200);
     expect(res.json.sessions).toHaveLength(1);
     expect(res.json.sessions[0].date).toBe("2026-10-19");
+  });
+});
+
+describe("B19: seans geçmişi — sayfalı liste, düzenleme ve silme", () => {
+  it("GET limit verilirse 20'den fazla seans döner; varsayılan 20; en çok 200", async () => {
+    for (let d = 1; d <= 25; d++) {
+      await prisma.workoutSession.create({ data: { date: `2026-09-${String(d).padStart(2, "0")}`, name: `S${d}` } });
+    }
+    expect((await callRoute(GET)).json.sessions).toHaveLength(20);
+    const all = await callRoute(GET, { query: { limit: 50 } });
+    expect(all.json.sessions).toHaveLength(25);
+    expect(all.json.sessions[0].date).toBe("2026-09-25");
+    expect((await callRoute(GET, { query: { limit: 5000 } })).json.sessions).toHaveLength(25);
+    expect((await callRoute(GET, { query: { limit: "x" } })).json.sessions).toHaveLength(20);
+  });
+
+  it("PUT ?id seansın tarihini, adını ve setlerini değiştirir (setler tümüyle yenilenir)", async () => {
+    const created = await callRoute(POST, {
+      body: session([
+        { exerciseName: "Squat", setNumber: 1, weightKg: 100, reps: 5 },
+        { exerciseName: "Squat", setNumber: 2, weightKg: 100, reps: 5 },
+      ]),
+    });
+    const id = created.json.session.id;
+    const res = await callRoute(PUT, {
+      method: "PUT",
+      query: { id },
+      body: { ...session([{ exerciseName: "Squat", setNumber: 1, weightKg: 102.5, reps: 4, targetRepMin: 3, targetRepMax: 5 }]), date: "2026-10-17", name: "Dünkü alt" },
+    });
+    expect(res.status).toBe(200);
+    expect(res.json).toMatchObject({ id, date: "2026-10-17", name: "Dünkü alt" });
+    const sets = await prisma.setLog.findMany({ where: { workoutSessionId: id } });
+    expect(sets.map((s) => [s.weightKg, s.reps, s.isTargetMet])).toEqual([[102.5, 4, false]]);
+  });
+
+  it("PUT geçersiz veride 400, bilinmeyen kimlikte 404; boş seansa izin vermez", async () => {
+    const id = (await callRoute(POST, { body: session(oneSet) })).json.session.id;
+    expect((await callRoute(PUT, { method: "PUT", query: { id }, body: session([]) })).status).toBe(400);
+    expect((await callRoute(PUT, { method: "PUT", query: { id }, body: { ...session(oneSet), date: "dün" } })).status).toBe(400);
+    expect((await callRoute(PUT, { method: "PUT", query: { id: "yok" }, body: session(oneSet) })).status).toBe(404);
+    expect(await prisma.setLog.count({ where: { workoutSessionId: id } })).toBe(1);
+  });
+
+  it("DELETE ?id seansı ve setlerini siler; bilinmeyen kimlikte 404", async () => {
+    const id = (await callRoute(POST, { body: session(oneSet) })).json.session.id;
+    const res = await callRoute(DELETE, { method: "DELETE", query: { id } });
+    expect(res.status).toBe(200);
+    expect(await prisma.workoutSession.count()).toBe(0);
+    expect(await prisma.setLog.count()).toBe(0);
+    expect((await callRoute(DELETE, { method: "DELETE", query: { id } })).status).toBe(404);
   });
 });

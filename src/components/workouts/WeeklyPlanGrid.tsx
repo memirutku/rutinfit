@@ -14,6 +14,15 @@ export const DAYS_OF_WEEK = [
   { day: 7, name: "Pazar" },
 ] as const;
 
+/** "YYYY-MM-DD" gününün haftadaki yeri: 1 = Pazartesi ... 7 = Pazar (saat diliminden bağımsız). */
+export function weekdayOf(dateStr: string): number {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay() || 7;
+}
+
+/** "YYYY-MM-DD" gününün Türkçe adı ("Perşembe"). */
+export const dayNameOf = (dateStr: string) => DAYS_OF_WEEK.find((d) => d.day === weekdayOf(dateStr))?.name ?? "";
+
 /** Kolay koşu günü tek "egzersiz" olarak kaydedilir (tekrar = dakika). */
 export function runSessionTemplate(template: WorkoutTemplate): SessionTemplate {
   return {

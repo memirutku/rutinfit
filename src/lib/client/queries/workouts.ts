@@ -7,6 +7,7 @@ import type {
   FinishWorkoutResponse,
   LastSetsResponse,
   TemplateInput,
+  WorkoutSession,
   WorkoutSessionInput,
   WorkoutTemplate,
   WorkoutsResponse,
@@ -48,6 +49,33 @@ export function useFinishWorkout() {
   return useMutation({
     mutationFn: (input: WorkoutSessionInput) =>
       apiFetch<FinishWorkoutResponse>("/api/workouts", { method: "POST", json: input }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
+  });
+}
+
+/** B19: seans geçmişi (en yeni önce; `limit` kadar). */
+export function useWorkoutHistory(limit: number) {
+  return useQuery({
+    queryKey: ["workouts", "history", limit] as const,
+    queryFn: async () => (await apiFetch<WorkoutsResponse>(`/api/workouts?limit=${limit}`)).sessions ?? [],
+  });
+}
+
+/** B19: geçmiş seansı düzenler (setler gönderilenle değiştirilir). */
+export function useUpdateWorkout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: WorkoutSessionInput }) =>
+      apiFetch<WorkoutSession>(`/api/workouts?id=${encodeURIComponent(id)}`, { method: "PUT", json: input }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
+  });
+}
+
+/** B19: seansı siler. */
+export function useDeleteWorkout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch(`/api/workouts?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
   });
 }

@@ -15,6 +15,13 @@ async function openWorkouts(page: Page) {
   await lastSets;
 }
 
+/** "YYYY-MM-DD" ± gün (saat diliminden bağımsız takvim aritmetiği). */
+function shiftDay(date: string, days: number): string {
+  const [y, m, d] = date.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+const trDate = (iso: string) => iso.split("-").reverse().join(".");
+
 const isWorkoutPost = (r: Request) => r.method() === "POST" && new URL(r.url()).pathname === "/api/workouts";
 
 test.describe("Dalga 6 · Antrenman", () => {
@@ -93,5 +100,52 @@ test.describe("Dalga 6 · Antrenman", () => {
     } finally {
       await api.delete(`/api/workouts/templates?id=${templateId}`);
     }
+  });
+
+  test("B19: metinden eklenen dünkü antrenman düne yazılır; geçmişte görülür, düzenlenir ve onayla silinir", async ({ page, api }) => {
+    const yesterday = shiftDay(todayStr(), -1);
+    const name = uniq("E2E Dünkü");
+    await openWorkouts(page);
+    await page.getByRole("button", { name: "Metinden ekle" }).click();
+    const dialog = page.getByRole("dialog", { name: "Metinden antrenman ekle" });
+    await expect(dialog.getByLabel("Tarih")).toHaveValue(todayStr());
+    await dialog.getByLabel("Antrenman metni").fill("squat 3x8 80 kg");
+    await dialog.getByLabel("Seans adı").fill(name);
+    await dialog.getByLabel("Tarih").fill(yesterday);
+    await dialog.getByRole("button", { name: "Seans olarak kaydet (3 set)" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByRole("status").filter({ hasText: `${trDate(yesterday)} tarihine 3 set kaydedildi.` })).toBeVisible();
+
+    const onYesterday = (await (await api.get(`/api/workouts?date=${yesterday}`)).json()).sessions;
+    expect(onYesterday.some((x: { name: string }) => x.name === name)).toBe(true);
+    const onToday = (await (await api.get(`/api/workouts?date=${todayStr()}`)).json()).sessions;
+    expect(onToday.some((x: { name: string }) => x.name === name)).toBe(false);
+
+    const history = page.getByRole("list", { name: "Seans geçmişi" });
+    const row = history.getByRole("listitem").filter({ hasText: name });
+    await expect(row).toContainText(trDate(yesterday));
+    await expect(row).toContainText("Dün");
+
+    // Düzenle: ad ve bir setin ağırlığı
+    const label = `${name} · ${trDate(yesterday)}`;
+    await page.getByRole("button", { name: `${label} seansını düzenle` }).click();
+    const edit = page.getByRole("dialog", { name: "Seansı düzenle" });
+    const renamed = `${name} düzeltildi`;
+    await edit.getByLabel("Seans adı").fill(renamed);
+    await edit.getByLabel("Squat 1. set ağırlık").fill("82,5");
+    await edit.getByRole("button", { name: "Değişiklikleri kaydet" }).click();
+    await expect(edit).toBeHidden();
+    const renamedLabel = `${renamed} · ${trDate(yesterday)}`;
+    await page.getByRole("button", { name: `${renamedLabel} setlerini gör` }).click();
+    await expect(page.getByRole("list", { name: `${renamedLabel} setleri` })).toContainText("82,5 kg × 8");
+
+    // Sil: önce onay sorulur
+    await page.getByRole("button", { name: `${renamedLabel} seansını sil` }).click();
+    const confirm = page.getByRole("dialog", { name: "Seans silinsin mi?" });
+    await expect(confirm).toContainText(trDate(yesterday));
+    await confirm.getByRole("button", { name: "Sil" }).click();
+    await expect(history.getByRole("listitem").filter({ hasText: renamed })).toHaveCount(0);
+    const after = (await (await api.get(`/api/workouts?date=${yesterday}`)).json()).sessions;
+    expect(after.some((x: { name: string }) => x.name === renamed)).toBe(false);
   });
 });

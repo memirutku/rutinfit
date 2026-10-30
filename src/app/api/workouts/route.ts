@@ -7,6 +7,31 @@ import { isWorkingSet } from "@/lib/set-types";
 import { detectPlateau, exerciseHistory } from "@/lib/strength";
 import { normalizeName } from "@/lib/text";
 
+const DEFAULT_SESSIONS = 20;
+const MAX_SESSIONS = 200;
+
+/** B17: tamamlanmamış setler atılır; hiç tamamlanmış set yoksa seans yazılmaz. */
+function completedSetsOnly<T extends { setLogs: Array<{ completed?: boolean }> }>(input: T): T {
+  const setLogs = input.setLogs.filter((s) => s.completed !== false);
+  if (setLogs.length === 0) {
+    throw new HttpError("Kaydedilecek tamamlanmış set yok. En az bir seti 'Tamamla' ile işaretleyin.", 400);
+  }
+  return { ...input, setLogs };
+}
+
+type ValidatedSet = ReturnType<typeof WorkoutSessionInputSchema.parse>["setLogs"][number];
+
+/** Kaydedilecek set satırı. F19: ısınma seti hedef sayılmaz. */
+const setRow = (set: ValidatedSet) => ({
+  exerciseName: set.exerciseName,
+  setNumber: set.setNumber,
+  weightKg: set.weightKg,
+  reps: set.reps,
+  rpe: set.rpe ?? null,
+  setType: set.setType,
+  isTargetMet: isWorkingSet(set.setType) && set.reps >= set.targetRepMax,
+});
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -25,6 +50,9 @@ export async function GET(req: Request) {
     if (date) {
       where.date = date;
     }
+    // B19: seans geçmişi daha fazla seans isteyebilir (varsayılan 20, en çok 200).
+    const limitParam = Number(searchParams.get("limit"));
+    const take = Number.isInteger(limitParam) && limitParam > 0 ? Math.min(limitParam, MAX_SESSIONS) : DEFAULT_SESSIONS;
 
     const sessions = await prisma.workoutSession.findMany({
       where,
@@ -34,8 +62,8 @@ export async function GET(req: Request) {
         },
         template: true,
       },
-      orderBy: { date: "desc" },
-      take: 20,
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+      take,
     });
 
     return NextResponse.json({ templates, sessions });
@@ -64,12 +92,8 @@ async function plateauFor(exerciseName: string) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const parsed = WorkoutSessionInputSchema.parse(body);
     // B17: tamamlanmamış setler kaydedilmez; hiç tamamlanmış set yoksa seans da yazılmaz.
-    const validated = { ...parsed, setLogs: parsed.setLogs.filter((s) => s.completed !== false) };
-    if (validated.setLogs.length === 0) {
-      throw new HttpError("Kaydedilecek tamamlanmış set yok. En az bir seti 'Tamamla' ile işaretleyin.", 400);
-    }
+    const validated = completedSetsOnly(WorkoutSessionInputSchema.parse(body));
 
     const session = await prisma.workoutSession.create({
       data: {
@@ -80,18 +104,7 @@ export async function POST(req: Request) {
         rpe: validated.rpe || null,
         notes: validated.notes || null,
         completed: validated.completed,
-        setLogs: {
-          create: validated.setLogs.map((set) => ({
-            exerciseName: set.exerciseName,
-            setNumber: set.setNumber,
-            weightKg: set.weightKg,
-            reps: set.reps,
-            rpe: set.rpe ?? null,
-            setType: set.setType,
-            // F19: ısınma seti hedef sayılmaz.
-            isTargetMet: isWorkingSet(set.setType) && set.reps >= set.targetRepMax,
-          })),
-        },
+        setLogs: { create: validated.setLogs.map(setRow) },
       },
       include: {
         setLogs: true,
@@ -140,5 +153,46 @@ export async function POST(req: Request) {
     );
   } catch (error) {
     return apiError(error, "Antrenman kaydedilemedi", "Workouts POST");
+  }
+}
+
+/** B19: geçmiş seansı düzenler (tarih, ad, süre, not ve setler; setler gönderilenle değiştirilir). */
+export async function PUT(req: Request) {
+  try {
+    const id = new URL(req.url).searchParams.get("id") || "";
+    const validated = completedSetsOnly(WorkoutSessionInputSchema.parse(await req.json()));
+    if (!(await prisma.workoutSession.findUnique({ where: { id }, select: { id: true } }))) {
+      throw new HttpError("Seans bulunamadı.", 404);
+    }
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.setLog.deleteMany({ where: { workoutSessionId: id } });
+      return tx.workoutSession.update({
+        where: { id },
+        data: {
+          date: validated.date,
+          name: validated.name,
+          durationMinutes: validated.durationMinutes,
+          rpe: validated.rpe || null,
+          notes: validated.notes || null,
+          setLogs: { create: validated.setLogs.map(setRow) },
+        },
+        include: { setLogs: { orderBy: [{ exerciseName: "asc" }, { setNumber: "asc" }] } },
+      });
+    });
+    return NextResponse.json(updated);
+  } catch (error) {
+    return apiError(error, "Seans güncellenemedi", "Workouts PUT");
+  }
+}
+
+/** B19: seansı ve setlerini siler. */
+export async function DELETE(req: Request) {
+  try {
+    const id = new URL(req.url).searchParams.get("id") || "";
+    const res = await prisma.workoutSession.deleteMany({ where: { id } });
+    if (res.count === 0) throw new HttpError("Seans bulunamadı.", 404);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return apiError(error, "Seans silinemedi", "Workouts DELETE");
   }
 }

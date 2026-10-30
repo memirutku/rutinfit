@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useCountdown } from "@/hooks/useCountdown";
+import { useTimedMessage } from "@/hooks/useTimedMessage";
 import { useToday } from "@/hooks/useToday";
 import { errorMessage } from "@/lib/client/api";
 import { useFinishWorkout, useLastSets, useWorkouts } from "@/lib/client/queries/workouts";
@@ -18,6 +19,7 @@ import { ProgressionFeedbackPanel } from "@/components/workouts/ProgressionFeedb
 import { DraftResumeBanner } from "@/components/workouts/DraftResumeBanner";
 import { ActiveSessionForm } from "@/components/workouts/ActiveSessionForm";
 import { WeeklyPlanGrid } from "@/components/workouts/WeeklyPlanGrid";
+import { SessionHistory } from "@/components/workouts/SessionHistory";
 import { useWorkoutDraft } from "@/components/workouts/useWorkoutDraft";
 import {
   buildSessionForm,
@@ -46,6 +48,8 @@ export default function WorkoutsPage() {
   const [pickingProgram, setPickingProgram] = useState(false);
   const [textEntry, setTextEntry] = useState(false);
   const [editing, setEditing] = useState<{ template: WorkoutTemplate | null; dayOfWeek: number } | null>(null);
+  // B19: metinden eklenen seansın onayı
+  const savedNote = useTimedMessage<string>(8000);
   const submitting = useRef(false);
 
   // Kaldığın Yerden Devam Etme: aktif seans her değiştiğinde taslak kaydedilir
@@ -107,6 +111,11 @@ export default function WorkoutsPage() {
 
       {tab === "workouts" && (
         <>
+          {savedNote.message && (
+            <p role="status" className="text-sm font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+              {savedNote.message}
+            </p>
+          )}
           {draft.savedDraft && !active && (
             <DraftResumeBanner draft={draft.savedDraft} onResume={resumeDraft} onDiscard={draft.discard} />
           )}
@@ -132,7 +141,8 @@ export default function WorkoutsPage() {
             onPickProgram={() => setPickingProgram(true)}
             onTextEntry={() => setTextEntry(true)}
           />
-          <TextWorkoutModal open={textEntry} date={today} onClose={() => setTextEntry(false)} />
+          <SessionHistory today={today} />
+          <TextWorkoutModal open={textEntry} date={today} onClose={() => setTextEntry(false)} onSaved={(m) => savedNote.show(m)} />
           <ProgramPicker open={pickingProgram} onClose={() => setPickingProgram(false)} />
           <TemplateEditor
             open={editing !== null}
