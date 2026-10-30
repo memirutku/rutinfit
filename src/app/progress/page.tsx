@@ -24,6 +24,7 @@ import { AdaptiveTdeeCard } from "@/components/progress/AdaptiveTdeeCard";
 import { CheckinCard } from "@/components/progress/CheckinCard";
 import { BodyMetricsSection } from "@/components/progress/BodyMetricsSection";
 import { PhotosSection } from "@/components/progress/PhotosSection";
+import { AppleHealthSection } from "@/components/progress/AppleHealthSection";
 import { VolumeSection } from "@/components/progress/VolumeSection";
 
 export default function ProgressPage() {
@@ -268,6 +269,9 @@ export default function ProgressPage() {
       {/* F16: Vücut ölçüleri, sağlık metrikleri ve fotoğraflar */}
       <BodyMetricsSection today={getLocalDateString()} />
       <PhotosSection />
+
+      {/* F62: Apple Sağlık (salt okunur) */}
+      <AppleHealthSection />
 
       {/* F23: Güç gelişimi ve rekorlar */}
       <StrengthSection />

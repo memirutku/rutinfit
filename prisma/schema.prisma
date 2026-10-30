@@ -378,6 +378,23 @@ model Supplement {
   updatedAt  DateTime @updatedAt
 }
 
+/// F62: Apple Sağlık'tan içe aktarılan günlük özetler ve antrenmanlar (salt okunur; kullanıcının
+/// kendi kilo/kardiyo kayıtlarına eklenmez). key: "steps:2026-10-01", "workout:<başlangıç>:<tür>".
+model HealthRecord {
+  id         String   @id @default(cuid())
+  key        String   @unique
+  type       String // steps, active_kcal, resting_hr, weight_kg, workout
+  date       String // YYYY-MM-DD
+  value      Float
+  unit       String
+  source     String
+  detail     String? // JSON (antrenman: tür, süre, mesafe, kalori)
+  importedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([type, date])
+}
+
 /// F14: Aralıklı oruç kayıtları.
 model FastingSession {
   id          String    @id @default(cuid())
