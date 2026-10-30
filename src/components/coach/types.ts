@@ -92,6 +92,10 @@ export interface CoachMessage {
   proposal?: CardProposal;
   isError?: boolean;
   fileIds?: string[];
+  /** F56: profesyonel desteğe yönlendirme notu. */
+  safetyNotice?: string;
+  /** F58: metin bir dil modelinden geldi (etiketlenir). */
+  aiGenerated?: boolean;
 }
 
 export interface AttachedFile {

@@ -43,6 +43,39 @@ describe("POST /api/ai/chat", () => {
     expect(await prisma.aIConversation.count()).toBe(0);
   });
 
+  it("F56: kırmızı bayraklı mesajda yanıt güvenlik notu taşır ve modele güvenlik bölümü gider", async () => {
+    llm.queueReply("Seni dinliyorum.");
+    const res = await callRoute(POST, {
+      body: { messages: [{ role: "user", content: "Yedikten sonra kendimi kusturuyorum, daha hızlı zayıflamak istiyorum" }] },
+    });
+    expect(res.status).toBe(200);
+    expect(res.json.safetyNotice).toMatch(/112/);
+    const sent = llm.requests.find((r) => r.path.endsWith("/chat/completions"))!;
+    expect(sent.body.messages[0].content).toContain("GÜVENLİK UYARISI");
+
+    llm.queueReply("Tamam.");
+    const normal = await callRoute(POST, { body: { messages: [{ role: "user", content: "Bugün ne yesem?" }] } });
+    expect(normal.json.safetyNotice).toBeUndefined();
+  });
+
+  it("F58: koç kapalıysa modele istek gitmez, sohbet kaydedilmez ve açıklayıcı yanıt döner", async () => {
+    await prisma.aISettings.update({ where: { id: "default-ai" }, data: { coachEnabled: false } });
+    const res = await callRoute(POST, { body: { messages: [{ role: "user", content: "Merhaba" }] } });
+    expect(res.status).toBe(200);
+    expect(res.json).toMatchObject({ isError: true, coachDisabled: true });
+    expect(res.json.reply).toMatch(/kapalı/);
+    expect(llm.requests).toHaveLength(0);
+    expect(await prisma.aIConversation.count()).toBe(0);
+  });
+
+  it("F58: seçilen ton sistem istemine yansır", async () => {
+    await prisma.aISettings.update({ where: { id: "default-ai" }, data: { tone: "brief" } });
+    llm.queueReply("Tamam.");
+    await callRoute(POST, { body: { messages: [{ role: "user", content: "Selam" }] } });
+    const sent = llm.requests.find((r) => r.path.endsWith("/chat/completions"))!;
+    expect(sent.body.messages[0].content).toMatch(/en fazla 3 cümle/);
+  });
+
   it("sohbeti kaydeder, modele sistem promptu + kullanıcı mesajını gönderir", async () => {
     llm.queueReply("Bugün protein hedefine yakınsın.");
     const res = await callRoute(POST, {

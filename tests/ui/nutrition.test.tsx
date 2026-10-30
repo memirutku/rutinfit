@@ -206,6 +206,32 @@ describe("MealPlanTab", () => {
   });
 });
 
+describe("F78: plana uyum", () => {
+  it("planlı öğünde uygulandı/kısmen/atlandı işaretlenir; aynı düğme işareti kaldırır; haftalık özet görünür", async () => {
+    const s = stubFetch([
+      ["/api/meal-plans/adherence", (_u, init) =>
+        init?.method === "PATCH" ? jsonResponse({ id: "pm1" }) : jsonResponse({ planned: 6, marked: 4, done: 3, partial: 1, skipped: 0, percent: 88 })],
+      ["/api/meal-plans", () => jsonResponse([{ ...bulgurPlan, meals: [{ ...bulgurPlan.meals[0], adherence: "done" }] }])],
+    ]);
+    restore = s.restore;
+    renderWithQuery(<MealPlanHarness onMessage={vi.fn()} />);
+    expect(await screen.findByText(/Bu hafta plana uyum: %88/)).toBeTruthy();
+    const heading = await screen.findByRole("heading", { name: "Bulgur Kasesi" });
+    const card = heading.parentElement as HTMLElement;
+    expect(within(card).getByRole("button", { name: "Uygulandı" }).getAttribute("aria-pressed")).toBe("true");
+
+    fireEvent.click(within(card).getByRole("button", { name: "Kısmen" }));
+    await waitFor(() => expect(s.calls.filter((c) => c.init?.method === "PATCH")).toHaveLength(1));
+    fireEvent.click(within(card).getByRole("button", { name: "Uygulandı" }));
+    await waitFor(() => expect(s.calls.filter((c) => c.init?.method === "PATCH")).toHaveLength(2));
+    const bodies = s.calls.filter((c) => c.init?.method === "PATCH").map((c) => JSON.parse(String(c.init?.body)));
+    expect(bodies).toEqual([
+      { plannedMealId: bulgurPlan.meals[0].id, adherence: "partial" },
+      { plannedMealId: bulgurPlan.meals[0].id, adherence: null },
+    ]);
+  });
+});
+
 describe("PlannedMealCard", () => {
   it("plan yokken rehber örneğini ve hedefleri gösterir; çarpan düğmeleri bildirir", () => {
     const onMultiplierChange = vi.fn();

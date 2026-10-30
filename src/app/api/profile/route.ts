@@ -3,6 +3,7 @@ import { UpdateProfileSchema } from "@/lib/schemas/profile";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
 import { DEFAULT_TARGETS } from "@/lib/constants";
+import { checkCalorieTarget } from "@/lib/safety";
 
 export async function GET() {
   try {
@@ -21,7 +22,8 @@ export async function GET() {
           ...DEFAULT_TARGETS,
           wakeTime: "06:00",
           workdayHomeTime: "19:30",
-          isOnboarded: true,
+          // F09: yeni kurulumda pano kurulum sihirbazını açar.
+          isOnboarded: false,
         },
       });
     }
@@ -35,7 +37,13 @@ export async function GET() {
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
-    const validated = UpdateProfileSchema.parse(body);
+    const { acknowledgeLowCalorie, ...validated } = UpdateProfileSchema.parse(body);
+
+    // F56: taban altı hedef yalnız açık onayla kaydedilir.
+    const check = checkCalorieTarget(validated.sex, validated.calorieTarget);
+    if (!check.ok && !acknowledgeLowCalorie) {
+      return NextResponse.json({ error: check.message, code: "LOW_CALORIE", floor: check.floor }, { status: 422 });
+    }
 
     const updated = await prisma.userProfile.upsert({
       where: { id: "default-user" },

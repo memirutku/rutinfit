@@ -23,6 +23,29 @@ describe("/api/foods", () => {
     expect((await callRoute(foodsGet, { query: { search: "inek" } })).json.map((f: any) => f.name)).toEqual(["İnek Sütü"]);
   });
 
+  it("F02: aramada Türkçe karakter gerekmez; sort=usage son kullanılanları öne alır", async () => {
+    const milk = await createFood({ name: "Süt" });
+    await createFood({ name: "İnek Sütü" });
+    const oats = await createFood({ name: "Yulaf" });
+    expect((await callRoute(foodsGet, { query: { search: "sut" } })).json.map((f: any) => f.name)).toEqual(["Süt", "İnek Sütü"]);
+
+    const today = new Date().toISOString().slice(0, 10);
+    for (let i = 0; i < 3; i++) {
+      await prisma.foodLog.create({
+        data: { date: today, time: "08:00", mealType: "breakfast", foodItemId: oats.id, name: "Yulaf", grams: 50, caloriesSnapshot: 1, proteinSnapshot: 1, carbsSnapshot: 1, fatSnapshot: 1 },
+      });
+    }
+    const byUsage = (await callRoute(foodsGet, { query: { sort: "usage" } })).json.map((f: any) => f.id);
+    expect(byUsage[0]).toBe(oats.id);
+    expect(byUsage).toContain(milk.id);
+  });
+
+  it("F80: listeyi Türk alfabesine göre sıralar (Ç, I/İ, Ş yerinde)", async () => {
+    for (const name of ["Zeytin", "Şeftali", "İncir", "Ispanak", "Çilek", "Elma"]) await createFood({ name });
+    const names = (await callRoute(foodsGet)).json.map((f: any) => f.name);
+    expect(names).toEqual(["Çilek", "Elma", "Ispanak", "İncir", "Şeftali", "Zeytin"]);
+  });
+
   it("negatif makroyu 400, yinelenen barkodu 409 ile reddeder", async () => {
     const base = { name: "X", calories: 10, proteinG: 1, carbsG: 1, fatG: 1 };
     expect((await callRoute(foodsPost, { body: { ...base, calories: -1 } })).status).toBe(400);
@@ -54,10 +77,19 @@ describe("/api/profile", () => {
     proteinTargetG: 165, fatTargetG: 60, carbTargetG: 220, wakeTime: "06:00", workdayHomeTime: "19:30",
   };
 
-  it("GET profil yoksa oluşturur", async () => {
+  it("GET profil yoksa oluşturur; F09: yeni profil kurulum sihirbazını bekler", async () => {
     const res = await callRoute(profileGet);
     expect(res.status).toBe(200);
     expect(res.json.id).toBe("default-user");
+    expect(res.json.isOnboarded).toBe(false);
+  });
+
+  it("F09: aktivite, hedef türü, hız ve hedef kilo kaydedilir; geçersiz aktivite 400", async () => {
+    const goal = { activityLevel: "moderate", goalType: "lose", goalRateKgPerWeek: 0.5, targetWeightKg: 90 };
+    const res = await callRoute(profilePut, { method: "PUT", body: { ...valid, ...goal, isOnboarded: true } });
+    expect(res.status).toBe(200);
+    expect(res.json).toMatchObject({ ...goal, isOnboarded: true });
+    expect((await callRoute(profilePut, { method: "PUT", body: { ...valid, activityLevel: "koltuk" } })).status).toBe(400);
   });
 
   it("kesirli hedefleri tam sayıya yuvarlar (Int sütun hatası vermez)", async () => {
@@ -70,6 +102,24 @@ describe("/api/profile", () => {
     expect((await callRoute(profilePut, { method: "PUT", body: { ...valid, wakeTime: "25:99" } })).status).toBe(400);
     expect((await callRoute(profilePut, { method: "PUT", body: { ...valid, sex: "x" } })).status).toBe(400);
     expect((await callRoute(profilePut, { method: "PUT", body: { ...valid, fatTargetG: 0 } })).status).toBe(200);
+  });
+
+  it("F56: tabanın altındaki kalori hedefi onaysız 422 döner; onayla kaydedilir, onay alanı saklanmaz", async () => {
+    const low = { ...valid, sex: "female", calorieTarget: 1100, calorieCeiling: 1150 };
+    const res = await callRoute(profilePut, { method: "PUT", body: low });
+    expect(res.status).toBe(422);
+    expect(res.json).toMatchObject({ code: "LOW_CALORIE" });
+    expect(res.json.error).toMatch(/1\.200 kcal/);
+
+    const ok = await callRoute(profilePut, { method: "PUT", body: { ...low, acknowledgeLowCalorie: true } });
+    expect(ok.status).toBe(200);
+    expect(ok.json.calorieTarget).toBe(1100);
+    expect(ok.json).not.toHaveProperty("acknowledgeLowCalorie");
+  });
+
+  it("F56: sayıları gizleme tercihi kaydedilir", async () => {
+    const res = await callRoute(profilePut, { method: "PUT", body: { ...valid, hideNumbers: true } });
+    expect(res.json.hideNumbers).toBe(true);
   });
 });
 
@@ -119,6 +169,8 @@ describe("Diğer uç noktalar", () => {
     const res = await callRoute(diagnosticsGet);
     expect(res.status).toBe(200);
     expect(res.json.counts.foods).toBe(1);
+    // F67: sürüm, doğrulama talimatında gösterilir.
+    expect(res.json.system.appVersion).toMatch(/^\d+\.\d+\.\d+/);
   });
 
   it("openGym kapalıyken durum çevrimdışı döner", async () => {

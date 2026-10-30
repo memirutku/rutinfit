@@ -1,7 +1,8 @@
 import { AlertCircle, Barcode, Download, Plus, Search } from "lucide-react";
 import { keyedBy } from "@/lib/client/keys";
 import type { PackagedProduct } from "@/lib/schemas/food";
-import { QUICK_SEARCH_TAGS } from "./constants";
+import { QUICK_SEARCH_TAGS, isBarcode } from "./constants";
+import { formatNumberTr } from "@/lib/format";
 
 interface PackagedFoodTabProps {
   input: string;
@@ -95,7 +96,7 @@ export function PackagedFoodTab({
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 shadow-xs"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Bu Ürünü Özel Olarak Kataloğa Ekle</span>
+            <span>{isBarcode(input) ? "Etiketten ekle" : "Bu Ürünü Özel Olarak Kataloğa Ekle"}</span>
           </button>
         </div>
       )}
@@ -148,15 +149,15 @@ function ProductCard({ product, onLogMeal, onImport }: ProductCardProps) {
         </div>
         <div>
           <div className="text-slate-400 text-[10px]">Protein</div>
-          <div className="font-bold text-emerald-600">{product.proteinG}g</div>
+          <div className="font-bold text-emerald-600">{formatNumberTr(product.proteinG)}g</div>
         </div>
         <div>
           <div className="text-slate-400 text-[10px]">Karb</div>
-          <div className="font-bold text-amber-600">{product.carbsG}g</div>
+          <div className="font-bold text-amber-600">{formatNumberTr(product.carbsG)}g</div>
         </div>
         <div>
           <div className="text-slate-400 text-[10px]">Yağ</div>
-          <div className="font-bold text-purple-600">{product.fatG}g</div>
+          <div className="font-bold text-purple-600">{formatNumberTr(product.fatG)}g</div>
         </div>
       </div>
 

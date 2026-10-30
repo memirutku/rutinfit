@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { Bot, RefreshCw } from "lucide-react";
 import { ApiError, errorMessage } from "@/lib/client/api";
-import { useTestAIConnection } from "@/lib/client/queries/system";
-import type { TestConnectionInput, TestConnectionResult } from "@/lib/schemas/system";
+import { useAISettings, useSaveAISettings, useTestAIConnection } from "@/lib/client/queries/system";
+import { COACH_TONES, COACH_TONE_KEYS, type CoachTone } from "@/lib/coach-tone";
+import type { AISettingsView, TestConnectionInput, TestConnectionResult } from "@/lib/schemas/system";
 
 type Provider = TestConnectionInput["providerType"];
 
@@ -22,11 +23,41 @@ function failureResult(error: unknown): TestConnectionResult {
   return { success: false, message };
 }
 
+/** F67: kayıtlı (kullanılan) uç noktanın yeri. */
+function EndpointBadge({ settings }: { settings: AISettingsView | undefined }) {
+  if (!settings) return null;
+  let host = settings.baseUrl;
+  try {
+    host = new URL(settings.baseUrl).host;
+  } catch {
+    // geçersiz adres olduğu gibi gösterilir
+  }
+  const [label, tone] =
+    settings.endpointKind === "local"
+      ? [`Bu bilgisayarda · ${host}`, "bg-emerald-50 text-emerald-700"]
+      : settings.endpointKind === "cloud"
+        ? [`Bulut · ${host}`, "bg-amber-50 text-amber-800"]
+        : ["Geçersiz adres", "bg-rose-50 text-rose-700"];
+  return <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${tone}`}>{label}</span>;
+}
+
 /** Yerel yapay zekâ sağlayıcısı: adres/model seçimi ve bağlantı testi. */
 export function AIProviderSection() {
+  const saved = useAISettings();
+  const saveSettings = useSaveAISettings();
   const [provider, setProvider] = useState<Provider>("ollama");
   const [baseUrl, setBaseUrl] = useState("http://127.0.0.1:11434/v1");
   const [model, setModel] = useState("llama3.2");
+  // Kayıtlı ayar gelince form ona göre kurulur (önceden her açılışta varsayılan gösteriliyordu).
+  const [seededFrom, setSeededFrom] = useState<AISettingsView | undefined>(undefined);
+  if (saved.data && saved.data !== seededFrom) {
+    setSeededFrom(saved.data);
+    setProvider(saved.data.providerType as Provider);
+    setBaseUrl(saved.data.baseUrl);
+    setModel(saved.data.modelName);
+  }
+  const coachEnabled = saved.data?.coachEnabled ?? true;
+  const tone: CoachTone = saved.data?.tone ?? "supportive";
   const test = useTestAIConnection();
   const result: TestConnectionResult | null = test.data ?? (test.isError ? failureResult(test.error) : null);
 
@@ -37,7 +68,7 @@ export function AIProviderSection() {
           <Bot className="w-5 h-5 text-indigo-600" />
           <h3 className="font-bold text-slate-900 text-base">Yerel Yapay Zekâ Sağlayıcısı</h3>
         </div>
-        <span className="text-xs bg-indigo-50 text-indigo-700 font-semibold px-2.5 py-1 rounded-full">Gizlilik Garantili</span>
+        <EndpointBadge settings={saved.data} />
       </div>
 
       <div className="space-y-4">
@@ -85,6 +116,13 @@ export function AIProviderSection() {
           </div>
         </div>
 
+        {provider === "openai" && (
+          <div role="note" className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed">
+            OpenAI seçildiğinde mesajların, profil özetin (boy, kilo, hedefler), bugünkü öğünlerin ve eklediğin dosyaların
+            içeriği OpenAI sunucularına gönderilir. Diğer tüm veriler bu bilgisayarda kalır.
+          </div>
+        )}
+
         <div className="flex items-center gap-3 pt-2">
           <button
             type="button"
@@ -95,6 +133,41 @@ export function AIProviderSection() {
             <RefreshCw className={`w-3.5 h-3.5 ${test.isPending ? "animate-spin" : ""}`} />
             <span>Bağlantıyı Test Et</span>
           </button>
+        </div>
+
+        {/* F58: koç kontrolleri */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-100">
+          <label className="flex items-start gap-2 text-xs text-slate-700">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={coachEnabled}
+              disabled={saveSettings.isPending}
+              onChange={(e) => saveSettings.mutate({ coachEnabled: e.target.checked })}
+            />
+            <span>
+              <span className="font-bold">AI koçu açık</span>
+              <span className="block text-slate-500">Kapalıyken modele hiçbir veri gönderilmez; takip özellikleri çalışmaya devam eder.</span>
+            </span>
+          </label>
+          <div>
+            <label htmlFor="settings-coach-tone" className={LABEL}>
+              Koçun üslubu
+            </label>
+            <select
+              id="settings-coach-tone"
+              value={tone}
+              disabled={saveSettings.isPending}
+              onChange={(e) => saveSettings.mutate({ tone: e.target.value as CoachTone })}
+              className={INPUT}
+            >
+              {COACH_TONE_KEYS.map((key) => (
+                <option key={key} value={key}>
+                  {COACH_TONES[key].label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {result && (

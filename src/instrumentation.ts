@@ -13,4 +13,7 @@ export async function register() {
     console.error("[migrate] Veritabanı şeması güncellenemedi:", error);
     throw error;
   }
+  // F61: zamanı gelen otomatik yedekler sunucu açıkken alınır.
+  const { startAutoBackupScheduler } = await import("./lib/services/auto-backup");
+  startAutoBackupScheduler();
 }

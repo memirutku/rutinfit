@@ -15,6 +15,8 @@ import type {
   RecipeInput,
 } from "@/lib/schemas/food";
 import type { MealPlan } from "@/lib/schemas/meal-plan";
+import type { QuickFoodId } from "@/lib/quick-foods";
+import type { Adherence, AdherenceSummary } from "@/lib/adherence";
 
 /* ----------------------------- Sorgular ----------------------------- */
 
@@ -25,12 +27,12 @@ export function useFoodLogs(date: string) {
   });
 }
 
-export function useFoods(limit: number, options: { enabled?: boolean } = {}) {
+export function useFoods(limit: number, options: { enabled?: boolean; sort?: "usage" } = {}) {
   return useQuery({
-    queryKey: queryKeys.foods.list(limit),
+    queryKey: queryKeys.foods.list(limit, options.sort),
     // Hata gövdesi (ör. { error }) diziye yazılırsa .filter çöküyordu; yalnız dizi kabul edilir.
     queryFn: async () => {
-      const data = await apiFetch<FoodItem[]>(`/api/foods?limit=${limit}`);
+      const data = await apiFetch<FoodItem[]>(`/api/foods?limit=${limit}${options.sort ? `&sort=${options.sort}` : ""}`);
       return Array.isArray(data) ? data : [];
     },
     enabled: options.enabled ?? true,
@@ -105,5 +107,37 @@ export function useSavePackagedProduct() {
     mutationFn: (input: PackagedProductSaveInput) =>
       apiFetch<{ foodItem: FoodItem; message: string }>("/api/foods/barcode", { method: "POST", json: input }),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.foods.all }),
+  });
+}
+
+/** F79: simit, ekmek dilimi gibi kalemleri tek tıkla ekler. */
+export function useQuickAddFood() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { item: QuickFoodId; count: number; date: string }) =>
+      apiFetch<FoodLog>("/api/quick-add", { method: "POST", json: input }),
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.foodLogs.all }),
+        qc.invalidateQueries({ queryKey: queryKeys.foods.all }),
+      ]),
+  });
+}
+
+/** F78: tarih aralığındaki plana uyum özeti. */
+export function useAdherenceSummary(from: string, to: string) {
+  return useQuery({
+    queryKey: queryKeys.mealPlans.adherence(from, to),
+    queryFn: () => apiFetch<AdherenceSummary>(`/api/meal-plans/adherence?from=${from}&to=${to}`),
+  });
+}
+
+/** F78: planlı öğünü işaretler; planlar ve uyum özeti tazelenir (aynı önek). */
+export function useSetAdherence() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { plannedMealId: string; adherence: Adherence | null }) =>
+      apiFetch("/api/meal-plans/adherence", { method: "PATCH", json: input }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mealPlans.all }),
   });
 }

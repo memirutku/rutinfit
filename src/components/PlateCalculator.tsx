@@ -2,6 +2,10 @@
 
 import React, { useState } from "react";
 import { AlertCircle } from "lucide-react";
+import { DecimalInput } from "@/components/ui/DecimalInput";
+import { formatNumberTr } from "@/lib/format";
+import { platesPerSide } from "@/lib/plates";
+import { warmupSets } from "@/lib/warmup";
 
 interface Plate {
   weight: number;
@@ -21,6 +25,8 @@ const AVAILABLE_PLATES: Plate[] = [
   { weight: 1.25, colorBg: "bg-zinc-400", colorBorder: "border-zinc-500", textColor: "text-slate-900", heightPx: 36 },
 ];
 
+const PLATE_STYLE = new Map(AVAILABLE_PLATES.map((p) => [p.weight, p]));
+
 export function PlateCalculator() {
   const [targetWeight, setTargetWeight] = useState<number>(100);
   const [barWeight, setBarWeight] = useState<number>(20);
@@ -30,33 +36,16 @@ export function PlateCalculator() {
   const [oneRmWeight, setOneRmWeight] = useState<number>(80);
   const [oneRmReps, setOneRmReps] = useState<number>(8);
 
-  // Plaka Matematiği
-  function calculatePlates(target: number, bar: number, collar: number) {
-    const netWeight = target - bar - collar * 2;
-    if (netWeight <= 0) {
-      return { perSideWeight: 0, platesPerSide: [], remainder: 0 };
-    }
+  // Plaka matematiği src/lib/plates.ts'te; burada yalnız görsel stil eşlenir.
+  const calc = platesPerSide(targetWeight, barWeight, collarWeight);
+  const result = {
+    perSideWeight: calc.perSideWeight,
+    remainder: calc.remainder,
+    platesPerSide: calc.plates.map(({ weight, count }) => ({ plate: PLATE_STYLE.get(weight)!, count })),
+  };
 
-    const perSide = netWeight / 2;
-    let remaining = perSide;
-    const plates: { plate: Plate; count: number }[] = [];
-
-    for (const p of AVAILABLE_PLATES) {
-      if (remaining >= p.weight) {
-        const count = Math.floor(remaining / p.weight);
-        plates.push({ plate: p, count });
-        remaining = Math.round((remaining - count * p.weight) * 100) / 100;
-      }
-    }
-
-    return {
-      perSideWeight: perSide,
-      platesPerSide: plates,
-      remainder: remaining,
-    };
-  }
-
-  const result = calculatePlates(targetWeight, barWeight, collarWeight);
+  // F22: ısınma setleri (çalışma ağırlığı = hedef ağırlık).
+  const warmups = warmupSets(targetWeight, barWeight);
 
   // 1RM Hesaplamaları (Brzycki & Epley)
   const epley1Rm = Math.round(oneRmWeight * (1 + 0.0333 * oneRmReps));
@@ -99,13 +88,10 @@ export function PlateCalculator() {
               Hedef Toplam Ağırlık (kg)
             </label>
             <div className="relative">
-              <input
-                type="number"
-                step="2.5"
-                min="10"
-                max="500"
+              <DecimalInput
+                aria-label="Hedef Toplam Ağırlık (kg)"
                 value={targetWeight}
-                onChange={(e) => setTargetWeight(parseFloat(e.target.value) || 0)}
+                onValueChange={(v) => setTargetWeight(Math.max(0, v))}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-extrabold text-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
               <span className="absolute right-3.5 top-3 text-xs font-bold text-slate-400">
@@ -172,10 +158,10 @@ export function PlateCalculator() {
               </span>
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-extrabold text-emerald-400">
-                  {result.perSideWeight} kg
+                  {formatNumberTr(result.perSideWeight)} kg
                 </span>
                 <span className="text-xs text-slate-400">
-                  (Toplam: Bar {barWeight} kg + 2 × {result.perSideWeight} kg)
+                  (Toplam: Bar {formatNumberTr(barWeight)} kg + 2 × {formatNumberTr(result.perSideWeight)} kg)
                 </span>
               </div>
             </div>
@@ -196,7 +182,7 @@ export function PlateCalculator() {
               {/* Halter Barı (Merkez) */}
               <div className="w-24 h-5 bg-gradient-to-r from-slate-400 via-slate-200 to-slate-400 rounded-l shadow-inner border border-slate-500 relative flex items-center justify-center">
                 <span className="text-[10px] font-bold text-slate-800">
-                  BAR {barWeight}kg
+                  BAR {formatNumberTr(barWeight)}kg
                 </span>
               </div>
 
@@ -257,6 +243,44 @@ export function PlateCalculator() {
         </div>
       </div>
 
+      {/* F22: Isınma Setleri */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+        <div>
+          <h3 className="font-bold text-slate-900 text-lg">Isınma setleri</h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Çalışma ağırlığı {formatNumberTr(targetWeight)} kg için. Hedef ağırlığı yukarıdan değiştirebilirsin.
+          </p>
+        </div>
+        {warmups.length === 0 ? (
+          <p className="text-sm text-slate-500">Çalışma ağırlığı bar ağırlığına eşit ya da altında; ısınma seti gerekmez.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <caption className="sr-only">Isınma setleri</caption>
+            <thead>
+              <tr className="text-left text-xs text-slate-500 border-b border-slate-200">
+                <th scope="col" className="py-2">Set</th>
+                <th scope="col" className="py-2">Ağırlık × tekrar</th>
+                <th scope="col" className="py-2">Her tarafa</th>
+              </tr>
+            </thead>
+            <tbody>
+              {warmups.map((w, i) => (
+                <tr key={w.weightKg} className="border-b border-slate-100">
+                  <td className="py-2 text-slate-500">{i + 1}</td>
+                  <td className="py-2 font-bold text-slate-900">
+                    {formatNumberTr(w.weightKg)} kg × {w.reps}
+                    {w.percent === 0 && <span className="ml-1 text-xs font-normal text-slate-500">(boş bar)</span>}
+                  </td>
+                  <td className="py-2 text-slate-600">
+                    {w.plates.length ? w.plates.map((p) => `${p.count > 1 ? `${p.count} × ` : ""}${formatNumberTr(p.weight)}`).join(" + ") : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
       {/* 1RM (Tek Tekrar Maksimumu) Hesaplayıcı */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
         <div className="border-b border-slate-100 pb-3">
@@ -275,11 +299,10 @@ export function PlateCalculator() {
             <label className="text-xs font-bold text-slate-700 block mb-1">
               Kaldırılan Ağırlık (kg)
             </label>
-            <input
-              type="number"
-              step="2.5"
+            <DecimalInput
+              aria-label="Kaldırılan Ağırlık (kg)"
               value={oneRmWeight}
-              onChange={(e) => setOneRmWeight(parseFloat(e.target.value) || 0)}
+              onValueChange={(v) => setOneRmWeight(Math.max(0, v))}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-sm"
             />
           </div>

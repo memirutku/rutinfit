@@ -33,7 +33,7 @@ describe("PantryItemCard", () => {
     const handlers = { onEdit: vi.fn(), onDelete: vi.fn(), onAdjust: vi.fn() };
     renderWithQuery(<PantryItemCard item={milk} {...handlers} />);
     expect(screen.getByText("1 l")).toBeTruthy();
-    expect(screen.getByText(/SKT: 2030-01-01/)).toBeTruthy();
+    expect(screen.getByText(/SKT: 01\.01\.2030/)).toBeTruthy(); // F80: gg.aa.yyyy
     expect(screen.getByText("laktozsuz")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Süt miktarını artır" }));

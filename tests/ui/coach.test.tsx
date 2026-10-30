@@ -36,6 +36,7 @@ interface ChatStubOptions {
   reply?: () => Response | Promise<Response>;
   actions?: (payload: { action: string }) => Response | Promise<Response>;
   upload?: () => Response | Promise<Response>;
+  settings?: { coachEnabled: boolean; tone: string };
 }
 
 function stubCoach(opts: ChatStubOptions = {}) {
@@ -50,6 +51,7 @@ function stubCoach(opts: ChatStubOptions = {}) {
     ],
     ["/api/ai/actions", (_u, init) => (opts.actions ? opts.actions(JSON.parse(String(init?.body))) : jsonResponse({ success: true }))],
     ["/api/files/upload", () => (opts.upload ? opts.upload() : jsonResponse({ error: "yok" }, 500))],
+    ["/api/ai/settings", () => jsonResponse({ providerType: "ollama", baseUrl: "http://127.0.0.1:11434/v1", modelName: "m", endpointKind: "local", ...(opts.settings ?? { coachEnabled: true, tone: "supportive" }) })],
   ]);
   restore = s.restore;
   return s;
@@ -263,6 +265,34 @@ describe("Koç sayfası", () => {
     expect(body(approvals[0])).toMatchObject({ draftId: "d1", approvalToken: "tok" });
     // Yeni sohbet kimliği gelince geçmiş listesi tazelenir.
     expect(s.calls.filter((c) => c.url.endsWith("/api/ai/chat") && !c.init?.method).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("F58: modelden gelen yanıt 'AI tarafından üretildi' etiketi taşır; karşılama mesajı taşımaz", async () => {
+    stubCoach({ reply: () => jsonResponse({ reply: "Bugün iyisin.", conversationId: "c1" }) });
+    const user = userEvent.setup();
+    renderWithQuery(<CoachPage />);
+    expect(screen.queryByText(/AI tarafından üretildi/)).toBeNull();
+    await ask(user, "nasılım");
+    await screen.findByText("Bugün iyisin.");
+    expect(screen.getAllByText(/AI tarafından üretildi · hatalı olabilir/)).toHaveLength(1);
+  });
+
+  it("F58: koç kapalıysa uyarı gösterilir ve mesaj yazılamaz", async () => {
+    stubCoach({ settings: { coachEnabled: false, tone: "supportive" } });
+    renderWithQuery(<CoachPage />);
+    expect(await screen.findByText(/Koç kapalı/)).toBeTruthy();
+    expect((screen.getByPlaceholderText(/Sorunuzu yazın/) as HTMLTextAreaElement).disabled).toBe(true);
+  });
+
+  it("F56: yanıt güvenlik notu taşıyorsa mesajın altında not olarak gösterilir", async () => {
+    stubCoach({
+      reply: () => jsonResponse({ reply: "Seni dinliyorum.", conversationId: "c1", safetyNotice: "Bir uzmanla konuş. Acilse 112." }),
+    });
+    const user = userEvent.setup();
+    renderWithQuery(<CoachPage />);
+    await ask(user, "kendimi kusturuyorum");
+    const note = await screen.findByRole("note");
+    expect(note.textContent).toContain("112");
   });
 
   it("öneri reddedilince iptal notu görünür", async () => {

@@ -204,6 +204,45 @@ describe("Paketli gıda sekmesi", () => {
     expect((within(dialog).getByLabelText("Besin Adı") as HTMLInputElement).value).toBe("Kefir");
   });
 
+  it("F03: barkod bulunamazsa 'Etiketten ekle' barkodu kendi alanına yazar; kayıttan sonra barkod yeniden aranır", async () => {
+    const s = setup([
+      [
+        "/api/foods/barcode",
+        (u) =>
+          u.includes("8690000000999")
+            ? (s.calls.filter((c) => c.url.includes("8690000000999")).length > 1
+                ? jsonResponse({ success: true, product: { ...GRANOLA, barcode: "8690000000999", name: "Köy Tarhanası" } })
+                : jsonResponse({ success: false, notFound: true }))
+            : jsonResponse({ success: false, notFound: true }),
+      ],
+      ["/api/foods", (_u, init) => (init?.method === "POST" ? jsonResponse({ id: "new" }, 201) : jsonResponse(FOODS))],
+    ]);
+    await openPackagedTab();
+    fireEvent.change(screen.getByPlaceholderText(/Barkod numarası/), { target: { value: "8690000000999" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ürün Ara" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Etiketten ekle" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Etiketten ürün ekle" });
+    expect((within(dialog).getByLabelText("Barkod") as HTMLInputElement).value).toBe("8690000000999");
+    expect((within(dialog).getByLabelText("Besin Adı") as HTMLInputElement).value).toBe("");
+    fireEvent.change(within(dialog).getByLabelText("Besin Adı"), { target: { value: "Köy Tarhanası" } });
+    fireEvent.change(within(dialog).getByLabelText("Marka"), { target: { value: "Yöresel" } });
+    fireEvent.change(within(dialog).getByLabelText("Kalori (kcal/100g)"), { target: { value: "350" } });
+    await act(async () => fireEvent.click(within(dialog).getByRole("button", { name: "Kaydet" })));
+
+    const post = s.calls.find((c) => c.url.endsWith("/api/foods") && c.init?.method === "POST")!;
+    expect(JSON.parse(String(post.init?.body))).toMatchObject({
+      name: "Köy Tarhanası",
+      brand: "Yöresel",
+      barcode: "8690000000999",
+      basisGrams: 100,
+      calories: 350,
+      category: "Paketli Gıda",
+      source: "Etiket",
+    });
+    expect(await screen.findByText("Köy Tarhanası")).toBeTruthy();
+  });
+
   it("sunucu hatasında mesaj gösterilir; +100g ürünü katalog dışı anlık değerlerle günlüğe ekler", async () => {
     const s = setup([
       ["query=Hata", () => jsonResponse({ error: "Ürün arama hatası" }, 500)],
@@ -329,6 +368,14 @@ describe("pencereler yeniden açılınca", () => {
     rerender(<NewFoodModal open onClose={() => {}} prefillName="Ayran" />);
     expect(name()).toBe("Ayran");
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("F03: etiket modunda değerler sıfırdan başlar, değerlerin kaç gram için olduğu sorulur", () => {
+    renderWithQuery(<NewFoodModal open onClose={() => {}} prefillBarcode="8690000000999" />);
+    expect(screen.getByRole("dialog", { name: "Etiketten ürün ekle" })).toBeTruthy();
+    expect((screen.getByLabelText("Kalori (kcal/100g)") as HTMLInputElement).value).toBe("0");
+    expect((screen.getByLabelText("Değerler kaç gram için?") as HTMLInputElement).value).toBe("100");
+    expect((screen.getByLabelText("Kategori") as HTMLSelectElement).value).toBe("Paketli Gıda");
   });
 
   it("yeni besin: ön ad verilmezse kapatıp açınca yazılanlar korunur", () => {

@@ -11,7 +11,7 @@ import { DEFAULT_TARGETS } from "@/lib/constants";
 import type { MealType } from "@/lib/schemas/enums";
 import type { FoodLog } from "@/lib/schemas/food";
 import { useProfile } from "@/lib/client/queries/system";
-import { useCreateFoodLog, useDeleteFoodLog, useFoodLogs, useFoods } from "@/lib/client/queries/nutrition";
+import { useCreateFoodLog, useDeleteFoodLog, useFoodLogs, useFoods, useQuickAddFood } from "@/lib/client/queries/nutrition";
 import { useWorkouts } from "@/lib/client/queries/workouts";
 import { useProgress, useSaveProgress, useToggleCreatine } from "@/lib/client/queries/progress";
 import { UndoToast, type UndoToastData } from "@/components/dashboard/UndoToast";
@@ -25,6 +25,9 @@ import { TodayWorkoutCard } from "@/components/dashboard/TodayWorkoutCard";
 import { WellbeingCard, type WellbeingValues } from "@/components/dashboard/WellbeingCard";
 import { TodayMealsList } from "@/components/dashboard/TodayMealsList";
 import { getRhythmStep, WELLBEING_SECTION_ID, type RhythmAction } from "@/components/dashboard/rhythm";
+import { SetupWizard } from "@/components/onboarding/SetupWizard";
+import { DrinksCard } from "@/components/dashboard/DrinksCard";
+import { SavedMealsModal } from "@/components/dashboard/SavedMealsModal";
 
 interface UndoState {
   toast: UndoToastData;
@@ -36,6 +39,12 @@ export default function DashboardPage() {
   // Gece yarısını geçen açık pencerede de doğru gün (kayıtlar yanlış güne düşmez)
   const todayStr = useToday();
   const profile = useProfile();
+  const hideNumbers = profile.data?.hideNumbers ?? false;
+  // F09: kurulmamış profilde sihirbaz açılır; "Şimdilik geç" bu oturum için kapatır.
+  const [wizardDismissed, setWizardDismissed] = useState(false);
+  const [savedMealsOpen, setSavedMealsOpen] = useState(false);
+  const quickFood = useQuickAddFood();
+  const showWizard = profile.data?.isOnboarded === false && !wizardDismissed;
   const foodLogs = useFoodLogs(todayStr);
   const workouts = useWorkouts(todayStr);
   const progress = useProgress();
@@ -44,7 +53,8 @@ export default function DashboardPage() {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddRequested, setQuickAddRequested] = useState(false);
   const [quickAddMealType, setQuickAddMealType] = useState<MealType>("lunch");
-  const foods = useFoods(50, { enabled: quickAddRequested });
+  // F02: hızlı eklemede sık ve yakın zamanda kullanılanlar önce gelir.
+  const foods = useFoods(200, { enabled: quickAddRequested, sort: "usage" });
 
   // Son kullanılan besinler ve Geri Alma (Undo) state'i
   const [recentFoods, setRecentFoods] = useLocalStorage<RecentFood[]>(RECENT_FOODS_KEY, [], parseRecentFoods);
@@ -160,13 +170,13 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <DashboardHeader homeTime={homeTime || "19:30"} onQuickAdd={() => handleOpenQuickAdd()} />
-      <CeilingAlert alert={summary?.ceilingAlert} />
+      <CeilingAlert alert={summary?.ceilingAlert} hideNumbers={hideNumbers} />
       <RhythmStepCard step={step} onAction={handleRhythmAction} />
 
       {/* Ana Metrikler: Kalori & Makrolar */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <CalorieCard summary={summary} targets={targets} />
-        <MacroBalanceCard summary={summary} targets={targets} />
+        <CalorieCard summary={summary} targets={targets} hideNumbers={hideNumbers} />
+        <MacroBalanceCard summary={summary} targets={targets} hideNumbers={hideNumbers} />
       </div>
 
       {/* İkinci Sıra: Günün Antrenmanı & Kreatin / İyilik Hali */}
@@ -175,7 +185,27 @@ export default function DashboardPage() {
         <WellbeingCard today={progress.data?.today} onToggleCreatine={handleToggleCreatine} onSave={handleSaveWellbeing} />
       </div>
 
-      <TodayMealsList logs={foodLogs.data?.logs ?? []} onAdd={() => handleOpenQuickAdd()} onDelete={handleDeleteFoodLog} />
+      {/* F13: sıvı, kafein ve alkol */}
+      <DrinksCard date={todayStr} />
+
+      <TodayMealsList
+        logs={foodLogs.data?.logs ?? []}
+        onAdd={() => handleOpenQuickAdd()}
+        onDelete={handleDeleteFoodLog}
+        hideNumbers={hideNumbers}
+        onOpenSavedMeals={() => setSavedMealsOpen(true)}
+        onQuickFood={(item, count) =>
+          quickFood.mutate({ item, count, date: todayStr }, { onError: (e) => showError(e, "Eklenemedi.") })
+        }
+      />
+
+      <SavedMealsModal
+        open={savedMealsOpen}
+        date={todayStr}
+        todayLogs={foodLogs.data?.logs ?? []}
+        hideNumbers={hideNumbers}
+        onClose={() => setSavedMealsOpen(false)}
+      />
 
       <QuickAddModal
         open={isQuickAddOpen}
@@ -197,6 +227,7 @@ export default function DashboardPage() {
           {actionError}
         </div>
       )}
+      <SetupWizard open={showWizard} profile={profile.data} onClose={() => setWizardDismissed(true)} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { Flame } from "lucide-react";
 import { calculateRecipeMacros } from "@/lib/nutrition-calculator";
 import type { Macros, Recipe } from "@/lib/schemas/food";
+import { formatNumberTr } from "@/lib/format";
 
 /**
  * Kartta gösterilen tarif toplamı: sunucunun katalogdan hesapladığı `calculatedMacros`
@@ -59,7 +60,7 @@ function RecipeCard({ recipe: r }: { recipe: Recipe }) {
           {r.ingredients.map((ing) => (
             <div key={ing.id} className="flex justify-between">
               <span>• {ing.foodItem.name}</span>
-              <span className="font-medium">{ing.grams}g</span>
+              <span className="font-medium">{formatNumberTr(ing.grams)}g</span>
             </div>
           ))}
         </div>

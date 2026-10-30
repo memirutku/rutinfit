@@ -26,6 +26,8 @@ export const PlannedMealSchema = z.object({
   customName: z.string().nullable(),
   servings: z.number(),
   isCompleted: z.boolean(),
+  /** F78: uygulandı / kısmen / atlandı (işaretlenmemişse null). */
+  adherence: z.enum(["done", "partial", "skipped"]).nullable().optional(),
   recipe: RecipeSchema.omit({ calculatedMacros: true }).nullable(),
   /** Planlanan porsiyonun katalogdan hesaplanan makroları (tarif yoksa null). */
   calculatedMacros: MacrosSchema.nullable(),

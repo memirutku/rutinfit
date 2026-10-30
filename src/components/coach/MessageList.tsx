@@ -50,6 +50,13 @@ export function MessageBubble({ message: m, state, onApprove, onReject, onToggle
         >
           <div className="whitespace-pre-wrap">{m.content}</div>
         </div>
+        {m.aiGenerated && <p className="text-[10px] text-slate-400 pl-1">AI tarafından üretildi · hatalı olabilir</p>}
+
+        {m.safetyNotice && (
+          <div role="note" className="max-w-[85%] p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs leading-relaxed">
+            {m.safetyNotice}
+          </div>
+        )}
 
         {/* Yapılandırılmış Eylem Taslak Kartı */}
         {proposal && !state.isRejected && (

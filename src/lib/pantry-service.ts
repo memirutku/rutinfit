@@ -1,6 +1,6 @@
 import { prisma } from './prisma';
 import { convertUnitAmount, normalizeUnit } from './units';
-import { normalizeName } from './text';
+import { compareTr, normalizeName } from './text';
 
 export { convertUnitAmount } from './units';
 
@@ -54,9 +54,9 @@ export class PantryItemNotFoundError extends Error {
 const round = (n: number) => Math.round(n * 1000) / 1000;
 
 export async function getPantryInventory() {
-  return prisma.pantryItem.findMany({
-    orderBy: [{ category: 'asc' }, { name: 'asc' }],
-  });
+  const items = await prisma.pantryItem.findMany();
+  // F80: Türk alfabesine göre (SQLite ikili sıralar).
+  return items.sort((a, b) => compareTr(a.category, b.category) || compareTr(a.name, b.name));
 }
 
 /**

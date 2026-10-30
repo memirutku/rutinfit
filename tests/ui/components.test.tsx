@@ -45,6 +45,23 @@ describe("UndoToast", () => {
   });
 });
 
+describe("QuickAddModal — F02 arama", () => {
+  it("arama kutusu listeyi Türkçe karakter gerektirmeden süzer ve ilk sonucu seçer", () => {
+    const foods = [
+      { id: "f1", name: "Yulaf Ezmesi", calories: 370, basisGrams: 100 },
+      { id: "f2", name: "Süt", calories: 46, basisGrams: 100 },
+      { id: "f3", name: "İnek Sütü", calories: 60, basisGrams: 100 },
+    ] as any;
+    render(<QuickAddModal open onClose={() => {}} foods={foods} isLoadingFoods={false} recentFoods={[]} initialMealType="lunch" onSubmit={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("Besin ara"), { target: { value: "sut" } });
+    const select = screen.getByLabelText("Besin Seçin") as HTMLSelectElement;
+    const names = Array.from(select.options).map((o) => o.textContent);
+    expect(names.filter((n) => n?.includes("Yulaf"))).toEqual([]);
+    expect(names.some((n) => n?.startsWith("Süt"))).toBe(true);
+    expect(select.value).toBe("f2");
+  });
+});
+
 describe("QuickAddModal", () => {
   const foods = [
     { id: "f1", name: "Tavuk Göğsü", calories: 165, basisGrams: 100 },

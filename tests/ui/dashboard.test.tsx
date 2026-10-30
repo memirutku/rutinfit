@@ -23,6 +23,10 @@ afterEach(() => {
 });
 
 const today = getLocalDateString();
+const PROFILE_FIXTURE = {
+  id: "default-user", heightCm: 181, age: 25, sex: "male", currentWeightKg: 112, calorieTarget: 2080, calorieCeiling: 2100,
+  proteinTargetG: 165, fatTargetG: 60, carbTargetG: 220, wakeTime: "06:00", workdayHomeTime: "19:30", isOnboarded: true,
+};
 const targets = { calorieTarget: 1950, calorieCeiling: 2100, proteinTargetG: 165, fatTargetG: 60, carbTargetG: 220 };
 
 const summary = (over: Partial<DailySummary> = {}): DailySummary => ({
@@ -129,6 +133,32 @@ describe("dashboard kartları", () => {
     expect(screen.getByText("(Kalan: 125g)")).toBeTruthy();
     expect(screen.getByText("Sağlıklı Yağ (Hedef: 60g)")).toBeTruthy();
     expect(screen.getByRole("link", { name: /Detaylı Plan/ }).getAttribute("href")).toBe("/nutrition");
+  });
+
+  it("F56: sayıları gizleme modunda kalori, makro ve öğün sayıları görünmez; ilerleme sözle anlatılır", () => {
+    const { container: cal } = render(<CalorieCard summary={summary()} targets={targets} hideNumbers />);
+    expect(cal.textContent).not.toMatch(/\d+\s*kcal/);
+    expect(cal.textContent).toMatch(/Güne başladın|Hedefe yaklaşıyorsun|Hedefe ulaştın|Tavanın üzerindesin/);
+
+    const { container: macros } = render(<MacroBalanceCard summary={summary()} targets={targets} hideNumbers />);
+    expect(macros.textContent).not.toMatch(/\d+g/);
+    expect(macros.textContent).toContain("Protein");
+
+    const { container: meals } = render(<TodayMealsList logs={[log()]} onAdd={vi.fn()} onDelete={vi.fn()} hideNumbers />);
+    expect(meals.textContent).not.toMatch(/kcal/);
+
+    const { container: alert } = render(
+      <CeilingAlert alert={{ isApproaching: true, isExceeded: true, diffFromCeiling: -50, message: "Tavanı 50 kcal aştın" }} hideNumbers />
+    );
+    expect(alert.textContent).not.toMatch(/\d/);
+  });
+
+  it("F79: öğün listesindeki hızlı Türk sofrası düğmeleri kalemi ve adedi bildirir", () => {
+    const onQuickFood = vi.fn();
+    render(<TodayMealsList logs={[]} onAdd={vi.fn()} onDelete={vi.fn()} onQuickFood={onQuickFood} />);
+    fireEvent.click(screen.getByRole("button", { name: "+ Simit" }));
+    fireEvent.click(screen.getByRole("button", { name: "+ 2 dilim ekmek" }));
+    expect(onQuickFood.mock.calls).toEqual([["simit", 1], ["ekmek-dilimi", 2]]);
   });
 
   it("TodayWorkoutCard bekleyen ve tamamlanan seansı ayırır; şablon yoksa dinlenme günüdür", () => {
@@ -246,6 +276,21 @@ describe("DashboardPage", () => {
     expect(await screen.findByText("/ 1950 kcal")).toBeTruthy();
     expect(screen.getByText(/Eve tahmini varış: 20:15/)).toBeTruthy();
     expect(screen.getByText("Tavuk Göğsü")).toBeTruthy();
+  });
+
+  it("F09: profil kurulmamışsa kurulum sihirbazı açılır; 'Şimdilik geç' kapatır", async () => {
+    const s = stubDashboard();
+    s.restore();
+    restore = stubFetch([
+      ["/api/food-logs", () => jsonResponse({ date: today, logs: [], summary: summary(), targets })],
+      ["/api/workouts", () => jsonResponse({ templates: [], sessions: [] })],
+      ["/api/progress", () => jsonResponse(progress(false))],
+      ["/api/profile", () => jsonResponse({ ...PROFILE_FIXTURE, isOnboarded: false })],
+    ]).restore;
+    renderWithQuery(<DashboardPage />);
+    expect(await screen.findByRole("dialog", { name: /Hedeflerini birlikte kuralım/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Şimdilik geç" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
   it("istekler başarısız olsa da sayfa varsayılan hedeflerle açılır", async () => {

@@ -7,9 +7,14 @@ import { MessageList } from "@/components/coach/MessageList";
 import { AttachmentBar, UploadStatus } from "@/components/coach/AttachmentBar";
 import { ChatComposer } from "@/components/coach/ChatComposer";
 import { useCoachChat } from "@/components/coach/useCoachChat";
+import Link from "next/link";
+import { useAISettings } from "@/lib/client/queries/system";
 
 export default function CoachPage() {
   const chat = useCoachChat();
+  // F58: ayar okunamazsa koç açık sayılır (sunucu yine de kapalı koçu reddeder).
+  const settings = useAISettings();
+  const coachDisabled = settings.data?.coachEnabled === false;
 
   return (
     <div className="space-y-6">
@@ -36,8 +41,18 @@ export default function CoachPage() {
         </div>
       )}
 
+      {coachDisabled && (
+        <div role="status" className="p-3.5 bg-slate-100 border border-slate-200 rounded-xl text-slate-700 text-sm">
+          Koç kapalı. Açmak için{" "}
+          <Link href="/settings" className="font-semibold text-brand-700 underline">
+            Ayarlar
+          </Link>{" "}
+          sayfasındaki yapay zekâ bölümünü kullanabilirsin. Takip özelliklerinin hepsi çalışmaya devam eder.
+        </div>
+      )}
+
       {/* Hızlı Komut Butonları */}
-      <QuickPrompts disabled={chat.loading} onSend={chat.sendMessage} />
+      <QuickPrompts disabled={coachDisabled || chat.loading} onSend={chat.sendMessage} />
 
       {/* Sohbet Alanı */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[70vh]">
@@ -66,6 +81,7 @@ export default function CoachPage() {
           loading={chat.loading}
           uploading={chat.uploading}
           hasAttachments={chat.attachedFiles.length > 0}
+          disabled={coachDisabled}
         />
       </div>
     </div>

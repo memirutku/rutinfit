@@ -6,6 +6,10 @@ import { errorMessage } from "@/lib/client/api";
 import { useSaveProfile } from "@/lib/client/queries/system";
 import { useTimedMessage } from "@/hooks/useTimedMessage";
 import type { Profile, ProfileInput } from "@/lib/schemas/profile";
+import { DecimalInput } from "@/components/ui/DecimalInput";
+import { calorieFloor } from "@/lib/safety";
+import { formatNumberTr } from "@/lib/format";
+import { SetupWizard } from "@/components/onboarding/SetupWizard";
 
 /** Formdaki yerel taslak: profil yüklenemediyse alanlar boş başlar (varsayılanlar gösterilir). */
 type ProfileDraft = Partial<Profile>;
@@ -17,7 +21,8 @@ type NumericKey =
   | "calorieCeiling"
   | "proteinTargetG"
   | "carbTargetG"
-  | "fatTargetG";
+  | "fatTargetG"
+  | "waterTargetMl";
 type TimeKey = "wakeTime" | "workdayHomeTime";
 
 interface NumberFieldDef {
@@ -27,14 +32,17 @@ interface NumberFieldDef {
   fallback: number;
   parse: (raw: string) => number;
   step?: string;
+  /** F80: virgüllü ondalık kabul eden alan. */
+  decimal?: boolean;
   tone?: string;
 }
 
 const LABEL = "block text-xs font-semibold text-slate-600 mb-1";
 const INPUT = "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm";
 const int = (raw: string) => parseInt(raw, 10);
+const CALORIE_FALLBACK = 2080;
 
-const HEIGHT: NumberFieldDef = { id: "settings-field-1", label: "Boy (cm)", key: "heightCm", fallback: 181, parse: parseFloat };
+const HEIGHT: NumberFieldDef = { id: "settings-field-1", label: "Boy (cm)", key: "heightCm", fallback: 181, parse: parseFloat, decimal: true };
 const AGE: NumberFieldDef = { id: "settings-field-2", label: "Yaş", key: "age", fallback: 25, parse: int };
 const WEIGHT: NumberFieldDef = {
   id: "settings-field-4",
@@ -43,6 +51,7 @@ const WEIGHT: NumberFieldDef = {
   fallback: 112,
   parse: parseFloat,
   step: "0.1",
+  decimal: true,
 };
 const TARGETS: NumberFieldDef[] = [
   { id: "settings-field-5", label: "Kalori Hedefi (kcal)", key: "calorieTarget", fallback: 2080, parse: int, tone: "font-bold text-slate-900" },
@@ -50,6 +59,7 @@ const TARGETS: NumberFieldDef[] = [
   { id: "settings-field-7", label: "Protein Hedefi (g)", key: "proteinTargetG", fallback: 165, parse: int, tone: "font-bold text-emerald-700" },
   { id: "settings-field-8", label: "Karbonhidrat (g)", key: "carbTargetG", fallback: 220, parse: int, tone: "font-bold text-amber-700" },
 ];
+const WATER: NumberFieldDef = { id: "settings-field-water", label: "Günlük su hedefi (ml)", key: "waterTargetMl", fallback: 2500, parse: int, tone: "font-bold text-sky-700" };
 const FAT: NumberFieldDef = { id: "settings-field-9", label: "Yağ Hedefi (g)", key: "fatTargetG", fallback: 60, parse: int, tone: "font-bold text-indigo-700" };
 
 function NumberField({ field, draft, onChange }: { field: NumberFieldDef; draft: ProfileDraft; onChange: (key: NumericKey, value: number) => void }) {
@@ -58,14 +68,23 @@ function NumberField({ field, draft, onChange }: { field: NumberFieldDef; draft:
       <label htmlFor={field.id} className={LABEL}>
         {field.label}
       </label>
-      <input
-        id={field.id}
-        type="number"
-        step={field.step}
-        value={draft[field.key] || field.fallback}
-        onChange={(e) => onChange(field.key, field.parse(e.target.value))}
-        className={field.tone ? `${INPUT} ${field.tone}` : INPUT}
-      />
+      {field.decimal ? (
+        <DecimalInput
+          id={field.id}
+          value={draft[field.key] || field.fallback}
+          onValueChange={(v) => onChange(field.key, v)}
+          className={field.tone ? `${INPUT} ${field.tone}` : INPUT}
+        />
+      ) : (
+        <input
+          id={field.id}
+          type="number"
+          step={field.step}
+          value={draft[field.key] || field.fallback}
+          onChange={(e) => onChange(field.key, field.parse(e.target.value))}
+          className={field.tone ? `${INPUT} ${field.tone}` : INPUT}
+        />
+      )}
     </div>
   );
 }
@@ -94,6 +113,11 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
     setDraft(profile ?? {});
   }
 
+  const [acknowledgeLow, setAcknowledgeLow] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const floor = calorieFloor(draft.sex ?? "male");
+  const isLowCalorie = (draft.calorieTarget || CALORIE_FALLBACK) < floor;
+
   const save = useSaveProfile();
   const success = useTimedMessage<string>(3000);
   const set = <K extends keyof ProfileDraft>(key: K, value: ProfileDraft[K]) => setDraft((d) => ({ ...d, [key]: value }));
@@ -102,7 +126,8 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
     e.preventDefault();
     success.clear();
     // Doğrulama sunucudadır: eksik/geçersiz alan 400 döner ve hata aşağıda gösterilir.
-    save.mutate(draft as ProfileInput, {
+    const payload: ProfileInput = { ...(draft as ProfileInput), acknowledgeLowCalorie: isLowCalorie ? acknowledgeLow : undefined };
+    save.mutate(payload, {
       onSuccess: () => success.show("Profil ve hedefler başarıyla güncellendi! ✓"),
     });
   }
@@ -112,7 +137,15 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
       <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
         <User className="w-5 h-5 text-brand-600" />
         <h3 className="font-bold text-slate-900 text-base">Kullanıcı Profili & Hedefleri</h3>
+        <button
+          type="button"
+          onClick={() => setWizardOpen(true)}
+          className="ml-auto px-3 py-1.5 rounded-lg border border-brand-200 bg-brand-50 text-brand-700 text-xs font-bold hover:bg-brand-100"
+        >
+          Sihirbazla yeniden hesapla
+        </button>
       </div>
+      <SetupWizard open={wizardOpen} profile={profile} onClose={() => setWizardOpen(false)} />
 
       {success.message && (
         <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold">
@@ -153,11 +186,41 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
           ))}
         </div>
 
+        {isLowCalorie && (
+          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2">
+            <p>
+              Bu hedef {formatNumberTr(floor)} kcal altında. Güvenli taban bu; daha düşük bir hedef yalnız bir doktor ya da
+              diyetisyen gözetiminde uygulanmalı.
+            </p>
+            <label className="flex items-center gap-2 font-semibold">
+              <input type="checkbox" checked={acknowledgeLow} onChange={(e) => setAcknowledgeLow(e.target.checked)} />
+              Bu hedefi bir doktor ya da diyetisyenle birlikte belirledim
+            </label>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-slate-100">
           <NumberField field={FAT} draft={draft} onChange={set} />
           <TimeField id="settings-field-10" label="Hedef Uyanış Saati" field="wakeTime" fallback="06:00" draft={draft} onChange={set} />
           <TimeField id="settings-field-11" label="İşten Eve Varış Saati" field="workdayHomeTime" fallback="19:30" draft={draft} onChange={set} />
         </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <NumberField field={WATER} draft={draft} onChange={set} />
+        </div>
+
+        <label className="flex items-start gap-2 pt-3 border-t border-slate-100 text-xs text-slate-700">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={draft.hideNumbers ?? false}
+            onChange={(e) => set("hideNumbers", e.target.checked)}
+          />
+          <span>
+            <span className="font-bold">Kalori ve makro sayılarını gizle</span>
+            <span className="block text-slate-500">Pano ilerlemeyi sayı yerine sözle gösterir. Sayılar hesaplanmaya devam eder.</span>
+          </span>
+        </label>
 
         <div className="flex justify-end pt-2">
           <button

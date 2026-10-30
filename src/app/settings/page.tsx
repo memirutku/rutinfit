@@ -7,6 +7,7 @@ import { AIProviderSection } from "@/components/settings/AIProviderSection";
 import { OpenGymSection } from "@/components/settings/OpenGymSection";
 import { BackupSection } from "@/components/settings/BackupSection";
 import { DiagnosticsSection } from "@/components/settings/DiagnosticsSection";
+import { TransparencySection } from "@/components/settings/TransparencySection";
 
 export default function SettingsPage() {
   const profile = useProfile();
@@ -29,7 +30,7 @@ export default function SettingsPage() {
       {/* Üst Başlık */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Ayarlar & Yapılandırma ⚙️</h2>
-        <p className="text-sm text-slate-500 mt-0.5">Kişisel hedefler, yerel AI sağlayıcısı ve tam veritabanı yedekleme.</p>
+        <p className="text-sm text-slate-500 mt-0.5">Kişisel hedefler, yerel AI sağlayıcısı ve tam veritabanı yedekleme. Hesap yok, bulut yok.</p>
       </div>
 
       {/* 1. PROFİL VE HEDEFLER (profil yüklenemediyse varsayılanlarla) */}
@@ -37,6 +38,9 @@ export default function SettingsPage() {
 
       {/* 2. YEREL YAPAY ZEKÂ YAPILANDIRMASI */}
       <AIProviderSection />
+
+      {/* F67: CİHAZDAN NE ÇIKAR? */}
+      <TransparencySection />
 
       {/* 3. OPENGYM ENTEGRASYONU */}
       <OpenGymSection />

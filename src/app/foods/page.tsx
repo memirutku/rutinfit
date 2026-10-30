@@ -15,13 +15,15 @@ import { PackagedFoodTab } from "@/components/foods/PackagedFoodTab";
 import { RecipesTab } from "@/components/foods/RecipesTab";
 import { usePackagedSearch } from "@/components/foods/usePackagedSearch";
 import type { FoodsNotice, FoodsTab } from "@/components/foods/constants";
+import { formatNumberTr } from "@/lib/format";
+import { isBarcode } from "@/components/foods/constants";
 
 export default function FoodsPage() {
   const [activeTab, setActiveTab] = useState<FoodsTab>("foods");
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [packagedInput, setPackagedInput] = useState("");
-  const [newFood, setNewFood] = useState<{ open: boolean; prefillName?: string }>({ open: false });
+  const [newFood, setNewFood] = useState<{ open: boolean; prefillName?: string; prefillBarcode?: string }>({ open: false });
   const [isNewRecipeOpen, setIsNewRecipeOpen] = useState(false);
 
   const foodsQuery = useFoods(200);
@@ -36,8 +38,11 @@ export default function FoodsPage() {
   const notice = useTimedMessage<FoodsNotice>(4000);
   const today = useToday();
 
-  /** Paketli gıda aramasındaki adla manuel besin ekleme. */
-  const openManualAdd = () => setNewFood({ open: true, prefillName: packagedInput });
+  /** Paketli gıda aramasından manuel ekleme: barkodsa etiketten giriş (F03), değilse aranan adla. */
+  const openManualAdd = () => {
+    const digits = packagedInput.trim();
+    setNewFood(isBarcode(digits) ? { open: true, prefillBarcode: digits } : { open: true, prefillName: packagedInput });
+  };
 
   async function handleImportToCatalog(product: PackagedProduct) {
     try {
@@ -74,7 +79,7 @@ export default function FoodsPage() {
         carbsSnapshot: Math.round(product.carbsG * factor * 10) / 10,
         fatSnapshot: Math.round(product.fatG * factor * 10) / 10,
       });
-      notice.show({ type: "success", text: `"${product.name}" (${grams}g) bugünkü günlüğe eklendi!` });
+      notice.show({ type: "success", text: `"${product.name}" (${formatNumberTr(grams)}g) bugünkü günlüğe eklendi!` });
     } catch (err) {
       notice.show({ type: "error", text: errorMessage(err, "Öğün kaydedilemedi.") });
     }
@@ -125,6 +130,12 @@ export default function FoodsPage() {
       <NewFoodModal
         open={newFood.open}
         prefillName={newFood.prefillName}
+        prefillBarcode={newFood.prefillBarcode}
+        onCreated={(food) => {
+          notice.show({ type: "success", text: `"${food.name}" yerel kataloğa eklendi.` });
+          // F03: barkodlu ürün kaydedilince arama yenilenir; ürün artık yerel katalogdan gelir.
+          if (food.barcode) packaged.search(food.barcode);
+        }}
         onClose={() => setNewFood({ open: false })}
       />
       <NewRecipeModal open={isNewRecipeOpen} onClose={() => setIsNewRecipeOpen(false)} foods={foods} />

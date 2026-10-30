@@ -1,7 +1,8 @@
 import { Search } from "lucide-react";
-import { includesTr } from "@/lib/text";
+import { rankFoods } from "@/lib/food-search";
 import type { FoodItem } from "@/lib/schemas/food";
 import { FOOD_CATEGORIES } from "./constants";
+import { formatNumberTr } from "@/lib/format";
 
 interface FoodCatalogTabProps {
   foods: FoodItem[];
@@ -14,11 +15,10 @@ interface FoodCatalogTabProps {
 }
 
 /** Türkçe büyük/küçük harf duyarsız ad/marka araması ve kategori filtresi. */
+/** F02: kategori süzgeci + Türkçe karakter gerektirmeyen, eşleşme kalitesine göre sıralı arama. */
 export function filterFoods(foods: FoodItem[], search: string, category: string): FoodItem[] {
-  return foods.filter(
-    (f) =>
-      (includesTr(f.name, search) || includesTr(f.brand, search)) && (category === "all" || f.category === category)
-  );
+  const inCategory = foods.filter((f) => category === "all" || f.category === category);
+  return search.trim() ? rankFoods(inCategory, search) : inCategory;
 }
 
 /** Besin kataloğu sekmesi: arama, kategori düğmeleri ve 100 g bazındaki besin kartları. */
@@ -110,15 +110,15 @@ function FoodCard({ food: f }: { food: FoodItem }) {
         </div>
         <div>
           <div className="text-[10px] text-slate-400">Protein</div>
-          <div className="font-bold text-emerald-600">{f.proteinG}g</div>
+          <div className="font-bold text-emerald-600">{formatNumberTr(f.proteinG)}g</div>
         </div>
         <div>
           <div className="text-[10px] text-slate-400">Karb</div>
-          <div className="font-bold text-amber-600">{f.carbsG}g</div>
+          <div className="font-bold text-amber-600">{formatNumberTr(f.carbsG)}g</div>
         </div>
         <div>
           <div className="text-[10px] text-slate-400">Yağ</div>
-          <div className="font-bold text-purple-600">{f.fatG}g</div>
+          <div className="font-bold text-purple-600">{formatNumberTr(f.fatG)}g</div>
         </div>
       </div>
 

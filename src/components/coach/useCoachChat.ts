@@ -76,6 +76,7 @@ export function useCoachChat() {
           role: m.role === "user" ? "user" : "assistant",
           content: m.content,
           proposal: parseStoredProposal(m.actionProposal),
+          aiGenerated: m.role === "assistant",
         };
       });
       setApplied(nextApplied);
@@ -138,7 +139,13 @@ export function useCoachChat() {
       if (data.conversationId && !conversationId) setConversationId(data.conversationId);
       setMessages((prev) => [
         ...prev,
-        { ...assistant(data.reply), proposal: parseProposal(data.actionProposal), isError: data.isError },
+        {
+          ...assistant(data.reply),
+          proposal: parseProposal(data.actionProposal),
+          isError: data.isError,
+          safetyNotice: data.safetyNotice,
+          aiGenerated: !data.isError,
+        },
       ]);
       setAttachedFiles([]);
     } catch {

@@ -14,6 +14,8 @@ interface ChatComposerProps {
   loading: boolean;
   uploading: boolean;
   hasAttachments: boolean;
+  /** F58: koç kapalıyken yazma ve gönderme kapalı. */
+  disabled?: boolean;
 }
 
 /** Mesaj yazma alanı, dosya ekleme düğmesi (gizli seçici) ve gönder düğmesi. */
@@ -25,6 +27,7 @@ export function ChatComposer({
   loading,
   uploading,
   hasAttachments,
+  disabled = false,
 }: ChatComposerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -60,7 +63,7 @@ export function ChatComposer({
 
         <button
           type="button"
-          disabled={loading || uploading}
+          disabled={disabled || loading || uploading}
           onClick={() => fileInputRef.current?.click()}
           title="Dosya Yükle (PDF, Excel, Word, TXT, JSON, Görsel)"
           className="p-2.5 bg-white border border-slate-200 hover:border-brand-500 text-slate-500 hover:text-brand-600 rounded-xl transition-colors shadow-2xs disabled:opacity-50"
@@ -73,13 +76,13 @@ export function ChatComposer({
           placeholder="Sorunuzu yazın veya dosya yükleyip 'bunu analiz et' deyin..."
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
-          disabled={loading}
+          disabled={disabled || loading}
           className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-2xs"
         />
 
         <button
           type="submit"
-          disabled={loading || (!input.trim() && !hasAttachments)}
+          disabled={disabled || loading || (!input.trim() && !hasAttachments)}
           className="px-4 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 transition-colors flex items-center gap-1.5 font-bold text-sm shadow-xs"
         >
           <Send className="w-4 h-4" />

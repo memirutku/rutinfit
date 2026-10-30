@@ -1,7 +1,9 @@
 "use client";
 
-import { Plus, Trash2, Utensils } from "lucide-react";
+import { Bookmark, Plus, Trash2, Utensils } from "lucide-react";
 import type { FoodLog } from "@/lib/schemas/food";
+import { formatNumberTr } from "@/lib/format";
+import type { QuickFoodId } from "@/lib/quick-foods";
 
 /** Ana paneldeki kısa öğün etiketleri (Hızlı Ekle penceresindeki uzun adlardan farklıdır). */
 export function dashboardMealLabel(mealType: string): string {
@@ -22,11 +24,23 @@ export function dashboardMealLabel(mealType: string): string {
 interface TodayMealsListProps {
   logs: FoodLog[];
   onAdd: () => void;
+  /** F56: kalori ve makroları gizle. */
+  hideNumbers?: boolean;
+  /** F01: kayıtlı öğünler ve kopyalama penceresi. */
+  onOpenSavedMeals?: () => void;
+  /** F79: Türk sofrası hızlı ekleme (simit, ekmek dilimi). */
+  onQuickFood?: (item: QuickFoodId, count: number) => void;
   onDelete: (log: FoodLog) => void;
 }
 
 /** Bugün Kaydedilen Öğünler ve Hızlı Yönetim */
-export function TodayMealsList({ logs, onAdd, onDelete }: TodayMealsListProps) {
+const QUICK_CHIPS: Array<{ label: string; item: QuickFoodId; count: number }> = [
+  { label: "+ Simit", item: "simit", count: 1 },
+  { label: "+ 1 dilim ekmek", item: "ekmek-dilimi", count: 1 },
+  { label: "+ 2 dilim ekmek", item: "ekmek-dilimi", count: 2 },
+];
+
+export function TodayMealsList({ logs, onAdd, onDelete, hideNumbers = false, onOpenSavedMeals, onQuickFood }: TodayMealsListProps) {
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
       <div className="flex items-center justify-between mb-4">
@@ -41,14 +55,42 @@ export function TodayMealsList({ logs, onAdd, onDelete }: TodayMealsListProps) {
             </p>
           </div>
         </div>
-        <button
-          onClick={onAdd}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Öğün Ekle</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {onOpenSavedMeals && (
+            <button
+              type="button"
+              onClick={onOpenSavedMeals}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors"
+            >
+              <Bookmark className="w-3.5 h-3.5" />
+              <span>Kayıtlı öğünler</span>
+            </button>
+          )}
+          <button
+            onClick={onAdd}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Öğün Ekle</span>
+          </button>
+        </div>
       </div>
+
+      {onQuickFood && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-4">
+          <span className="text-[11px] font-bold text-slate-400 uppercase">Hızlı</span>
+          {QUICK_CHIPS.map((c) => (
+            <button
+              key={c.label}
+              type="button"
+              onClick={() => onQuickFood(c.item, c.count)}
+              className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:border-emerald-400 hover:text-emerald-700"
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {logs.length === 0 ? (
         <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
@@ -72,8 +114,14 @@ export function TodayMealsList({ logs, onAdd, onDelete }: TodayMealsListProps) {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-800 truncate">{log.name}</p>
                   <p className="text-xs text-slate-400">
-                    {log.grams}g · {log.caloriesSnapshot} kcal · P: {log.proteinSnapshot}g · K: {log.carbsSnapshot}g · Y:{" "}
-                    {log.fatSnapshot}g
+                    {hideNumbers ? (
+                      `${formatNumberTr(log.grams)}g`
+                    ) : (
+                      <>
+                        {formatNumberTr(log.grams)}g · {formatNumberTr(log.caloriesSnapshot)} kcal · P: {formatNumberTr(log.proteinSnapshot)}g · K:{" "}
+                        {formatNumberTr(log.carbsSnapshot)}g · Y: {formatNumberTr(log.fatSnapshot)}g
+                      </>
+                    )}
                   </p>
                 </div>
               </div>

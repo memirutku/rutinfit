@@ -2,6 +2,7 @@ import fs from "fs";
 import { promises as fsp } from "fs";
 import path from "path";
 import { getStoragePaths } from "./storage-paths";
+import { toSetRpe } from "./rpe";
 
 export interface OpenGymHealth {
   isOnline: boolean;
@@ -196,6 +197,7 @@ export function mapOpenGymWorkoutToRutinFit(ogWorkout: OpenGymWorkout) {
         setNumber: idx + 1,
         weightKg: Math.max(0, Number(s.weight) || 0),
         reps: Math.max(0, Math.round(Number(s.reps) || 0)),
+        rpe: toSetRpe(s.rpe),
         isTargetMet: (s.reps || 0) >= 10,
       }))
   );

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { CheckCircle2, Circle, Package, RefreshCw } from "lucide-react";
 import { errorMessage } from "@/lib/client/api";
 import { useRegenerateShopping, useToggleShoppingItem } from "@/lib/client/queries/shopping";
-import { formatAmount } from "@/lib/format";
+import { formatAmount, formatDateTr } from "@/lib/format";
 import type { ShoppingList, ShoppingListItem } from "@/lib/schemas/shopping";
 
 interface ShoppingListTabProps {
@@ -54,7 +54,7 @@ export function ShoppingListTab({ weekDate, list: data, isLoading, onMessage }: 
           </p>
         </div>
         <span className="text-xs bg-brand-50 text-brand-700 font-semibold px-3 py-1.5 rounded-full border border-brand-200">
-          Hafta: {data?.weekStart ?? weekDate}
+          Hafta: {formatDateTr(data?.weekStart ?? weekDate)}
         </span>
       </div>
 

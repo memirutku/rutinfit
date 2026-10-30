@@ -89,3 +89,67 @@ describe("Workout Importer — gerçek dışa aktarım biçimleri", () => {
     expect(parseWorkoutCsv(csv).workouts[0].sets[0].weightKg).toBe(62.5);
   });
 });
+
+describe("H1: ağırlık başlıklarındaki birimler", () => {
+  it("Strong'un 'Weight (kg)' başlığını tanır ve uyarı vermez", () => {
+    const csv = "Date,Workout Name,Exercise Name,Set Order,Weight (kg),Reps\n2026-10-15 19:40:00,A,Bench Press,1,62.5,8";
+    const r = parseWorkoutCsv(csv);
+    expect(r.workouts[0].sets[0].weightKg).toBe(62.5);
+    expect(r.warnings).toEqual([]);
+  });
+
+  it("Hevy'nin weight_lbs ve Strong'un 'Weight (lbs)' değerlerini kg'a çevirir (0,1 kg hassasiyet)", () => {
+    const hevy = [
+      "title,start_time,end_time,exercise_title,set_index,set_type,weight_lbs,reps,rpe",
+      'Push,"16 Oct 2026, 18:30","16 Oct 2026, 19:20",Bench Press,0,normal,135,8,8.5',
+    ].join("\n");
+    const h = parseWorkoutCsv(hevy).workouts[0].sets[0];
+    expect(h.weightKg).toBe(61.2);
+    expect(h.rpe).toBe(8.5);
+
+    const strong = "Date,Workout Name,Exercise Name,Set Order,Weight (lbs),Reps\n2026-10-15,A,Squat,1,225,5";
+    expect(parseWorkoutCsv(strong).workouts[0].sets[0].weightKg).toBe(102.1);
+  });
+
+  it("ağırlık sütunu yoksa setleri aktarır ama açıkça uyarır", () => {
+    const csv = "Date,Workout Name,Exercise Name,Set Order,Reps\n2026-10-15,A,Push Up,1,15";
+    const r = parseWorkoutCsv(csv);
+    expect(r.success).toBe(true);
+    expect(r.workouts[0].sets[0].weightKg).toBe(0);
+    expect(r.warnings).toEqual([expect.stringMatching(/ağırlık sütunu bulunamadı/i)]);
+  });
+});
+
+describe("H2: aktarılamayan bilgiler kaybolmaz", () => {
+  const hevy = [
+    "title,start_time,end_time,description,exercise_title,superset_id,exercise_notes,set_index,set_type,weight_kg,reps,distance_km,duration_seconds,rpe",
+    'Push,"16 Oct 2026, 18:30","16 Oct 2026, 19:20",Güzel seans,Bench Press,1,Dirsek ağrısı,0,warmup,40,10,,,',
+    'Push,"16 Oct 2026, 18:30","16 Oct 2026, 19:20",Güzel seans,Bench Press,1,Dirsek ağrısı,1,normal,80,8,,30,8',
+    'Push,"16 Oct 2026, 18:30","16 Oct 2026, 19:20",Güzel seans,Plank,,,0,normal,0,1,,60,',
+  ].join("\n");
+
+  it("dolu olup aktarılamayan sütunları ve atlanan ısınma setlerini raporlar", () => {
+    const r = parseWorkoutCsv(hevy);
+    expect(r.totalSetsCount).toBe(2);
+    expect(r.skippedWarmupSets).toBe(1);
+    // distance_km hiç dolu değil: raporlanmaz.
+    expect(r.ignoredColumns).toEqual(["superset_id", "duration_seconds"]);
+  });
+
+  it("seans açıklaması ve egzersiz notları (tekrarsız) seans notuna yazılır", () => {
+    const notes = parseWorkoutCsv(hevy).workouts[0].notes ?? "";
+    expect(notes).toContain("Güzel seans");
+    expect(notes.match(/Bench Press: Dirsek ağrısı/g)).toHaveLength(1);
+  });
+
+  it("Strong'da set notu ve antrenman notu seans notuna yazılır; boş sütunlar raporlanmaz", () => {
+    const csv = [
+      "Date,Workout Name,Duration,Exercise Name,Set Order,Weight,Reps,Distance,Seconds,Notes,Workout Notes,RPE",
+      "2026-10-15 19:40:00,A,42m,Squat,1,100,5,,,Derin indim,Bacaklar yorgun,",
+    ].join("\n");
+    const r = parseWorkoutCsv(csv);
+    expect(r.workouts[0].notes).toContain("Bacaklar yorgun");
+    expect(r.workouts[0].notes).toContain("Squat: Derin indim");
+    expect(r.ignoredColumns).toEqual([]);
+  });
+});

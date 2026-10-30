@@ -104,6 +104,43 @@ describe("Ayarlar — profil ve hedefler", () => {
     expect(screen.queryByText(/başarıyla güncellendi/)).toBeNull();
   });
 
+  it("F56: taban altı kalori hedefinde uyarı ve onay kutusu çıkar; onay ve gizleme tercihi gönderilir", async () => {
+    const { calls } = setup([
+      ["/api/profile", (_u, init) => (method(init) === "PUT" ? jsonResponse({ ...PROFILE, ...body(init) }) : jsonResponse(PROFILE))],
+    ]);
+    const calories = await screen.findByLabelText("Kalori Hedefi (kcal)");
+    expect(screen.queryByRole("checkbox", { name: /doktor ya da diyetisyenle/ })).toBeNull();
+
+    fireEvent.change(calories, { target: { value: "1400" } });
+    expect(screen.getByText(/1\.500 kcal altında/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("checkbox", { name: /doktor ya da diyetisyenle/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Kalori ve makro sayılarını gizle/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Hedefleri Güncelle" }));
+
+    await screen.findByText("Profil ve hedefler başarıyla güncellendi! ✓");
+    expect(body(callsTo(calls, "/api/profile", "PUT")[0].init)).toMatchObject({
+      calorieTarget: 1400,
+      acknowledgeLowCalorie: true,
+      hideNumbers: true,
+    });
+  });
+
+  it("F09: 'Sihirbazla yeniden hesapla' kurulum sihirbazını açar", async () => {
+    setup();
+    fireEvent.click(await screen.findByRole("button", { name: "Sihirbazla yeniden hesapla" }));
+    expect(await screen.findByRole("dialog", { name: /Hedeflerini birlikte kuralım/ })).toBeTruthy();
+  });
+
+  it("F13: günlük su hedefi profil formundan kaydedilir", async () => {
+    const { calls } = setup([
+      ["/api/profile", (_u, init) => (method(init) === "PUT" ? jsonResponse({ ...PROFILE, ...body(init) }) : jsonResponse(PROFILE))],
+    ]);
+    fireEvent.change(await screen.findByLabelText("Günlük su hedefi (ml)"), { target: { value: "3000" } });
+    fireEvent.click(screen.getByRole("button", { name: "Hedefleri Güncelle" }));
+    await screen.findByText("Profil ve hedefler başarıyla güncellendi! ✓");
+    expect(body(callsTo(calls, "/api/profile", "PUT")[0].init)).toMatchObject({ waterTargetMl: 3000 });
+  });
+
   it("yerel düzenleme korunur; profil verisi değişince (ör. geri yükleme) form yeniden kurulur", async () => {
     const { client } = setup();
     const protein = await screen.findByLabelText<HTMLInputElement>("Protein Hedefi (g)");
@@ -113,6 +150,62 @@ describe("Ayarlar — profil ve hedefler", () => {
     act(() => client.setQueryData(queryKeys.profile, { ...PROFILE, proteinTargetG: 180, calorieTarget: 1800 }));
     await waitFor(() => expect(screen.getByLabelText<HTMLInputElement>("Protein Hedefi (g)").value).toBe("180"));
     expect(screen.getByLabelText<HTMLInputElement>("Kalori Hedefi (kcal)").value).toBe("1800");
+  });
+});
+
+describe("Ayarlar — F58 koç kontrolleri", () => {
+  it("kayıtlı sağlayıcıyı gösterir; koçu kapatma ve ton seçimi kaydedilir", async () => {
+    const saved = { providerType: "lmstudio", baseUrl: "http://127.0.0.1:1234/v1", modelName: "qwen", coachEnabled: true, tone: "supportive", endpointKind: "local" };
+    const { calls } = setup([
+      ["/api/ai/settings", (_u, init) => jsonResponse(method(init) === "PUT" ? { ...saved, ...body(init) } : saved)],
+    ]);
+    await waitFor(() => expect(screen.getByLabelText<HTMLSelectElement>("Sağlayıcı").value).toBe("lmstudio"));
+    expect(screen.getByLabelText<HTMLInputElement>("Model Adı").value).toBe("qwen");
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /AI koçu açık/ }));
+    await waitFor(() => expect(callsTo(calls, "/api/ai/settings", "PUT")).toHaveLength(1));
+    expect(body(callsTo(calls, "/api/ai/settings", "PUT")[0].init)).toEqual({ coachEnabled: false });
+
+    fireEvent.change(screen.getByLabelText("Koçun üslubu"), { target: { value: "direct" } });
+    await waitFor(() => expect(callsTo(calls, "/api/ai/settings", "PUT")).toHaveLength(2));
+    expect(body(callsTo(calls, "/api/ai/settings", "PUT")[1].init)).toEqual({ tone: "direct" });
+  });
+});
+
+describe("Ayarlar — F67 şeffaflık", () => {
+  const local = { providerType: "ollama", baseUrl: "http://127.0.0.1:11434/v1", modelName: "llama3.2", coachEnabled: true, tone: "supportive", endpointKind: "local" };
+
+  it("yerel uç noktayı gösterir; OpenAI seçilince ne gideceğini açıkça uyarır", async () => {
+    setup([
+      ["/api/ai/settings", () => jsonResponse(local)],
+      ["/api/ai/exposure", () => jsonResponse({ applicable: true, exposed: false, port: 11434, lanAddresses: ["192.168.1.20"] })],
+    ]);
+    expect(await screen.findByText(/Bu bilgisayarda · 127\.0\.0\.1:11434/)).toBeTruthy();
+    expect(screen.queryByText(/OpenAI sunucularına gönderilir/)).toBeNull();
+    fireEvent.change(screen.getByLabelText("Sağlayıcı"), { target: { value: "openai" } });
+    expect(screen.getByText(/OpenAI sunucularına gönderilir/)).toBeTruthy();
+  });
+
+  it("bulut uç noktası rozetle işaretlenir", async () => {
+    setup([
+      ["/api/ai/settings", () => jsonResponse({ ...local, providerType: "openai", baseUrl: "https://api.openai.com/v1", endpointKind: "cloud" })],
+      ["/api/ai/exposure", () => jsonResponse({ applicable: false, exposed: false, port: null, lanAddresses: [] })],
+    ]);
+    expect(await screen.findByText(/Bulut · api\.openai\.com/)).toBeTruthy();
+  });
+
+  it("'cihazdan ne çıkar' tablosu, sürüm ve doğrulama komutu; model sunucusu ağa açıksa uyarı", async () => {
+    setup([
+      ["/api/ai/settings", () => jsonResponse(local)],
+      ["/api/ai/exposure", () => jsonResponse({ applicable: true, exposed: true, port: 11434, lanAddresses: ["192.168.1.20"], exposedAt: "192.168.1.20:11434" })],
+      ["/api/diagnostics", () => jsonResponse({ ...DIAGNOSTICS, system: { ...DIAGNOSTICS.system, appVersion: "0.1.0" } })],
+    ]);
+    expect(await screen.findByRole("heading", { name: /Hesap yok, bulut yok/ })).toBeTruthy();
+    expect(screen.getByText("world.openfoodfacts.org")).toBeTruthy();
+    expect(await screen.findByText(/192\.168\.1\.20:11434/)).toBeTruthy();
+    expect(screen.getByText(/OLLAMA_HOST=127\.0\.0\.1/)).toBeTruthy();
+    expect(await screen.findByText(/Sürüm 0\.1\.0/)).toBeTruthy();
+    expect(screen.getByText(/shasum -a 256/)).toBeTruthy();
   });
 });
 
@@ -219,6 +312,55 @@ describe("Ayarlar — yedekleme", () => {
     await waitFor(() =>
       expect(screen.getByRole("alert").textContent).toContain("Hata: Yedek dosyası geçersiz: foodLog.0.caloriesSnapshot")
     );
+  });
+
+  it("F61: otomatik yedek klasörü, sıklık ve saklama sayısı kaydedilir; 'Şimdi yedekle' sonucu gösterilir", async () => {
+    const state = { enabled: false, folderPath: null as string | null, frequency: "daily", keepCount: 10, lastRunAt: null, lastStatus: null, lastMessage: null, lastFile: null, suggestedFolder: "/Users/ben/Documents/RutinFit Yedekleri" };
+    const { calls } = setup([
+      [
+        "/api/backup/auto",
+        (_u, init) => {
+          if (method(init) === "PUT") Object.assign(state, body(init));
+          if (method(init) === "POST") return jsonResponse({ ok: true, message: "Yedek alındı.", file: "/Users/ben/iCloud/rutinfit-otomatik-yedek-1.json" });
+          return jsonResponse(state);
+        },
+      ],
+    ]);
+    const folder = (await screen.findByLabelText("Yedek klasörü")) as HTMLInputElement;
+    expect(folder.placeholder).toBe("/Users/ben/Documents/RutinFit Yedekleri");
+    fireEvent.click(screen.getByRole("checkbox", { name: /Otomatik yedek açık/ }));
+    fireEvent.change(folder, { target: { value: "/Users/ben/iCloud" } });
+    fireEvent.change(screen.getByLabelText("Sıklık"), { target: { value: "weekly" } });
+    fireEvent.change(screen.getByLabelText("Saklanacak yedek sayısı"), { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Otomatik yedeği kaydet" }));
+    await waitFor(() => expect(callsTo(calls, "/api/backup/auto", "PUT")).toHaveLength(1));
+    expect(body(callsTo(calls, "/api/backup/auto", "PUT")[0].init)).toEqual({ enabled: true, folderPath: "/Users/ben/iCloud", frequency: "weekly", keepCount: 5 });
+
+    fireEvent.click(screen.getByRole("button", { name: "Şimdi yedekle" }));
+    expect(await screen.findByText(/Yedek alındı\. .*rutinfit-otomatik-yedek-1\.json/)).toBeTruthy();
+  });
+
+  it("F60: CSV düğmesi doğru türü ister, dosyayı indirir ve kopyanın yolunu bildirir", async () => {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: vi.fn(() => "blob:csv"), revokeObjectURL: vi.fn() }));
+    const { calls } = setup([
+      [
+        "/api/export/csv",
+        () =>
+          new Response("date,time\n", {
+            headers: {
+              "Content-Type": "text/csv",
+              "Content-Disposition": 'attachment; filename="rutinfit-antrenmanlar-2026-10-30.csv"',
+              "X-RutinFit-Export-Path": encodeURIComponent("/data/exports/rutinfit-antrenmanlar-2026-10-30.csv"),
+            },
+          }),
+      ],
+    ]);
+    fireEvent.click(await screen.findByRole("button", { name: "Antrenmanlar (CSV, Strong biçimi)" }));
+    expect(await screen.findByText(/CSV indirildi: rutinfit-antrenmanlar-2026-10-30\.csv/)).toBeTruthy();
+    expect(screen.getByText(/\/data\/exports\//)).toBeTruthy();
+    expect(calls.some((c) => c.url.includes("/api/export/csv?type=workouts"))).toBe(true);
+    expect(click).toHaveBeenCalled();
   });
 
   it("dışa aktarma dosyayı indirir ve kaydedilen kopyanın yolunu bildirir; hata durumunda uyarı verir", async () => {

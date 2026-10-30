@@ -42,3 +42,25 @@ export const ProgressResponseSchema = z.object({
   }),
 });
 export type ProgressResponse = z.infer<typeof ProgressResponseSchema>;
+
+/* F23 / F24: antrenman istatistikleri (yanıt tipleri lib'deki hesaplardan gelir). */
+import type { ExerciseDay, PersonalRecords } from "../strength";
+import type { WeeklyVolume } from "../muscle-volume";
+export type { ExerciseDay, PersonalRecords };
+export interface StrengthExercise {
+  name: string;
+  sessions: number;
+  lastDate: string;
+  bestE1rm: number;
+}
+export interface StrengthList {
+  exercises: StrengthExercise[];
+}
+export interface StrengthDetail {
+  name: string;
+  history: ExerciseDay[];
+  prs: PersonalRecords;
+}
+export interface WeeklyVolumeResponse extends WeeklyVolume {
+  target: { min: number; max: number };
+}

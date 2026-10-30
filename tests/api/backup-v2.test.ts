@@ -3,6 +3,7 @@ import { Prisma } from "@/lib/db/client";
 import { datamodel } from "@/generated/datamodel";
 import { GET as exportBackup } from "@/app/api/backup/export/route";
 import { POST as importBackup } from "@/app/api/backup/import/route";
+import { EXCLUDED_TABLES } from "@/lib/services/backup";
 import { prisma } from "@/lib/prisma";
 import { callRoute } from "../helpers/route";
 import { resetDatabase } from "../helpers/db";
@@ -50,12 +51,26 @@ async function seedRichData() {
     },
   });
   await prisma.auditEvent.create({ data: { actionType: "APPLY_DRAFT", entityType: "food_log", status: "SUCCESS" } });
+  // F13: kalorili içecek kendi besin kaydıyla bağlı.
+  const beerLog = await prisma.foodLog.create({
+    data: { date: "2026-10-19", time: "20:00", mealType: "extra", name: "Bira (330 ml)", grams: 330, caloriesSnapshot: 143, proteinSnapshot: 1, carbsSnapshot: 13, fatSnapshot: 0 },
+  });
+  await prisma.drinkLog.create({ data: { date: "2026-10-19", time: "20:00", kind: "alcohol", name: "Bira", ml: 330, alcoholG: 13, kcal: 143, foodLogId: beerLog.id } });
+  await prisma.drinkLog.create({ data: { date: "2026-10-19", time: "09:00", kind: "water", name: "Su", ml: 500 } });
+  // F01: kayıtlı öğün, katalog gıdasına bağlı kalemiyle.
+  await prisma.savedMeal.create({
+    data: {
+      name: "Sabah kasesi",
+      mealType: "breakfast",
+      items: { create: [{ foodItemId: food.id, name: "Granola", grams: 60, caloriesSnapshot: 270, proteinSnapshot: 6, carbsSnapshot: 36, fatSnapshot: 9 }] },
+    },
+  });
 }
 
 async function snapshot() {
   const out: Record<string, unknown[]> = {};
   for (const name of Object.values(Prisma.ModelName)) {
-    if (name === "OpenFoodFactsCache") continue;
+    if ((EXCLUDED_TABLES as readonly string[]).includes(name)) continue;
     const rows = await (prisma as any)[delegateKey(name)].findMany({ orderBy: { id: "asc" } });
     out[name] = rows.map(({ updatedAt: _updatedAt, ...rest }: any) => rest);
   }
@@ -67,7 +82,9 @@ describe("Yedek v2 — tam kapsam", () => {
     const res = await callRoute(exportBackup);
     expect(res.status).toBe(200);
     expect(res.json.version).toBe("2.0");
-    const expected = Object.values(Prisma.ModelName).map(delegateKey).filter((k) => k !== "openFoodFactsCache");
+    // Önbellek ve makineye özgü ayarlar (otomatik yedek klasörü) yedeğe girmez.
+    const excluded = new Set<string>(EXCLUDED_TABLES);
+    const expected = Object.values(Prisma.ModelName).filter((m) => !excluded.has(m)).map(delegateKey);
     expect(Object.keys(res.json.data).sort()).toEqual(expected.sort());
   });
 
@@ -101,7 +118,8 @@ describe("Yedek v2 — tam kapsam", () => {
     const backup = (await callRoute(exportBackup)).json;
     await callRoute(importBackup, { body: backup });
     await callRoute(importBackup, { body: backup });
-    expect(await prisma.foodLog.count()).toBe(1);
+    expect(await prisma.foodLog.count()).toBe(2); // öğün + biranın kalori kaydı
+    expect(await prisma.drinkLog.count()).toBe(2);
     expect(await prisma.setLog.count()).toBe(1);
     expect(await prisma.aIMessage.count()).toBe(2);
   });

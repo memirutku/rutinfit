@@ -5,6 +5,7 @@ import { CheckCircle2, Circle } from "lucide-react";
 import { useTimedMessage } from "@/hooks/useTimedMessage";
 import type { ProgressResponse } from "@/lib/schemas/progress";
 import { WELLBEING_SECTION_ID } from "./rhythm";
+import { parseDecimalTr } from "@/lib/format";
 
 export interface WellbeingValues {
   weightKg?: number;
@@ -14,8 +15,8 @@ export interface WellbeingValues {
 
 /** Form alanlarını kayıt gövdesine çevirir. Virgüllü ondalık kabul edilir; boş uyku 7 saattir. */
 export function toWellbeingValues(weight: string, sleepHours: string, energy: number): WellbeingValues {
-  const w = weight ? parseFloat(weight.replace(",", ".")) : NaN;
-  const h = sleepHours ? parseFloat(sleepHours.replace(",", ".")) : NaN;
+  const w = parseDecimalTr(weight) ?? NaN;
+  const h = parseDecimalTr(sleepHours) ?? NaN;
   return {
     weightKg: Number.isFinite(w) && w > 0 ? w : undefined,
     energy1to5: energy,
@@ -99,9 +100,9 @@ export function WellbeingCard({ today, onToggleCreatine, onSave }: WellbeingCard
               </label>
               <input
                 id="dash-field-1"
-                type="number"
-                step="0.1"
-                placeholder="Örn: 112.0"
+                type="text"
+                inputMode="decimal"
+                placeholder="Örn: 112,0"
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white"
@@ -115,9 +116,9 @@ export function WellbeingCard({ today, onToggleCreatine, onSave }: WellbeingCard
               </label>
               <input
                 id="dash-field-2"
-                type="number"
-                step="0.5"
-                placeholder="Örn: 7.5"
+                type="text"
+                inputMode="decimal"
+                placeholder="Örn: 7,5"
                 value={sleep}
                 onChange={(e) => setSleep(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white"

@@ -3,6 +3,7 @@
 import { ArrowRight, Calculator, Check, Clock, Dumbbell, Edit3, ShieldCheck, Utensils } from "lucide-react";
 import { keyedBy } from "@/lib/client/keys";
 import type { CardProposal, MealCardProposal, WorkoutCardProposal } from "./types";
+import { formatNumberTr } from "@/lib/format";
 
 export interface ProposalActionState {
   isApplied: boolean;
@@ -30,9 +31,9 @@ function MealProposalBody({ proposal }: { proposal: MealCardProposal }) {
 
       <div className="flex flex-wrap gap-2 items-center">
         <span className="px-2 py-0.5 bg-orange-50 text-orange-700 font-bold rounded">{macros?.calories} kcal</span>
-        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded">P: {macros?.proteinG}g</span>
-        <span className="px-2 py-0.5 bg-amber-50 text-amber-700 font-medium rounded">K: {macros?.carbsG}g</span>
-        <span className="px-2 py-0.5 bg-purple-50 text-purple-700 font-medium rounded">Y: {macros?.fatG}g</span>
+        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded">P: {formatNumberTr(macros?.proteinG ?? 0)}g</span>
+        <span className="px-2 py-0.5 bg-amber-50 text-amber-700 font-medium rounded">K: {formatNumberTr(macros?.carbsG ?? 0)}g</span>
+        <span className="px-2 py-0.5 bg-purple-50 text-purple-700 font-medium rounded">Y: {formatNumberTr(macros?.fatG ?? 0)}g</span>
         {!det && <span className="text-[10px] text-slate-400">(model tahmini)</span>}
       </div>
       {det && det.missingIngredients.length > 0 && (
@@ -47,7 +48,7 @@ function MealProposalBody({ proposal }: { proposal: MealCardProposal }) {
           {keyedBy(proposal.ingredients, (ing) => `${ing.foodName}:${ing.grams}`).map(({ key, item: ing }) => (
             <div key={key} className="flex justify-between text-slate-600">
               <span>• {ing.foodName}</span>
-              <span className="font-bold">{ing.grams}g</span>
+              <span className="font-bold">{formatNumberTr(ing.grams)}g</span>
             </div>
           ))}
         </div>

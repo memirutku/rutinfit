@@ -1,8 +1,8 @@
 "use client";
 
 import { errorMessage } from "@/lib/client/api";
-import { useCreateFoodLog, useMealPlans } from "@/lib/client/queries/nutrition";
-import { getLocalDateString } from "@/lib/date-utils";
+import { useAdherenceSummary, useCreateFoodLog, useMealPlans, useSetAdherence } from "@/lib/client/queries/nutrition";
+import { addDaysToDateString, getLocalDateString, startOfWeek } from "@/lib/date-utils";
 import type { PlannedMeal } from "@/lib/schemas/meal-plan";
 import { DEFAULT_MEAL_TEMPLATES, PlannedMealCard } from "./PlannedMealCard";
 
@@ -19,7 +19,12 @@ interface MealPlanTabProps {
 export function MealPlanTab({ selectedDate, onDateChange, multipliers, onMultiplierChange, onMessage }: MealPlanTabProps) {
   const mealPlans = useMealPlans(selectedDate);
   const createFoodLog = useCreateFoodLog();
+  const setAdherence = useSetAdherence();
   const currentPlan = mealPlans.data?.[0] ?? null;
+  // F78: seçili günün haftası (Pazartesi–Pazar) için plana uyum.
+  const weekFrom = startOfWeek(selectedDate);
+  const adherence = useAdherenceSummary(weekFrom, addDaysToDateString(weekFrom, 6));
+  const percent = adherence.data?.percent;
 
   function handleLogPlannedMealAsEaten(meal: PlannedMeal | undefined, multiplier: number) {
     if (!meal?.recipeId || !meal.calculatedMacros) {
@@ -38,11 +43,14 @@ export function MealPlanTab({ selectedDate, onDateChange, multipliers, onMultipl
         servings: (meal.servings || 1) * multiplier,
       },
       {
-        onSuccess: () =>
+        onSuccess: () => {
           onMessage(
             `"${meal.recipe?.name || "Öğün"}" (${multiplier}x porsiyon - ${scaledCalories} kcal) günlüğe kaydedildi! ✓`,
             3000
-          ),
+          );
+          // F78: işaretlenmemiş öğün yenince plana uygulandı sayılır.
+          if (!meal.adherence) setAdherence.mutate({ plannedMealId: meal.id, adherence: "done" });
+        },
         onError: (e) => onMessage(`Kaydedilemedi: ${errorMessage(e, "bilinmeyen hata")}`, 4000),
       }
     );
@@ -67,6 +75,16 @@ export function MealPlanTab({ selectedDate, onDateChange, multipliers, onMultipl
         </button>
       </div>
 
+      {typeof percent === "number" && (
+        <p role="status" className="px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-sm font-semibold">
+          Bu hafta plana uyum: %{percent}{" "}
+          <span className="font-normal text-emerald-800">
+            (işaretli öğün: {adherence.data!.marked} · uygulandı: {adherence.data!.done} · kısmen: {adherence.data!.partial} ·
+            atlandı: {adherence.data!.skipped})
+          </span>
+        </p>
+      )}
+
       {/* 4 Temel Öğün Kartları */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {DEFAULT_MEAL_TEMPLATES.map((template) => {
@@ -80,6 +98,7 @@ export function MealPlanTab({ selectedDate, onDateChange, multipliers, onMultipl
               multiplier={mult}
               onMultiplierChange={(m) => onMultiplierChange(template.type, m)}
               onLogEaten={() => handleLogPlannedMealAsEaten(planned, mult)}
+              onAdherence={(value) => planned && setAdherence.mutate({ plannedMealId: planned.id, adherence: value })}
             />
           );
         })}

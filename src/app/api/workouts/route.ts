@@ -65,6 +65,7 @@ export async function POST(req: Request) {
             setNumber: set.setNumber,
             weightKg: set.weightKg,
             reps: set.reps,
+            rpe: set.rpe ?? null,
             isTargetMet: set.reps >= set.targetRepMax,
           })),
         },

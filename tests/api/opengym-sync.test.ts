@@ -44,8 +44,10 @@ describe("mapOpenGymWorkoutToRutinFit", () => {
       name: "A",
       exercises: [{ exerciseId: "e", sets: [{ weight: 50, reps: 5, rpe: 7.5 }] }],
     });
-    expect(Object.keys(mapped.setLogs[0]).sort()).toEqual(["exerciseName", "isTargetMet", "reps", "setNumber", "weightKg"]);
+    expect(Object.keys(mapped.setLogs[0]).sort()).toEqual(["exerciseName", "isTargetMet", "reps", "rpe", "setNumber", "weightKg"]);
     expect(mapped.rpe).toBe(8);
+    // F20: set RPE'si yuvarlanmadan sete yazılır.
+    expect(mapped.setLogs[0].rpe).toBe(7.5);
   });
 });
 

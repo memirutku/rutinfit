@@ -9,6 +9,8 @@ export const SetLogInputSchema = z.object({
   targetRepMin: z.number().int().positive().default(8),
   targetRepMax: z.number().int().positive().default(12),
   isTargetMet: z.boolean().default(false),
+  /** F20: set başına RPE, 1–10, yarım puanlı. */
+  rpe: z.number().min(1).max(10).multipleOf(0.5).optional().nullable(),
 });
 
 /** POST /api/workouts */
@@ -52,6 +54,7 @@ export const SetLogSchema = z.object({
   setNumber: z.number(),
   weightKg: z.number(),
   reps: z.number(),
+  rpe: z.number().nullable().optional(),
   isTargetMet: z.boolean(),
 });
 
