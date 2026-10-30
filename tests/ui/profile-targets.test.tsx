@@ -108,3 +108,13 @@ describe("B02/B06: gün düzeni ayarlardan değişir", () => {
     expect(value("Boy (cm)")).not.toContain("181");
   });
 });
+
+describe("recheck (Can): kurulmamış profil", () => {
+  it("sihirbaz tamamlanmadıysa değerlerin tahmini olduğunu söyler", () => {
+    restore = stubFetch([]).restore;
+    const { rerender } = renderWithQuery(<ProfileTargetsSection profile={{ ...PROFILE, isOnboarded: false }} />);
+    expect(screen.getByRole("note").textContent).toContain("tahmini başlangıç değerleri");
+    rerender(<ProfileTargetsSection profile={PROFILE} />);
+    expect(screen.queryByText(/tahmini başlangıç değerleri/)).toBeNull();
+  });
+});

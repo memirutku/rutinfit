@@ -207,6 +207,13 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
         </div>
       )}
 
+      {/* Recheck (Can): sihirbaz tamamlanmadıysa bu değerler nötr başlangıç değerleridir, kullanıcının değil. */}
+      {profile?.isOnboarded === false && (
+        <p role="note" className="p-3 rounded-xl border border-amber-200 bg-amber-50 text-xs text-amber-900">
+          Bu değerler tahmini başlangıç değerleri; senin ölçülerin değil. Kendi bilgilerini gir ya da sihirbazla hedeflerini hesapla.
+        </p>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <NumberField field={HEIGHT} draft={draft} onChange={set} />
