@@ -73,6 +73,30 @@ describe("POST /api/workouts", () => {
     expect(res.json.progressionFeedbacks.Deadlift.recommendedNextWeightKg).toBe(145);
   });
 
+  it("B21: 5/3/1 ana kaldırışında öneri son setin (AMRAP) tekrarına ve döngüye göre verilir", async () => {
+    const tpl = await prisma.workoutTemplate.create({
+      data: {
+        name: "5/3/1 · Squat",
+        type: "strength",
+        dayOfWeek: 5,
+        exercises: { create: [{ exerciseName: "Squat", targetSets: 3, repMin: 3, repMax: 3, incrementKg: 5, loadingScheme: "531", trainingMaxKg: 140 }] },
+      },
+    });
+    const sets = (last: number) => [
+      { exerciseName: "Squat", setNumber: 1, weightKg: 97.5, reps: 3, targetRepMin: 3, targetRepMax: 3 },
+      { exerciseName: "Squat", setNumber: 2, weightKg: 112.5, reps: 3, targetRepMin: 3, targetRepMax: 3 },
+      { exerciseName: "Squat", setNumber: 3, weightKg: 125, reps: last, targetRepMin: 3, targetRepMax: 3 },
+    ];
+    const good = await callRoute(POST, { body: { ...session(sets(7)), templateId: tpl.id } });
+    expect(good.json.progressionFeedbacks.Squat).toMatchObject({ isTargetMetAllSets: true, recommendedNextWeightKg: 125, badge: "progression" });
+    expect(good.json.progressionFeedbacks.Squat.message).toMatch(/5\/3\/1: son sette 7 tekrar \(hedef en az 3\)/);
+    expect(good.json.progressionFeedbacks.Squat.message).toMatch(/döngü sonunda \+5 kg/);
+
+    const short = await callRoute(POST, { body: { ...session(sets(2)), templateId: tpl.id } });
+    expect(short.json.progressionFeedbacks.Squat).toMatchObject({ isTargetMetAllSets: false, badge: "maintain" });
+    expect(short.json.progressionFeedbacks.Squat.message).toMatch(/antrenman maksimumunu/);
+  });
+
   it("F21: üç seanstır yeni rekor yoksa durağanlık uyarısı verir", async () => {
     const day = (d: number) => `2026-10-${String(d).padStart(2, "0")}`;
     const bench = (reps: number) => [{ exerciseName: "Bench Press", setNumber: 1, weightKg: 80, reps, targetRepMin: 6, targetRepMax: 10 }];

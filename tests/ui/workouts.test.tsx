@@ -134,6 +134,39 @@ describe("seans formu (saf fonksiyonlar)", () => {
     expect(addSet(base, "Yok")).toBe(base);
   });
 
+  it("B21: 5/3/1 ana kaldırışı antrenman maksimumunun yüzdesiyle dolar; hafta ve döngü seans sayısından gelir", () => {
+    const tpl: WorkoutTemplate = {
+      ...strength,
+      name: "5/3/1 · Squat",
+      completedSessions: 1, // 2. hafta (3'lü)
+      exercises: [
+        { ...exercise("e1", "Squat", 5, 5), loadingScheme: "531", trainingMaxKg: 140, incrementKg: 5 },
+        { ...exercise("e2", "Leg Press", 10, 12), targetSets: 3 },
+      ],
+    };
+    const form = buildSessionForm(tpl, false, { Squat: { date: "2026-10-01", sets: [{ weightKg: 20, reps: 5 }] } });
+    const squat = form.setLogs.filter((s) => s.exerciseName === "Squat");
+    expect(squat.map((s) => [s.weightKg, s.reps, s.targetRepMin, s.targetRepMax])).toEqual([
+      [97.5, 3, 3, 3],
+      [112.5, 3, 3, 3],
+      [125, 3, 3, 3],
+    ]);
+    expect(squat.map((s) => s.prescription)).toEqual(["TM %70", "TM %80", "TM %90 · en az 3 (yapabildiğin kadar)"]);
+    expect(form.notes).toMatch(/5\/3\/1 · 2\. hafta \(3'lü hafta\)/);
+    expect(form.notes).toMatch(/Squat TM 140 kg/);
+    expect(form.setLogs.filter((s) => s.exerciseName === "Leg Press")).toHaveLength(3);
+
+    // İkinci döngü: TM +5 kg; hafifletilmiş modda da 3 ana set korunur.
+    const cycle2 = buildSessionForm({ ...tpl, completedSessions: 4 }, true);
+    expect(cycle2.setLogs.filter((s) => s.exerciseName === "Squat").map((s) => s.weightKg)).toEqual([95, 110, 122.5]); // 1. hafta: %65/75/85 × 145
+    expect(cycle2.notes).toMatch(/Squat TM 145 kg/);
+
+    // TM yoksa normal (önceki seans/boş) davranış ve uyarı.
+    const noTm = buildSessionForm({ ...tpl, exercises: [{ ...tpl.exercises[0], trainingMaxKg: null }] }, false);
+    expect(noTm.setLogs.map((s) => s.weightKg)).toEqual([null, null, null]);
+    expect(noTm.setLogs[0].prescription).toMatch(/antrenman maksimumu yok/);
+  });
+
   it("B17: ağırlık alanı boş başlar; hiçbir sette sihirli 40 kg yoktur", () => {
     for (const shortened of [false, true]) {
       const form = buildSessionForm(strength, shortened);

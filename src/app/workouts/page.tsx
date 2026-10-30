@@ -19,6 +19,7 @@ import { ProgressionFeedbackPanel } from "@/components/workouts/ProgressionFeedb
 import { DraftResumeBanner } from "@/components/workouts/DraftResumeBanner";
 import { ActiveSessionForm } from "@/components/workouts/ActiveSessionForm";
 import { WeeklyPlanGrid } from "@/components/workouts/WeeklyPlanGrid";
+import { weekdayOf } from "@/lib/workout-day";
 import { SessionHistory } from "@/components/workouts/SessionHistory";
 import { useWorkoutDraft } from "@/components/workouts/useWorkoutDraft";
 import {
@@ -145,7 +146,15 @@ export default function WorkoutsPage() {
           />
           <SessionHistory today={today} />
           <TextWorkoutModal open={textEntry} date={today} onClose={() => setTextEntry(false)} onSaved={(m) => savedNote.show(m)} />
-          <ProgramPicker open={pickingProgram} onClose={() => setPickingProgram(false)} />
+          <ProgramPicker
+            open={pickingProgram}
+            onClose={() => setPickingProgram(false)}
+            onBuildOwn={() => {
+              // B21: kendi programını kur → bugünün günüyle boş şablon editörü
+              setPickingProgram(false);
+              setEditing({ template: null, dayOfWeek: weekdayOf(today) });
+            }}
+          />
           <TemplateEditor
             open={editing !== null}
             template={editing?.template ?? null}

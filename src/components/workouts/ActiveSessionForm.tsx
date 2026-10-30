@@ -82,6 +82,7 @@ export function ActiveSessionForm({
           <p className="text-xs text-slate-500 mt-0.5">
             Hedef: {form.durationMinutes} dakika · Her setin ağırlık ve tekrarını kaydedin.
           </p>
+          {form.notes && <p className="text-xs font-semibold text-brand-700 mt-0.5">{form.notes}</p>}
         </div>
         <button onClick={onDiscard} className="text-xs text-slate-500 hover:text-slate-700 font-medium">
           Vazgeç

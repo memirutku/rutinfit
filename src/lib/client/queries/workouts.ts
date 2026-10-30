@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/client/api";
 import { queryKeys } from "./keys";
 import type {
+  ApplyProgramInput,
   FinishWorkoutResponse,
   LastSetsResponse,
   TemplateInput,
@@ -91,10 +92,11 @@ export function useImportWorkoutsCsv() {
 }
 
 /** F23: egzersiz listesi ya da seçilen egzersizin geçmişi ve rekorları. */
-export function useStrengthExercises() {
+export function useStrengthExercises(options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: queryKeys.workouts.strengthList,
     queryFn: () => apiFetch<StrengthList>("/api/progress/strength"),
+    enabled: options.enabled ?? true,
   });
 }
 
@@ -141,6 +143,10 @@ export interface ProgramSummary {
   description: string;
   place: string;
   daysPerWeek: number;
+  /** B21: Başlangıç / Orta / İleri. */
+  level?: string;
+  /** B21: uygulanırken 1RM'i sorulan kaldırışlar. */
+  oneRepMaxLifts?: string[];
   days: Array<{ dayOfWeek: number; name: string; exercises: number }>;
 }
 
@@ -157,7 +163,7 @@ export function usePrograms(options: { enabled?: boolean } = {}) {
 export function useApplyProgram() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { programId: string; mode: "replace" | "add" }) =>
+    mutationFn: (input: ApplyProgramInput) =>
       apiFetch<{ created: number }>("/api/workouts/programs", { method: "POST", json: input }),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.workouts.all }),
   });

@@ -1,4 +1,6 @@
 import { clientId } from "@/lib/client/keys";
+import { formatNumberTr } from "@/lib/format";
+import { cycleTrainingMax, wendlerPlan, wendlerSets, WENDLER_WEEKS } from "@/lib/programs";
 import type { LastSetsResponse, WorkoutSessionInput } from "@/lib/schemas/workout";
 import type { SetType } from "@/lib/set-types";
 
@@ -9,6 +11,12 @@ export interface SessionExercise {
   repMax: number;
   /** B18: şablondaki set sayısı (yoksa 3). */
   targetSets?: number;
+  /** B21: %1RM'e bağlı yükleme ("531"). */
+  loadingScheme?: string | null;
+  /** B21: antrenman maksimumu (kg). */
+  trainingMaxKg?: number | null;
+  /** B21: 5/3/1'de döngü başına TM artışı. */
+  incrementKg?: number;
 }
 
 export interface SessionTemplate {
@@ -16,6 +24,8 @@ export interface SessionTemplate {
   name: string;
   targetDurationMinutes: number;
   exercises: SessionExercise[];
+  /** B21: bu şablondan tamamlanmış seans sayısı (5/3/1 haftası). */
+  completedSessions?: number;
 }
 
 export interface SessionSet {
@@ -33,6 +43,8 @@ export interface SessionSet {
   rpe?: number | null;
   /** F19: set tipi (yoksa normal). */
   setType?: SetType;
+  /** B21: reçete ("TM %85 · en az 5"); yalnız gösterim, API'ye gitmez. */
+  prescription?: string;
 }
 
 export interface SessionForm {
@@ -90,8 +102,31 @@ const setsFor = (ex: SessionExercise) =>
 export function buildSessionForm(template: SessionTemplate, shortened: boolean, previous?: LastSetsResponse): SessionForm {
   const exercises = shortened ? template.exercises.slice(0, 3) : template.exercises;
   const setLogs: SessionSet[] = [];
+  // B21: 5/3/1 haftası ve döngüsü bu şablondan tamamlanan seans sayısından gelir.
+  const plan = wendlerPlan(template.completedSessions ?? 0);
+  const week = WENDLER_WEEKS.find((w) => w.week === plan.week)!;
+  const tmNotes: string[] = [];
   for (const ex of exercises) {
+    if (ex.loadingScheme === "531" && ex.trainingMaxKg && ex.trainingMaxKg > 0) {
+      const tm = cycleTrainingMax(ex.trainingMaxKg, plan.cycle, ex.incrementKg ?? 2.5);
+      tmNotes.push(`${ex.exerciseName} TM ${formatNumberTr(tm)} kg`);
+      wendlerSets(tm, plan.week).forEach((w, i) =>
+        setLogs.push({
+          key: newSetKey(),
+          exerciseName: ex.exerciseName,
+          setNumber: i + 1,
+          weightKg: w.weightKg,
+          reps: w.reps,
+          targetRepMin: w.reps,
+          targetRepMax: w.reps,
+          completed: false,
+          prescription: `TM %${w.percent}${w.amrap ? ` · en az ${w.reps} (yapabildiğin kadar)` : ""}`,
+        })
+      );
+      continue;
+    }
     const setsPerExercise = shortened ? Math.min(SHORTENED_MAX_SETS, setsFor(ex)) : setsFor(ex);
+    const missingTm = ex.loadingScheme === "531" ? "5/3/1: antrenman maksimumu yok; şablonu düzenleyip TM gir." : undefined;
     for (let s = 1; s <= setsPerExercise; s++) {
       setLogs.push({
         key: newSetKey(),
@@ -102,15 +137,22 @@ export function buildSessionForm(template: SessionTemplate, shortened: boolean, 
         targetRepMin: ex.repMin,
         targetRepMax: ex.repMax,
         completed: false,
+        ...(missingTm ? { prescription: missingTm } : {}),
       });
     }
   }
+  const notes = [
+    tmNotes.length ? `5/3/1 · ${plan.week}. hafta (${week.label}) · ${plan.cycle + 1}. döngü · ${tmNotes.join(", ")}` : "",
+    shortened ? "Hazır olma düşük olduğu için kısaltılmış seans uygulandı." : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   return {
     templateId: template.id,
     name: shortened ? `${template.name} (25 dk Hafifletilmiş)` : template.name,
     durationMinutes: shortened ? 25 : template.targetDurationMinutes,
     rpe: shortened ? 5 : 7,
-    notes: shortened ? "Hazır olma düşük olduğu için kısaltılmış seans uygulandı." : "",
+    notes,
     setLogs,
   };
 }

@@ -41,6 +41,10 @@ export const WorkoutExerciseSchema = z.object({
   restSeconds: z.number(),
   orderIndex: z.number(),
   incrementKg: z.number().optional(),
+  /** B21: %1RM'e bağlı yükleme ("531"); boşsa tekrar aralığı. */
+  loadingScheme: z.string().nullable().optional(),
+  /** B21: antrenman maksimumu (kg). */
+  trainingMaxKg: z.number().nullable().optional(),
 });
 export type WorkoutExercise = z.infer<typeof WorkoutExerciseSchema>;
 
@@ -52,6 +56,8 @@ export const WorkoutTemplateSchema = z.object({
   targetDurationMinutes: z.number(),
   notes: z.string().nullable(),
   exercises: z.array(WorkoutExerciseSchema),
+  /** B21: bu şablondan tamamlanmış seans sayısı (5/3/1 haftası ve döngüsü bundan çıkar). */
+  completedSessions: z.number().optional(),
 });
 export type WorkoutTemplate = z.infer<typeof WorkoutTemplateSchema>;
 
@@ -113,6 +119,18 @@ export const FinishWorkoutResponseSchema = z.object({
 });
 export type FinishWorkoutResponse = z.infer<typeof FinishWorkoutResponseSchema>;
 
+/** B21: desteklenen %1RM yüklemeleri. */
+export const LOADING_SCHEMES = ["531"] as const;
+export type LoadingScheme = (typeof LOADING_SCHEMES)[number];
+
+/** B21: POST /api/workouts/programs — 1RM'ler (kg) isteğe bağlı; boşsa e1RM geçmişi kullanılır. */
+export const ApplyProgramSchema = z.object({
+  programId: z.string().min(1),
+  mode: z.enum(["replace", "add"]),
+  oneRepMaxes: z.record(z.string(), z.number().min(0).max(1000)).optional(),
+});
+export type ApplyProgramInput = z.input<typeof ApplyProgramSchema>;
+
 /** F17: şablon egzersizi (şablon editörü). */
 export const TemplateExerciseInputSchema = z
   .object({
@@ -121,8 +139,12 @@ export const TemplateExerciseInputSchema = z
     repMin: z.number().int().min(1).max(100),
     repMax: z.number().int().min(1).max(100),
     restSeconds: z.number().int().min(0).max(600),
-    /** F21: ilerlemede eklenecek ağırlık (kg). */
+    /** F21: ilerlemede eklenecek ağırlık (kg). 5/3/1'de döngü başına antrenman maksimumu artışı. */
     incrementKg: z.number().min(0).max(20).default(2.5),
+    /** B21: %1RM'e bağlı yükleme. */
+    loadingScheme: z.enum(LOADING_SCHEMES).nullable().optional(),
+    /** B21: antrenman maksimumu (kg). */
+    trainingMaxKg: z.number().positive().max(1000).nullable().optional(),
   })
   .refine((e) => e.repMin <= e.repMax, { message: "Tekrar alt sınırı üst sınırdan büyük olamaz.", path: ["repMin"] });
 

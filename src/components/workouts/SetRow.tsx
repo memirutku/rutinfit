@@ -41,6 +41,7 @@ export function SetRow({ set, onChange, onToggle, onRemove }: SetRowProps) {
           <p className="text-xs text-slate-400">
             Hedef tekrar: {set.targetRepMin === set.targetRepMax ? set.targetRepMin : `${set.targetRepMin} - ${set.targetRepMax}`}
           </p>
+          {set.prescription && <p className="text-[11px] font-semibold text-brand-700">{set.prescription}</p>}
         </div>
       </div>
 

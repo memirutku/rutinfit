@@ -3,6 +3,7 @@ import { WorkoutSessionInputSchema } from "@/lib/schemas/workout";
 import { prisma } from "@/lib/prisma";
 import { apiError, HttpError } from "@/lib/api-error";
 import { evaluateExerciseProgression } from "@/lib/progression";
+import { wendlerFeedback } from "@/lib/programs";
 import { isWorkingSet } from "@/lib/set-types";
 import { detectPlateau, exerciseHistory } from "@/lib/strength";
 import { normalizeName } from "@/lib/text";
@@ -37,14 +38,17 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const date = searchParams.get("date");
 
-    const templates = await prisma.workoutTemplate.findMany({
+    const rawTemplates = await prisma.workoutTemplate.findMany({
       include: {
         exercises: {
           orderBy: { orderIndex: "asc" },
         },
+        // B21: 5/3/1 haftası ve döngüsü bu şablondan tamamlanan seans sayısından çıkar.
+        _count: { select: { sessions: { where: { completed: true } } } },
       },
       orderBy: { dayOfWeek: "asc" },
     });
+    const templates = rawTemplates.map(({ _count, ...t }) => ({ ...t, completedSessions: _count.sessions }));
 
     const where: any = {};
     if (date) {
@@ -124,24 +128,24 @@ export async function POST(req: Request) {
     const templateExercises = validated.templateId
       ? await prisma.workoutExercise.findMany({ where: { templateId: validated.templateId } })
       : [];
-    const incrementFor = (name: string) =>
-      templateExercises.find((e) => normalizeName(e.exerciseName) === normalizeName(name))?.incrementKg ?? 2.5;
+    const templateExercise = (name: string) => templateExercises.find((e) => normalizeName(e.exerciseName) === normalizeName(name));
+    const incrementFor = (name: string) => templateExercise(name)?.incrementKg ?? 2.5;
 
     const progressionFeedbacks: Record<string, any> = {};
     for (const [exName, sets] of Object.entries(exerciseGroups)) {
-      progressionFeedbacks[exName] = {
-        ...evaluateExerciseProgression(
-          sets.map((s) => ({
-            setNumber: s.setNumber,
-            weightKg: s.weightKg,
-            reps: s.reps,
-            targetRepMin: s.targetRepMin,
-            targetRepMax: s.targetRepMax,
-          })),
-          incrementFor(exName)
-        ),
-        plateau: await plateauFor(exName),
-      };
+      const performance = sets.map((s) => ({
+        setNumber: s.setNumber,
+        weightKg: s.weightKg,
+        reps: s.reps,
+        targetRepMin: s.targetRepMin,
+        targetRepMax: s.targetRepMax,
+      }));
+      // B21: 5/3/1 ana kaldırışında ağırlık döngü sonunda artar; öneri son sete göre.
+      const feedback =
+        templateExercise(exName)?.loadingScheme === "531"
+          ? wendlerFeedback(performance, incrementFor(exName))
+          : evaluateExerciseProgression(performance, incrementFor(exName));
+      progressionFeedbacks[exName] = { ...feedback, plateau: await plateauFor(exName) };
     }
 
     return NextResponse.json(

@@ -70,6 +70,15 @@ export function WeeklyPlanGrid({ templates, loading, onStart, onEdit, onPickProg
             Metinden ekle
           </button>
         )}
+        {onEdit && (
+          <button
+            type="button"
+            onClick={() => onEdit(null, todayWeekday ?? 1)}
+            className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50"
+          >
+            + Yeni şablon
+          </button>
+        )}
         {onPickProgram && (
           <button
             type="button"

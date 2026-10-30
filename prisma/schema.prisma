@@ -255,6 +255,8 @@ model WorkoutExercise {
   restSeconds  Int    @default(90)
   orderIndex   Int    @default(0)
   incrementKg  Float  @default(2.5) // F21: ilerlemede eklenecek ağırlık
+  loadingScheme String? // B21: %1RM'e bağlı yükleme ("531" = Wendler 5/3/1); boşsa tekrar aralığı
+  trainingMaxKg Float? // B21: antrenman maksimumu (1RM'in %90'ı); 5/3/1 ağırlıkları bundan hesaplanır
 
   template WorkoutTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
