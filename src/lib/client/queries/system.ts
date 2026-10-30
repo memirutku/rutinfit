@@ -35,10 +35,12 @@ export function useSaveProfile() {
   });
 }
 
-export function useDiagnostics() {
+/** B38: tanılama bölümü `refetchInterval` ile kendini yeniler. */
+export function useDiagnostics(options: { refetchInterval?: number } = {}) {
   return useQuery({
     queryKey: queryKeys.diagnostics,
     queryFn: () => apiFetch<Diagnostics>("/api/diagnostics"),
+    refetchInterval: options.refetchInterval,
   });
 }
 

@@ -24,9 +24,35 @@ const PROFILE: Profile = {
 };
 
 const DIAGNOSTICS: Diagnostics = {
-  storage: { dbPath: "/data/rutinfit.db", dbSizeFormatted: "1.23 MB", backupsDir: "/data/backups", backupCount: 4 },
+  generatedAt: "2026-10-30T13:57:24.000Z",
+  storage: {
+    dataDir: "/data",
+    dbPath: "/data/rutinfit.db",
+    dbSizeFormatted: "1.23 MB",
+    backupsDir: "/data/backups",
+    backupCount: 4,
+    exportsDir: "/data/exports",
+    uploadsDir: "/data/uploads",
+    autoBackupFolder: "/Users/ben/iCloud/RutinFit",
+    autoBackupCount: 3,
+  },
   counts: { foods: 42, foodLogs: 7, recipes: 3, mealPlans: 2, workoutSessions: 5, setLogs: 60, weightLogs: 9, pantryItems: 11 },
-  system: { nodeVersion: "v22.1.0", platform: "darwin", arch: "arm64", memoryRssMb: 180 },
+  tables: [
+    { model: "FoodItem", label: "Besinler", count: 42 },
+    { model: "PantryItem", label: "Kiler ürünleri", count: 11 },
+    { model: "CardioLog", label: "Kardiyo kayıtları", count: 6 },
+    { model: "HealthRecord", label: "Apple Sağlık kayıtları", count: 15 },
+    { model: "AIConversation", label: "Koç sohbetleri", count: 2 },
+  ],
+  system: {
+    appVersion: "0.1.0",
+    nodeVersion: "v22.1.0",
+    platform: "darwin",
+    arch: "arm64",
+    memoryRssMb: 180,
+    logFile: "/Users/ben/Library/Logs/com.rutinfit.desktop/rutinfit.log",
+    logFileExists: true,
+  },
 };
 
 type Responder = Parameters<typeof stubFetch>[0][number][1];
@@ -623,17 +649,56 @@ describe("Ayarlar — B36 dosyanın yeri, Finder'da göster, yolu kopyala, klas�
 });
 
 describe("Ayarlar — sistem tanılama", () => {
-  it("depolama, ortam ve kayıt sayılarını gösterir; Yenile yeniden çeker", async () => {
+  it("B38: tam yollar, iki yedek klasörü, bütün tablolar, sürüm ve günlük dosyası görünür; Yenile yeniden çeker", async () => {
     const { calls } = setup();
-    expect(await screen.findByText("rutinfit.db")).toBeTruthy();
-    expect(screen.getByText("Boyut: 1.23 MB")).toBeTruthy();
-    expect(screen.getByText("Node v22.1.0 (darwin-arm64)")).toBeTruthy();
-    expect(screen.getByText("Besinler:").nextElementSibling?.textContent).toBe("42");
-    expect(screen.getByText("Kiler Ürünleri:").nextElementSibling?.textContent).toBe("11");
-    await waitFor(() => expect(screen.getByRole("button", { name: "Yenile" }).hasAttribute("disabled")).toBe(false));
+    const section = (await screen.findByRole("heading", { name: /Sistem Tanılama/ })).closest("section")!;
+    await within(section).findByText("/data/rutinfit.db");
+    expect(within(section).getByText("Boyut: 1.23 MB")).toBeTruthy();
+    expect(within(section).getByText("Node v22.1.0 (darwin-arm64)")).toBeTruthy();
+    expect(within(section).getByText("RutinFit 0.1.0")).toBeTruthy();
+    expect(within(section).getByText("/data/backups")).toBeTruthy();
+    expect(within(section).getByText("/Users/ben/iCloud/RutinFit")).toBeTruthy();
+    expect(within(section).getByText("/Users/ben/Library/Logs/com.rutinfit.desktop/rutinfit.log")).toBeTruthy();
+    expect(within(section).getByText(/Uygulama klasöründe: 4 yedek/)).toBeTruthy();
+    expect(within(section).getByText(/Otomatik yedek klasöründe: 3 yedek/)).toBeTruthy();
+    for (const [label, count] of [["Besinler", "42"], ["Kiler ürünleri", "11"], ["Kardiyo kayıtları", "6"], ["Apple Sağlık kayıtları", "15"], ["Koç sohbetleri", "2"]]) {
+      expect(within(section).getByText(label).nextElementSibling?.textContent).toBe(count);
+    }
+    expect(within(section).getByRole("button", { name: "Veritabanı dosyasını Finder'da göster" })).toBeTruthy();
+    expect(within(section).getByRole("button", { name: "Günlük dosyasının yolunu kopyala" })).toBeTruthy();
 
+    await waitFor(() => expect(within(section).getByRole("button", { name: "Yenile" }).hasAttribute("disabled")).toBe(false));
     const before = callsTo(calls, "/api/diagnostics").length;
-    fireEvent.click(screen.getByRole("button", { name: "Yenile" }));
+    fireEvent.click(within(section).getByRole("button", { name: "Yenile" }));
     await waitFor(() => expect(callsTo(calls, "/api/diagnostics")).toHaveLength(before + 1));
+  });
+
+  it("B38: 'Tanılamayı kopyala' sürüm, yollar ve tablo sayılarıyla düz metin kopyalar", async () => {
+    const writeText = vi.fn(async (_text: string) => {});
+    vi.stubGlobal("navigator", Object.assign(Object.create(navigator), { clipboard: { writeText } }));
+    setup();
+    fireEvent.click(await screen.findByRole("button", { name: "Tanılamayı kopyala" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    const text = writeText.mock.calls[0][0];
+    expect(text).toContain("RutinFit 0.1.0");
+    expect(text).toContain("Veritabanı: /data/rutinfit.db (1.23 MB)");
+    expect(text).toContain("Günlük dosyası: /Users/ben/Library/Logs/com.rutinfit.desktop/rutinfit.log");
+    expect(text).toContain("Otomatik yedek klasörü: /Users/ben/iCloud/RutinFit (3 yedek)");
+    expect(text).toContain("Kardiyo kayıtları: 6");
+    expect(await screen.findByText("Tanılama kopyalandı")).toBeTruthy();
+  });
+
+  it("B38: bir işlem bitince (ör. Şimdi yedekle) tanılama kendiliğinden yenilenir", async () => {
+    const state = { enabled: true, folderPath: "/Users/ben/Yedek", frequency: "daily", keepCount: 10, lastRunAt: null, lastStatus: null, lastMessage: null, lastFile: null, suggestedFolder: "/x", exportCopies: true };
+    const { calls } = setup([
+      ["/api/backup/auto", (_u, init) => (method(init) === "POST" ? jsonResponse({ ok: true, message: "Yedek alındı.", file: "/Users/ben/Yedek/a.json" }) : jsonResponse(state))],
+    ]);
+    const run = await screen.findByRole("button", { name: "Şimdi yedekle" });
+    await waitFor(() => expect(run.hasAttribute("disabled")).toBe(false));
+    await waitFor(() => expect(callsTo(calls, "/api/diagnostics").length).toBeGreaterThanOrEqual(1));
+    await new Promise((r) => setTimeout(r, 50));
+    const before = callsTo(calls, "/api/diagnostics").length;
+    fireEvent.click(run);
+    await waitFor(() => expect(callsTo(calls, "/api/diagnostics").length).toBeGreaterThan(before));
   });
 });

@@ -100,4 +100,20 @@ test.describe("Dalga 6 · Ayarlar", () => {
       await api.delete("/api/apple-health");
     }
   });
+
+  test("B38: tanılama sürümü, günlük yolunu ve bütün tabloları gösterir; yedekten sonra kendiliğinden yenilenir", async ({ page }) => {
+    await page.goto("/settings#tanilama");
+    await expect(page.locator("#gelismis")).toHaveAttribute("open", "");
+    const diag = page.locator("#tanilama");
+    await expect(diag).toContainText(/RutinFit \d+\.\d+\.\d+/);
+    await expect(diag).toContainText("rutinfit.log");
+    await expect(diag).toContainText("Kardiyo kayıtları");
+    await expect(diag).toContainText("Apple Sağlık kayıtları");
+    const count = async () => Number(/Uygulama klasöründe: (\d+) yedek/.exec((await diag.innerText()) ?? "")?.[1] ?? NaN);
+    await expect.poll(count).not.toBeNaN();
+    const before = await count();
+    await Promise.all([page.waitForEvent("download"), page.locator("#backup-export").click()]);
+    // "Yenile"ye basmadan sayı artar.
+    await expect.poll(count).toBe(before + 1);
+  });
 });

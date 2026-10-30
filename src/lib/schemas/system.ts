@@ -36,13 +36,19 @@ export const OpenGymSyncResultSchema = z.object({
 });
 export type OpenGymSyncResult = z.infer<typeof OpenGymSyncResultSchema>;
 
-/** GET /api/diagnostics */
+/** GET /api/diagnostics (B38: tam yollar, bütün tablolar, iki yedek klasörü, günlük dosyası). */
 export const DiagnosticsSchema = z.object({
+  generatedAt: z.string(),
   storage: z.object({
+    dataDir: z.string(),
     dbPath: z.string(),
     dbSizeFormatted: z.string(),
     backupsDir: z.string(),
     backupCount: z.number(),
+    exportsDir: z.string(),
+    uploadsDir: z.string(),
+    autoBackupFolder: z.string().nullable(),
+    autoBackupCount: z.number(),
   }),
   counts: z.object({
     foods: z.number(),
@@ -54,6 +60,8 @@ export const DiagnosticsSchema = z.object({
     weightLogs: z.number(),
     pantryItems: z.number(),
   }),
+  /** Her tablo: model adı, Türkçe adı, kayıt sayısı. */
+  tables: z.array(z.object({ model: z.string(), label: z.string(), count: z.number() })),
   system: z.object({
     /** F67: uygulama sürümü (sürüm doğrulaması için). */
     appVersion: z.string().optional(),
@@ -61,6 +69,9 @@ export const DiagnosticsSchema = z.object({
     platform: z.string(),
     arch: z.string(),
     memoryRssMb: z.number(),
+    /** Masaüstü kabuğunun günlük dosyası (yalnız paketli uygulamada yazılır). */
+    logFile: z.string(),
+    logFileExists: z.boolean(),
   }),
 });
 export type Diagnostics = z.infer<typeof DiagnosticsSchema>;

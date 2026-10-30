@@ -8,6 +8,8 @@ import type { ConfirmOptions } from "@/components/ui/ConfirmDialog";
 import { AutoBackupPanel } from "./AutoBackupPanel";
 import { downloadFile } from "@/lib/client/download";
 import { useAutoBackup } from "@/lib/client/queries/auto-backup";
+import { queryKeys } from "@/lib/client/queries/keys";
+import { useQueryClient } from "@tanstack/react-query";
 import { PathActions } from "@/components/ui/PathActions";
 
 interface ImportResult {
@@ -80,6 +82,9 @@ function ExportResultView({ result }: { result: ExportResult }) {
 export function BackupSection({ confirm }: { confirm: (options: ConfirmOptions) => Promise<boolean> }) {
   const [exportResult, setExportResult] = useState<ExportResult | null>(null);
   const exportCopies = useAutoBackup().data?.exportCopies ?? true;
+  const qc = useQueryClient();
+  // B38: indirme bir işlem (mutation) değildir; uygulama klasörüne kopya düştüğü için tanılama tazelenir.
+  const refreshDiagnostics = () => qc.invalidateQueries({ queryKey: queryKeys.diagnostics });
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const importBackup = useImportBackup();
 
@@ -87,6 +92,7 @@ export function BackupSection({ confirm }: { confirm: (options: ConfirmOptions) 
     setExportResult(null);
     try {
       setExportResult(await downloadBackup());
+      void refreshDiagnostics();
     } catch (err) {
       setExportResult({ ok: false, message: `Hata: ${errorMessage(err, "Yedek dışa aktarılamadı")}` });
     }
@@ -96,6 +102,7 @@ export function BackupSection({ confirm }: { confirm: (options: ConfirmOptions) 
     setExportResult(null);
     try {
       setExportResult(await downloadCsv(type));
+      void refreshDiagnostics();
     } catch (err) {
       setExportResult({ ok: false, message: `Hata: ${errorMessage(err, "CSV dışa aktarılamadı")}` });
     }
