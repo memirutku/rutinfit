@@ -25,6 +25,7 @@ const ROWS: EgressRow[] = [
     endpoint: "cloud",
   },
   { feature: "Paketli gıda araması ve barkod", what: "Barkod numarası ya da arama kelimesi", where: "world.openfoodfacts.org" },
+  { feature: "Adresten tarif içe aktarma", what: "Yalnız yapıştırdığın adrese sayfa isteği (veri gönderilmez)", where: "Girdiğin tarif sitesi" },
   { feature: "openGym eşitlemesi", what: "Hiçbir şey; bu bilgisayardaki openGym dosyası okunur", where: "—" },
   { feature: "Yedekler ve dışa aktarma", what: "Hiçbir şey; dosya bu bilgisayara yazılır", where: "—" },
 ];

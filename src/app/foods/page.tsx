@@ -17,6 +17,7 @@ import { usePackagedSearch } from "@/components/foods/usePackagedSearch";
 import type { FoodsNotice, FoodsTab } from "@/components/foods/constants";
 import { formatNumberTr } from "@/lib/format";
 import { isBarcode } from "@/components/foods/constants";
+import { RecipeImportModal } from "@/components/foods/RecipeImportModal";
 
 export default function FoodsPage() {
   const [activeTab, setActiveTab] = useState<FoodsTab>("foods");
@@ -25,6 +26,7 @@ export default function FoodsPage() {
   const [packagedInput, setPackagedInput] = useState("");
   const [newFood, setNewFood] = useState<{ open: boolean; prefillName?: string; prefillBarcode?: string }>({ open: false });
   const [isNewRecipeOpen, setIsNewRecipeOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const foodsQuery = useFoods(200);
   const recipesQuery = useRecipes();
@@ -94,6 +96,7 @@ export default function FoodsPage() {
         recipesCount={recipes.length}
         onNewFood={() => setNewFood({ open: true })}
         onNewRecipe={() => setIsNewRecipeOpen(true)}
+        onImportRecipe={() => setImportOpen(true)}
         onManualAdd={openManualAdd}
       />
 
@@ -139,6 +142,7 @@ export default function FoodsPage() {
         onClose={() => setNewFood({ open: false })}
       />
       <NewRecipeModal open={isNewRecipeOpen} onClose={() => setIsNewRecipeOpen(false)} foods={foods} />
+      <RecipeImportModal open={importOpen} onClose={() => setImportOpen(false)} />
     </div>
   );
 }

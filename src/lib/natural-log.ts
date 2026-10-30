@@ -31,9 +31,13 @@ const UNIT_SYNONYMS: Array<[string, string]> = [
   ["tabak", "porsiyon"],
   ["kutu", "kutu"],
   ["kup", "küp"],
+  ["kilogram", "kg"],
+  ["kg", "kg"],
   ["gram", "gram"],
   ["gr", "gram"],
   ["g", "gram"],
+  ["litre", "lt"],
+  ["lt", "lt"],
   ["ml", "gram"],
 ];
 
@@ -100,6 +104,8 @@ export function parseFoodText(text: string): ParsedFood {
     const rest = words.slice(q.used);
     const u = readUnit(rest);
     const food = (u ? rest.slice(u.used) : rest).join(" ");
+    // kg ve litre grama çevrilir (sıvıda ≈ su yoğunluğu).
+    if (u?.unit === "kg" || u?.unit === "lt") return { quantity: q.quantity * 1000, unit: "gram", food };
     return { quantity: q.quantity, unit: u?.unit ?? null, food };
   }
   // "tavuk göğsü 200 gr": miktar sonda.
