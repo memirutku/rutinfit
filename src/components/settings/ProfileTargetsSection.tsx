@@ -9,6 +9,8 @@ import type { Profile, ProfileInput } from "@/lib/schemas/profile";
 import { DecimalInput } from "@/components/ui/DecimalInput";
 import { calorieFloor } from "@/lib/safety";
 import { formatNumberTr } from "@/lib/format";
+import { DEFAULT_TARGETS } from "@/lib/constants";
+import { macroMismatch, redistributeMacros } from "@/lib/macro-balance";
 import { SetupWizard } from "@/components/onboarding/SetupWizard";
 
 /** Formdaki yerel taslak: profil yüklenemediyse alanlar boş başlar (varsayılanlar gösterilir). */
@@ -41,7 +43,7 @@ interface NumberFieldDef {
 const LABEL = "block text-xs font-semibold text-slate-600 mb-1";
 const INPUT = "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm";
 const int = (raw: string) => parseInt(raw, 10);
-const CALORIE_FALLBACK = 2080;
+const CALORIE_FALLBACK = DEFAULT_TARGETS.calorieTarget;
 
 const HEIGHT: NumberFieldDef = { id: "settings-field-1", label: "Boy (cm)", key: "heightCm", fallback: 181, parse: parseFloat, decimal: true };
 const AGE: NumberFieldDef = { id: "settings-field-2", label: "Yaş", key: "age", fallback: 25, parse: int };
@@ -54,15 +56,16 @@ const WEIGHT: NumberFieldDef = {
   step: "0.1",
   decimal: true,
 };
+// Profil yokken hedef alanları ortak varsayılanları gösterir (kişisel sabit sayı yok).
 const TARGETS: NumberFieldDef[] = [
-  { id: "settings-field-5", label: "Kalori Hedefi (kcal)", key: "calorieTarget", fallback: 2080, parse: int, tone: "font-bold text-slate-900" },
-  { id: "settings-field-6", label: "Üst Sınır Tavan (kcal)", key: "calorieCeiling", fallback: 2100, parse: int, tone: "font-bold text-slate-900" },
-  { id: "settings-field-7", label: "Protein Hedefi (g)", key: "proteinTargetG", fallback: 165, parse: int, tone: "font-bold text-emerald-700" },
-  { id: "settings-field-8", label: "Karbonhidrat (g)", key: "carbTargetG", fallback: 220, parse: int, tone: "font-bold text-amber-700" },
+  { id: "settings-field-5", label: "Kalori Hedefi (kcal)", key: "calorieTarget", fallback: DEFAULT_TARGETS.calorieTarget, parse: int, tone: "font-bold text-slate-900" },
+  { id: "settings-field-6", label: "Üst Sınır Tavan (kcal)", key: "calorieCeiling", fallback: DEFAULT_TARGETS.calorieCeiling, parse: int, tone: "font-bold text-slate-900" },
+  { id: "settings-field-7", label: "Protein Hedefi (g)", key: "proteinTargetG", fallback: DEFAULT_TARGETS.proteinTargetG, parse: int, tone: "font-bold text-emerald-700" },
+  { id: "settings-field-8", label: "Karbonhidrat (g)", key: "carbTargetG", fallback: DEFAULT_TARGETS.carbTargetG, parse: int, tone: "font-bold text-amber-700" },
 ];
 const WATER: NumberFieldDef = { id: "settings-field-water", label: "Günlük su hedefi (ml)", key: "waterTargetMl", fallback: 2500, parse: int, tone: "font-bold text-sky-700" };
 const HOUSEHOLD: NumberFieldDef = { id: "settings-field-household", label: "Hane büyüklüğü (kişi)", key: "householdSize", fallback: 1, parse: int };
-const FAT: NumberFieldDef = { id: "settings-field-9", label: "Yağ Hedefi (g)", key: "fatTargetG", fallback: 60, parse: int, tone: "font-bold text-indigo-700" };
+const FAT: NumberFieldDef = { id: "settings-field-9", label: "Yağ Hedefi (g)", key: "fatTargetG", fallback: DEFAULT_TARGETS.fatTargetG, parse: int, tone: "font-bold text-indigo-700" };
 
 function NumberField({ field, draft, onChange }: { field: NumberFieldDef; draft: ProfileDraft; onChange: (key: NumericKey, value: number) => void }) {
   return (
@@ -118,7 +121,16 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
   const [acknowledgeLow, setAcknowledgeLow] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const floor = calorieFloor(draft.sex ?? "male");
-  const isLowCalorie = (draft.calorieTarget || CALORIE_FALLBACK) < floor;
+  const calorieTarget = draft.calorieTarget || CALORIE_FALLBACK;
+  const isLowCalorie = calorieTarget < floor;
+  // B15: kalori hedefi değişince makrolar eski değerde kalabilir; enerjileri hedefle uyuşmazsa uyarılır.
+  const macros = {
+    proteinG: draft.proteinTargetG || DEFAULT_TARGETS.proteinTargetG,
+    carbsG: draft.carbTargetG || DEFAULT_TARGETS.carbTargetG,
+    fatG: draft.fatTargetG || DEFAULT_TARGETS.fatTargetG,
+  };
+  const balance = macroMismatch(calorieTarget, macros);
+  const suggestion = balance.mismatched ? redistributeMacros(calorieTarget, macros) : null;
 
   const save = useSaveProfile();
   const success = useTimedMessage<string>(3000);
@@ -198,6 +210,31 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
               <input type="checkbox" checked={acknowledgeLow} onChange={(e) => setAcknowledgeLow(e.target.checked)} />
               Bu hedefi bir doktor ya da diyetisyenle birlikte belirledim
             </label>
+          </div>
+        )}
+
+        {balance.mismatched && (
+          <div role="status" aria-label="Makro dengesi" className="p-3 rounded-xl bg-sky-50 border border-sky-200 text-sky-900 text-xs space-y-2">
+            <p>
+              Protein, karbonhidrat ve yağ hedeflerin toplam {formatNumberTr(balance.macroKcal)} kcal ediyor; kalori hedefin{" "}
+              {formatNumberTr(calorieTarget)} kcal ({formatNumberTr(Math.abs(balance.diff))} kcal {balance.diff > 0 ? "fazla" : "eksik"}).
+            </p>
+            {suggestion && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span>
+                  Oranları koruyarak dağıtılırsa: Protein {formatNumberTr(suggestion.proteinG)} g · Karbonhidrat {formatNumberTr(suggestion.carbsG)} g · Yağ{" "}
+                  {formatNumberTr(suggestion.fatG)} g
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setDraft((d) => ({ ...d, proteinTargetG: suggestion.proteinG, carbTargetG: suggestion.carbsG, fatTargetG: suggestion.fatG }))}
+                  className="px-3 py-1.5 rounded-lg bg-sky-700 text-white font-bold hover:bg-sky-800"
+                >
+                  Makroları oranla dağıt
+                </button>
+              </div>
+            )}
+            <p className="text-sky-800">İstersen makroları elle de düzeltebilirsin; diyetisyeninin verdiği değerler varsa onları gir.</p>
           </div>
         )}
 

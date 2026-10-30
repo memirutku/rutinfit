@@ -98,7 +98,9 @@ export async function POST(req: Request) {
       }
     }
 
-    if (!(grams > 0)) {
+    // B09: katalog ya da tarif bağı olmayan serbest kayıt yalnız kaloriyle de girilebilir (gram bilinmiyorsa 0).
+    const freeWithCalories = !validated.foodItemId && !validated.recipeId && validated.caloriesSnapshot !== undefined;
+    if (!(grams > 0) && !freeWithCalories) {
       return NextResponse.json({ error: "Gramaj hesaplanamadı." }, { status: 400 });
     }
 

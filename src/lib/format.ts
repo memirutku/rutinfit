@@ -49,3 +49,8 @@ export function formatDateTr(iso: string | null | undefined, opts: { short?: boo
   if (!m) return iso ?? "";
   return opts.short ? `${m[3]}.${m[2]}` : `${m[3]}.${m[2]}.${m[1]}`;
 }
+
+/** Türkçe ondalıklı sayı, en çok `digits` ondalıkla: formatDecimalTr(0.856, 2) → "0,86". */
+export function formatDecimalTr(value: number, digits: number): string {
+  return new Intl.NumberFormat("tr-TR", { maximumFractionDigits: digits }).format(value);
+}

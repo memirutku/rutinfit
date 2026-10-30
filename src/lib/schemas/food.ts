@@ -52,18 +52,21 @@ export const FoodLogCreateSchema = z
     foodItemId: z.string().optional().nullable(),
     recipeId: z.string().optional().nullable(),
     name: z.string().min(1),
-    /** Gram ya da (tarif için) porsiyon sayısı verilmelidir. */
-    grams: z.number().positive().optional(),
+    /** Gram ya da (tarif için) porsiyon sayısı verilmelidir. B09: serbest kayıtta kalori yeterlidir (gram 0 = bilinmiyor). */
+    grams: z.number().nonnegative().optional(),
     servings: z.number().positive().optional(),
     caloriesSnapshot: z.number().nonnegative().optional(),
     proteinSnapshot: z.number().nonnegative().optional(),
     carbsSnapshot: z.number().nonnegative().optional(),
     fatSnapshot: z.number().nonnegative().optional(),
   })
-  .refine((v) => v.grams !== undefined || (v.servings !== undefined && !!v.recipeId), {
-    message: "grams veya (tarif için) servings zorunludur.",
-    path: ["grams"],
-  });
+  .refine(
+    (v) =>
+      v.grams !== undefined ||
+      (v.servings !== undefined && !!v.recipeId) ||
+      (!v.foodItemId && !v.recipeId && v.caloriesSnapshot !== undefined),
+    { message: "grams, (tarif için) servings ya da (serbest kayıtta) kalori zorunludur.", path: ["grams"] }
+  );
 export type FoodLogCreateInput = z.input<typeof FoodLogCreateSchema>;
 
 /** POST /api/foods/barcode: Open Food Facts ürününü yerel kataloğa kaydeder. */

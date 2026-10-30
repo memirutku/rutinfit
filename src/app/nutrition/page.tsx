@@ -5,6 +5,8 @@ import { Calendar, CalendarDays, ShoppingCart, Utensils } from "lucide-react";
 import { getLocalDateString } from "@/lib/date-utils";
 import { useTimedMessage } from "@/hooks/useTimedMessage";
 import { useShoppingList } from "@/lib/client/queries/shopping";
+import { useProfile } from "@/lib/client/queries/system";
+import { targetSummary } from "@/components/nutrition/target-summary";
 import { MealPlanTab } from "@/components/nutrition/MealPlanTab";
 import { ShoppingListTab } from "@/components/nutrition/ShoppingListTab";
 import { MealPrepGuide } from "@/components/nutrition/MealPrepGuide";
@@ -24,6 +26,8 @@ export default function NutritionPage() {
   const [selectedDate, setSelectedDate] = useState<string>(getLocalDateString());
   const [portionMultipliers, setPortionMultipliers] = useState<Record<string, number>>({});
   const notice = useTimedMessage<string>(4000);
+  const profile = useProfile();
+  const summary = targetSummary(profile.data);
 
   // Haftanın listesi sayfa açılınca (gerekirse plandan kurularak) bir kez yüklenir.
   const shopping = useShoppingList(selectedDate);
@@ -36,7 +40,7 @@ export default function NutritionPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">Beslenme & Yemek Planı 🥗</h2>
-          <p className="text-sm text-slate-500 mt-0.5">Hedef: 2.080 kcal · 165g Protein · 220g Karb · 60g Yağ</p>
+          {summary && <p className="text-sm text-slate-500 mt-0.5">{summary}</p>}
         </div>
 
         {/* Sekme Butonları */}
@@ -63,7 +67,9 @@ export default function NutritionPage() {
       )}
 
       {/* F30: HAFTALIK PLAN EDİTÖRÜ */}
-      {activeTab === "week" && <WeekPlanEditor selectedDate={selectedDate} />}
+      {activeTab === "week" && (
+        <WeekPlanEditor selectedDate={selectedDate} onDateChange={setSelectedDate} hideNumbers={profile.data?.hideNumbers ?? false} />
+      )}
 
       {/* 1. SEKME: YEMEK PLANI */}
       {activeTab === "plan" && (
@@ -71,8 +77,11 @@ export default function NutritionPage() {
           selectedDate={selectedDate}
           onDateChange={setSelectedDate}
           multipliers={portionMultipliers}
-          onMultiplierChange={(type, m) => setPortionMultipliers((prev) => ({ ...prev, [type]: m }))}
+          onMultiplierChange={(mealId, m) => setPortionMultipliers((prev) => ({ ...prev, [mealId]: m }))}
           onMessage={showMessage}
+          onOpenWeek={() => setActiveTab("week")}
+          ramadan={profile.data?.ramadanMode ?? false}
+          hideNumbers={profile.data?.hideNumbers ?? false}
         />
       )}
 

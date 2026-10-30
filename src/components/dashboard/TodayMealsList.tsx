@@ -131,11 +131,13 @@ export function TodayMealsList({ logs, onAdd, onDelete, hideNumbers = false, onO
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-800 truncate">{log.name}</p>
                   <p className="text-xs text-slate-400">
+                    {/* B09: kaloriyle girilen serbest kayıtta gram bilinmez (0); gösterilmez. */}
                     {hideNumbers ? (
-                      `${formatNumberTr(log.grams)}g`
+                      log.grams > 0 ? `${formatNumberTr(log.grams)}g` : ""
                     ) : (
                       <>
-                        {formatNumberTr(log.grams)}g · {formatNumberTr(log.caloriesSnapshot)} kcal · P: {formatNumberTr(log.proteinSnapshot)}g · K:{" "}
+                        {log.grams > 0 && `${formatNumberTr(log.grams)}g · `}
+                        {formatNumberTr(log.caloriesSnapshot)} kcal · P: {formatNumberTr(log.proteinSnapshot)}g · K:{" "}
                         {formatNumberTr(log.carbsSnapshot)}g · Y: {formatNumberTr(log.fatSnapshot)}g
                       </>
                     )}
