@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import type { WorkoutTemplate } from "@/lib/schemas/workout";
 import type { SessionTemplate } from "./session-form";
 
@@ -71,15 +72,14 @@ export function WeeklyPlanGrid({ templates, loading, onStart, onEdit, onPickProg
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {DAYS_OF_WEEK.map((d) => (
-          <DayTemplateCard
-            key={d.day}
-            dayName={d.name}
-            template={templates.find((t) => t.dayOfWeek === d.day)}
-            onStart={onStart}
-            onEdit={onEdit ? (t) => onEdit(t, d.day) : undefined}
-          />
-        ))}
+        {DAYS_OF_WEEK.flatMap((d) => {
+          // B18: "Plana ekle" ile aynı güne eklenen şablonların hepsi görünür (yalnız ilki değil).
+          const dayTemplates = templates.filter((t) => t.dayOfWeek === d.day);
+          const edit = onEdit ? (t: WorkoutTemplate | null) => onEdit(t, d.day) : undefined;
+          return dayTemplates.length === 0
+            ? [<DayTemplateCard key={d.day} dayName={d.name} onStart={onStart} onEdit={edit} />]
+            : dayTemplates.map((t) => <DayTemplateCard key={t.id} dayName={d.name} template={t} onStart={onStart} onEdit={edit} />);
+        })}
       </div>
     </div>
   );
@@ -95,9 +95,10 @@ interface DayTemplateCardProps {
 export function DayTemplateCard({ dayName, template, onStart, onEdit }: DayTemplateCardProps) {
   const isStrength = template?.type === "strength";
   const isRun = template?.type === "easy_run";
+  const headingId = useId();
 
   return (
-    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+    <article aria-labelledby={headingId} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
       <div>
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{dayName}</span>
@@ -115,7 +116,9 @@ export function DayTemplateCard({ dayName, template, onStart, onEdit }: DayTempl
         </div>
 
         <div className="flex items-start justify-between gap-2 mb-1">
-          <h4 className="font-bold text-slate-900 text-base">{template?.name || "Dinlenme"}</h4>
+          <h4 id={headingId} className="font-bold text-slate-900 text-base">
+            {template?.name || "Dinlenme"}
+          </h4>
           {onEdit && (
             <button
               type="button"
@@ -172,6 +175,6 @@ export function DayTemplateCard({ dayName, template, onStart, onEdit }: DayTempl
           </button>
         </div>
       )}
-    </div>
+    </article>
   );
 }

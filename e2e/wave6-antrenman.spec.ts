@@ -1,4 +1,4 @@
-import { test, expect, todayStr } from "./fixtures";
+import { test, expect, todayStr, uniq } from "./fixtures";
 import type { Page, Request } from "@playwright/test";
 
 /** Dalga 6, D alanı (antrenman): persona bulguları B17–B20 kilit akışları. */
@@ -56,5 +56,42 @@ test.describe("Dalga 6 · Antrenman", () => {
       data: { date: todayStr(), name: "Boş", durationMinutes: 10, setLogs: [{ exerciseName: "Squat", setNumber: 1, weightKg: 40, reps: 8, completed: false }] },
     });
     expect(empty.status()).toBe(400);
+  });
+
+  test("B18: seans şablondaki set sayısıyla (4 ve 2) açılır; set eklenir ve silinir", async ({ page, api }) => {
+    const name = uniq("E2E Üst");
+    const created = await api.post("/api/workouts/templates", {
+      data: {
+        name,
+        type: "strength",
+        dayOfWeek: 7,
+        targetDurationMinutes: 50,
+        exercises: [
+          { exerciseName: "Bench Press", targetSets: 4, repMin: 6, repMax: 8, restSeconds: 150 },
+          { exerciseName: "Tricep Pushdown", targetSets: 2, repMin: 10, repMax: 15, restSeconds: 60 },
+        ],
+      },
+    });
+    expect(created.status()).toBe(201);
+    const templateId = (await created.json()).id;
+    try {
+      await openWorkouts(page);
+      await page.getByRole("article", { name }).getByRole("button", { name: "Başla (50 dk)" }).click();
+
+      const bench = page.getByRole("group", { name: "Bench Press" });
+      const pushdown = page.getByRole("group", { name: "Tricep Pushdown" });
+      await expect(bench.getByLabel("Ağırlık:")).toHaveCount(4);
+      await expect(pushdown.getByLabel("Ağırlık:")).toHaveCount(2);
+
+      await pushdown.getByRole("button", { name: "Tricep Pushdown için set ekle" }).click();
+      await expect(pushdown.getByLabel("Ağırlık:")).toHaveCount(3);
+      await bench.getByRole("button", { name: "Bench Press 4. seti sil" }).click();
+      await expect(bench.getByLabel("Ağırlık:")).toHaveCount(3);
+      await expect(bench.getByRole("button", { name: "Bench Press 3. seti sil" })).toBeVisible();
+
+      await page.getByRole("button", { name: "Vazgeç" }).first().click();
+    } finally {
+      await api.delete(`/api/workouts/templates?id=${templateId}`);
+    }
   });
 });

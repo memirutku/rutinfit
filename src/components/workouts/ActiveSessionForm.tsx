@@ -5,7 +5,17 @@ import type { Countdown } from "@/hooks/useCountdown";
 import { RestTimer } from "./RestTimer";
 import { SetRow } from "./SetRow";
 import { ExerciseSwap } from "./ExerciseSwap";
-import { incompleteSetCount, markAllCompleted, replaceExercise, updateSet, type SessionForm } from "./session-form";
+import { Plus } from "lucide-react";
+import {
+  addSet,
+  exerciseGroups,
+  incompleteSetCount,
+  markAllCompleted,
+  removeSet,
+  replaceExercise,
+  updateSet,
+  type SessionForm,
+} from "./session-form";
 
 interface ActiveSessionFormProps {
   form: SessionForm;
@@ -82,25 +92,43 @@ export function ActiveSessionForm({
         {/* Canlı Dinlenme Zamanlayıcısı */}
         <RestTimer countdown={restTimer} />
 
-        {/* F25: Egzersizler ve "benzeriyle değiştir" */}
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          {[...new Set(form.setLogs.map((s) => s.exerciseName))].map((name) => (
-            <span key={name} className="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="font-semibold text-slate-700">{name}</span>
-              <ExerciseSwap exerciseName={name} onSwap={(to) => onChange(replaceExercise(form, name, to))} />
-            </span>
-          ))}
-        </div>
-
-        {/* Set Girişleri */}
-        <div className="space-y-4">
-          {form.setLogs.map((set) => (
-            <SetRow
-              key={set.key}
-              set={set}
-              onChange={(patch) => onChange(updateSet(form, set.key, patch))}
-              onToggle={() => toggleSet(set.key, !!set.completed)}
-            />
+        {/* Egzersiz başına setler. F25: benzeriyle değiştir; B18: set ekle / sil. */}
+        <div className="space-y-5">
+          {exerciseGroups(form).map(({ exerciseName, sets }) => (
+            <section
+              key={exerciseName}
+              role="group"
+              aria-label={exerciseName}
+              className="space-y-2.5 p-3 rounded-2xl border border-slate-200 bg-white"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <h4 className="font-bold text-slate-900 text-sm">{exerciseName}</h4>
+                  <ExerciseSwap exerciseName={exerciseName} onSwap={(to) => onChange(replaceExercise(form, exerciseName, to))} />
+                </div>
+                <span className="text-xs text-slate-500">
+                  {sets.filter((s) => s.completed).length} / {sets.length} set
+                </span>
+              </div>
+              {sets.map((set) => (
+                <SetRow
+                  key={set.key}
+                  set={set}
+                  onChange={(patch) => onChange(updateSet(form, set.key, patch))}
+                  onToggle={() => toggleSet(set.key, !!set.completed)}
+                  onRemove={() => onChange(removeSet(form, set.key))}
+                />
+              ))}
+              <button
+                type="button"
+                aria-label={`${exerciseName} için set ekle`}
+                onClick={() => onChange(addSet(form, exerciseName))}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-dashed border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-50"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Set
+              </button>
+            </section>
           ))}
         </div>
 

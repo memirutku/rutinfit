@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Trash2 } from "lucide-react";
 import { RPE_OPTIONS } from "@/lib/rpe";
 import type { SessionSet } from "./session-form";
 import { DecimalInput } from "@/components/ui/DecimalInput";
@@ -11,10 +11,12 @@ interface SetRowProps {
   set: SessionSet;
   onChange: (patch: Partial<SessionSet>) => void;
   onToggle: () => void;
+  /** B18: seti seanstan çıkarır. */
+  onRemove?: () => void;
 }
 
 /** Tek set satırı: ağırlık, tekrar ve tamamlandı işareti. Her satırın alan kimlikleri benzersizdir. */
-export function SetRow({ set, onChange, onToggle }: SetRowProps) {
+export function SetRow({ set, onChange, onToggle, onRemove }: SetRowProps) {
   const weightId = useId();
   const repsId = useId();
   const rpeId = useId();
@@ -35,9 +37,9 @@ export function SetRow({ set, onChange, onToggle }: SetRowProps) {
           {set.setNumber}
         </span>
         <div>
-          <p className="font-bold text-slate-900 text-sm">{set.exerciseName}</p>
+          <p className="font-bold text-slate-900 text-sm">{set.setNumber}. set</p>
           <p className="text-xs text-slate-400">
-            Hedef tekrar: {set.targetRepMin} - {set.targetRepMax}
+            Hedef tekrar: {set.targetRepMin === set.targetRepMax ? set.targetRepMin : `${set.targetRepMin} - ${set.targetRepMax}`}
           </p>
         </div>
       </div>
@@ -122,6 +124,17 @@ export function SetRow({ set, onChange, onToggle }: SetRowProps) {
           <CheckCircle2 className="w-3.5 h-3.5" />
           <span>{set.completed ? "Tamamlandı" : "Tamamla"}</span>
         </button>
+        {onRemove && (
+          <button
+            type="button"
+            aria-label={`${set.exerciseName} ${set.setNumber}. seti sil`}
+            title="Seti sil"
+            onClick={onRemove}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 shrink-0"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );

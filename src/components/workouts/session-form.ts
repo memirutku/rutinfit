@@ -7,6 +7,8 @@ export interface SessionExercise {
   exerciseName: string;
   repMin: number;
   repMax: number;
+  /** B18: şablondaki set sayısı (yoksa 3). */
+  targetSets?: number;
 }
 
 export interface SessionTemplate {
@@ -74,15 +76,22 @@ function previousWeight(previous: LastSetsResponse | undefined, exerciseName: st
   return (sets[setNumber - 1] ?? sets[sets.length - 1]).weightKg ?? null;
 }
 
+const DEFAULT_SETS = 3;
+const SHORTENED_MAX_SETS = 2;
+
+/** B18: şablondaki set sayısı (1–10); eski şablonlarda yoksa 3. */
+const setsFor = (ex: SessionExercise) =>
+  Number.isInteger(ex.targetSets) && ex.targetSets! > 0 ? Math.min(ex.targetSets!, 10) : DEFAULT_SETS;
+
 /**
- * Şablondan seans formu kurar. Hafifletilmiş modda ilk 3 egzersiz × 2 set, 25 dk ve
- * RPE 5; normal modda tüm egzersizler × 3 set. Ağırlıklar önceki seanstan gelir ya da boştur.
+ * Şablondan seans formu kurar. B18: her egzersiz şablondaki set sayısıyla açılır. Hafifletilmiş
+ * modda ilk 3 egzersiz, en çok 2'şer set, 25 dk ve RPE 5. Ağırlıklar önceki seanstan gelir ya da boştur.
  */
 export function buildSessionForm(template: SessionTemplate, shortened: boolean, previous?: LastSetsResponse): SessionForm {
   const exercises = shortened ? template.exercises.slice(0, 3) : template.exercises;
-  const setsPerExercise = shortened ? 2 : 3;
   const setLogs: SessionSet[] = [];
   for (const ex of exercises) {
+    const setsPerExercise = shortened ? Math.min(SHORTENED_MAX_SETS, setsFor(ex)) : setsFor(ex);
     for (let s = 1; s <= setsPerExercise; s++) {
       setLogs.push({
         key: newSetKey(),
@@ -115,6 +124,50 @@ export function withSetKeys(form: StoredForm): SessionForm {
 /** Tek bir seti değiştirir; diğer setler ve form nesnesi yerinde değiştirilmez. */
 export function updateSet(form: SessionForm, key: string, patch: Partial<SessionSet>): SessionForm {
   return { ...form, setLogs: form.setLogs.map((s) => (s.key === key ? { ...s, ...patch } : s)) };
+}
+
+/** Egzersizin setlerine 1'den başlayarak yeniden numara verir. */
+function renumber(setLogs: SessionSet[], exerciseName: string): SessionSet[] {
+  let n = 0;
+  return setLogs.map((s) => (s.exerciseName === exerciseName ? (s.setNumber === ++n ? s : { ...s, setNumber: n }) : s));
+}
+
+/**
+ * B18: Egzersize set ekler. Yeni set egzersizin son setinin hemen ardına girer; ağırlık, tekrar ve
+ * hedef aralığı o setten gelir, tip normal ve tamamlanmamıştır. Egzersiz yoksa form aynen döner.
+ */
+export function addSet(form: SessionForm, exerciseName: string): SessionForm {
+  const lastIndex = form.setLogs.findLastIndex((s) => s.exerciseName === exerciseName);
+  if (lastIndex === -1) return form;
+  const last = form.setLogs[lastIndex];
+  const added: SessionSet = {
+    key: newSetKey(),
+    exerciseName,
+    setNumber: last.setNumber + 1,
+    weightKg: last.weightKg,
+    reps: last.reps,
+    targetRepMin: last.targetRepMin,
+    targetRepMax: last.targetRepMax,
+    completed: false,
+    rpe: null,
+    setType: "normal",
+  };
+  const setLogs = [...form.setLogs.slice(0, lastIndex + 1), added, ...form.setLogs.slice(lastIndex + 1)];
+  return { ...form, setLogs: renumber(setLogs, exerciseName) };
+}
+
+/** B18: Seti siler; o egzersizin kalan setleri yeniden numaralanır. */
+export function removeSet(form: SessionForm, key: string): SessionForm {
+  const target = form.setLogs.find((s) => s.key === key);
+  if (!target) return form;
+  return { ...form, setLogs: renumber(form.setLogs.filter((s) => s.key !== key), target.exerciseName) };
+}
+
+/** B18: Setleri egzersize göre, ilk görüldükleri sırayla gruplar (seans ekranı için). */
+export function exerciseGroups(form: SessionForm): Array<{ exerciseName: string; sets: SessionSet[] }> {
+  const groups = new Map<string, SessionSet[]>();
+  for (const s of form.setLogs) groups.set(s.exerciseName, [...(groups.get(s.exerciseName) ?? []), s]);
+  return [...groups.entries()].map(([exerciseName, sets]) => ({ exerciseName, sets }));
 }
 
 /** B17: "Tamamla" ile işaretlenmemiş set sayısı. */
