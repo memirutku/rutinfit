@@ -160,7 +160,7 @@ describe("F09: kurulum sihirbazı", () => {
     expect(s.calls.filter((c) => c.init?.method === "PUT")).toHaveLength(0);
   });
 
-  it("'Kiloyu koru' seçilince hedef kilo ve hız sorulmaz; hedef TDEE olur", () => {
+  it("'Kiloyu koru' seçilince hedef kilo ve hız sorulmaz; hedef günlük harcama olur", () => {
     stubWizard();
     renderWithQuery(<SetupWizard open profile={PROFILE} onClose={vi.fn()} />);
     fireEvent.change(screen.getByLabelText("Cinsiyet"), { target: { value: "male" } });

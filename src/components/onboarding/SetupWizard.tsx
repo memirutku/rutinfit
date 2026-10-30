@@ -427,11 +427,11 @@ export function SetupWizard({ open, profile, onClose }: SetupWizardProps) {
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
               <dt className="text-slate-500">Bazal metabolizma</dt>
               <dd className="font-bold text-slate-900">{formatNumberTr(plan.bmr)} kcal</dd>
-              <dt className="text-slate-500">Günlük harcama (TDEE)</dt>
+              <dt className="text-slate-500">Günlük harcaman (tahmini)</dt>
               <dd className="font-bold text-slate-900">{formatNumberTr(plan.tdee)} kcal</dd>
               <dt className="text-slate-500">Günlük kalori hedefi</dt>
               <dd className="font-bold text-brand-700">
-                {formatNumberTr(plan.calorieTarget)} kcal (tavan {formatNumberTr(plan.calorieCeiling)})
+                {formatNumberTr(plan.calorieTarget)} kcal (en fazla {formatNumberTr(plan.calorieCeiling)})
               </dd>
               <dt className="text-slate-500">Makrolar</dt>
               <dd className="font-semibold text-slate-800">

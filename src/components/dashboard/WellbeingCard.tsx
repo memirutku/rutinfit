@@ -98,9 +98,10 @@ export function WellbeingCard({ today, onSave, cycleTracking = false, lastWeight
   const [seededSignature, setSeededSignature] = useState<string | null>(null);
   if (today && signature !== seededSignature) {
     setSeededSignature(signature);
-    if (today.weightKg) setWeight(String(today.weightKg));
+    // B23: kayıtlı değer Türkçe ondalıkla gösterilir (89,6; 89.6 değil).
+    if (today.weightKg) setWeight(String(today.weightKg).replace(".", ","));
     if (today.energy1to5) setEnergy(today.energy1to5);
-    if (today.sleepMinutes) setSleep(String(today.sleepMinutes / 60));
+    if (today.sleepMinutes) setSleep(String(Math.round((today.sleepMinutes / 60) * 100) / 100).replace(".", ","));
     if (today.stress1to5) setStress(today.stress1to5);
     if (today.soreness1to5) setSoreness(today.soreness1to5);
     if (today.mood1to5) setMood(today.mood1to5);

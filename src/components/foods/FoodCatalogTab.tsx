@@ -42,19 +42,21 @@ export function FoodCatalogTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      {/* Arama kendi satırında: kategori düğmeleri çoğalınca arama kutusu sıkışmasın. */}
+      <div className="flex flex-col gap-3">
+        <div className="relative w-full">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Besin ara (örn: tavuk, bulgur, yumurta)..."
+            aria-label="Besin kataloğunda ara"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-2xs"
           />
         </div>
 
-        <div className="flex gap-1 overflow-x-auto pb-1 sm:pb-0">
+        <div className="flex gap-1 overflow-x-auto pb-1 min-w-0">
           {FOOD_CATEGORIES.map((cat) => (
             <button
               key={cat}

@@ -334,8 +334,8 @@ describe("WellbeingCard", () => {
     const props = { onSave: vi.fn() };
     const { rerender } = render(<WellbeingCard today={progress(false).today} {...props} />);
     const weight = screen.getByLabelText("Sabah Kilosu (kg)") as HTMLInputElement;
-    expect(weight.value).toBe("110.5");
-    expect((screen.getByLabelText("Uyku (saat)") as HTMLInputElement).value).toBe("7.5");
+    expect(weight.value).toBe("110,5");
+    expect((screen.getByLabelText("Uyku (saat)") as HTMLInputElement).value).toBe("7,5");
     expect(screen.getByText("4 / 5")).toBeTruthy();
 
     fireEvent.change(weight, { target: { value: "109" } });
@@ -344,7 +344,7 @@ describe("WellbeingCard", () => {
     expect(weight.value).toBe("109");
 
     rerender(<WellbeingCard today={{ ...progress(true).today, weightKg: 108.2 }} {...props} />);
-    expect(weight.value).toBe("108.2");
+    expect(weight.value).toBe("108,2");
   });
 
   it("F51: stres, kas ağrısı ve ruh hâli seçilir; hazır olma skoru canlı hesaplanır ve kaydedilir", async () => {
