@@ -26,6 +26,8 @@ export interface CoachContext {
   tone?: string;
   /** F52: kullanıcının koça notları. */
   coachNotes?: string | null;
+  /** F50: soruya karşılık veritabanından hesaplanan sonuç. */
+  dataAnswer?: { title: string; answer: string; rows: Array<{ label: string; value: string }> } | null;
 }
 
 export async function loadCoachContext(fileIds: string[] = []): Promise<CoachContext> {
@@ -105,6 +107,16 @@ ${safe}
 Önerilerinde bu notlardaki alerji, sakatlık ve ekipman bilgisine mutlaka uy.`;
 }
 
+function dataSection(data: CoachContext["dataAnswer"]): string {
+  if (!data) return "";
+  const rows = data.rows.slice(0, 12).map((r) => `- ${r.label}: ${r.value}`).join("\n");
+  return `
+
+VERİ SORGUSU SONUCU (kullanıcının sorusu için veritabanından hesaplandı; sayıları değiştirme, uydurma, yalnız yorumla):
+${data.title}
+${data.answer}${rows ? `\nAyrıntı:\n${rows}` : ""}`;
+}
+
 export function buildSystemPrompt(ctx: CoachContext): string {
   const floor = calorieFloor(ctx.profile?.sex);
   const maxLoss = formatNumberTr(maxWeeklyLossKg(ctx.profile?.currentWeightKg ?? 70));
@@ -169,7 +181,7 @@ Kısaltılmış / Ayarlanmış Antrenman Önerisi:
   ]
 }
 \`\`\`
-Kullanıcı onaylamadan hiçbir değişiklik veritabanına uygulanmaz.${ctx.redFlag ? RED_FLAG_SECTION : ''}`;
+Kullanıcı onaylamadan hiçbir değişiklik veritabanına uygulanmaz.${dataSection(ctx.dataAnswer)}${ctx.redFlag ? RED_FLAG_SECTION : ''}`;
 }
 
 /**

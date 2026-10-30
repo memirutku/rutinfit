@@ -79,6 +79,16 @@ export const ChatResponseSchema = z.object({
   safetyNotice: z.string().optional(),
   /** F58: koç ayarlardan kapatılmış. */
   coachDisabled: z.boolean().optional(),
+  /** F50: veritabanından hesaplanan yanıt kartı. */
+  dataAnswer: z
+    .object({
+      type: z.string(),
+      title: z.string(),
+      answer: z.string(),
+      rows: z.array(z.object({ label: z.string(), value: z.string() })),
+      chart: z.array(z.object({ x: z.string(), y: z.number() })).optional(),
+    })
+    .optional(),
 });
 export type ChatResponse = z.infer<typeof ChatResponseSchema>;
 

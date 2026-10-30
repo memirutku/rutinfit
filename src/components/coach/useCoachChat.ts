@@ -145,6 +145,7 @@ export function useCoachChat() {
           isError: data.isError,
           safetyNotice: data.safetyNotice,
           aiGenerated: !data.isError,
+          dataAnswer: data.dataAnswer,
         },
       ]);
       setAttachedFiles([]);

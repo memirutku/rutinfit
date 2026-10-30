@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { Bot, X } from "lucide-react";
 import { ActionProposalCard, type ProposalActionState } from "./ActionProposalCard";
 import type { CardProposal, CoachMessage } from "./types";
+import { Explanation } from "@/components/ui/Explanation";
 
 export interface MessageActionState extends ProposalActionState {
   isRejected: boolean;
@@ -51,6 +52,15 @@ export function MessageBubble({ message: m, state, onApprove, onReject, onToggle
           <div className="whitespace-pre-wrap">{m.content}</div>
         </div>
         {m.aiGenerated && <p className="text-[10px] text-slate-400 pl-1">AI tarafından üretildi · hatalı olabilir</p>}
+
+        {/* F50: kayıtlardan hesaplanan yanıt; sayılar modelden değil veritabanından */}
+        {m.dataAnswer && (
+          <div className="p-3 rounded-xl border border-sky-200 bg-sky-50/60 text-xs space-y-2">
+            <p className="font-bold text-slate-900">{m.dataAnswer.title}</p>
+            <p className="text-slate-700">{m.dataAnswer.answer}</p>
+            {m.dataAnswer.rows.length > 0 && <Explanation title="Kaynak kayıtlar" items={m.dataAnswer.rows} />}
+          </div>
+        )}
 
         {m.safetyNotice && (
           <div role="note" className="max-w-[85%] p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs leading-relaxed">

@@ -58,6 +58,27 @@ describe("POST /api/ai/chat", () => {
     expect(normal.json.safetyNotice).toBeUndefined();
   });
 
+  it("F50: geçmiş sorusunda sonuç sistem istemine kesin veri olarak girer ve yanıtta kart döner", async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    await prisma.weightLog.createMany({ data: [{ date: today, weightKg: 100 }] });
+    await prisma.cardioLog.create({ data: { date: today, kind: "run", durationMin: 30, distanceKm: 5 } });
+    llm.queueReply("Bu ay 5 km koşmuşsun, güzel.");
+    const res = await callRoute(POST, { body: { messages: [{ role: "user", content: "bu ay kaç km koştum?" }] } });
+    expect(res.json.dataAnswer).toMatchObject({ type: "cardio_total" });
+    expect(res.json.dataAnswer.answer).toMatch(/5 km/);
+    const sent = llm.requests.find((r) => r.path.endsWith("/chat/completions"))!;
+    expect(sent.body.messages[0].content).toContain("VERİ SORGUSU SONUCU");
+    expect(sent.body.messages[0].content).toContain(res.json.dataAnswer.answer);
+  });
+
+  it("F50: model ulaşılamazsa geçmiş sorusu kayıtlardan yanıtlanır", async () => {
+    await prisma.aISettings.update({ where: { id: "default-ai" }, data: { baseUrl: "http://127.0.0.1:9/v1" } });
+    const res = await callRoute(POST, { body: { messages: [{ role: "user", content: "en çok ne yemişim?" }] } });
+    expect(res.json.isError).toBe(false);
+    expect(res.json.reply).toMatch(/kayıt yok|en sık/);
+    expect(res.json.reply).toMatch(/ulaşılamadı/);
+  });
+
   it("F58: koç kapalıysa modele istek gitmez, sohbet kaydedilmez ve açıklayıcı yanıt döner", async () => {
     await prisma.aISettings.update({ where: { id: "default-ai" }, data: { coachEnabled: false } });
     const res = await callRoute(POST, { body: { messages: [{ role: "user", content: "Merhaba" }] } });
