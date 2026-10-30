@@ -36,6 +36,12 @@ describe("buildSystemPrompt", () => {
     expect(p).toContain("0,7 kg");
   });
 
+  it("F58: ton seçimi istemin üslup cümlesini değiştirir; varsayılan destekleyicidir", () => {
+    expect(buildSystemPrompt(ctx())).toMatch(/destekleyici/);
+    expect(buildSystemPrompt(ctx({ tone: "direct" }))).toMatch(/doğrudan/);
+    expect(buildSystemPrompt(ctx({ tone: "brief" }))).toMatch(/en fazla 3 cümle/);
+  });
+
   it("F56: kırmızı bayrak varsa güvenlik bölümü eklenir ve hedef önerisi yasaklanır", () => {
     const p = buildSystemPrompt(ctx({ redFlag: true }));
     expect(p).toContain("GÜVENLİK UYARISI");

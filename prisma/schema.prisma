@@ -260,6 +260,8 @@ model AISettings {
   modelName        String    @default("llama3.2")
   connectionStatus String    @default("untested") // connected, failed, untested
   lastTestedAt     DateTime?
+  coachEnabled     Boolean   @default(true) // F58: koçu aç/kapa
+  tone             String    @default("supportive") // F58: supportive, direct, brief
 }
 
 model AIConversation {

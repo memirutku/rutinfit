@@ -77,6 +77,8 @@ export const ChatResponseSchema = z.object({
   isError: z.boolean().optional(),
   /** F56: yeme bozukluğu / kendine zarar işaretinde profesyonel desteğe yönlendirme. */
   safetyNotice: z.string().optional(),
+  /** F58: koç ayarlardan kapatılmış. */
+  coachDisabled: z.boolean().optional(),
 });
 export type ChatResponse = z.infer<typeof ChatResponseSchema>;
 

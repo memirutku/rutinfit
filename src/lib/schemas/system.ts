@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { COACH_TONE_KEYS } from "../coach-tone";
 
 /** POST /api/ai/test-connection */
 export const TestConnectionSchema = z.object({
@@ -69,3 +70,25 @@ export const BackupImportResultSchema = z.object({
   counts: z.record(z.string(), z.number()).optional(),
 });
 export type BackupImportResult = z.infer<typeof BackupImportResultSchema>;
+
+/** F58/F67: GET /api/ai/settings yanıtı. */
+export const AISettingsSchema = z.object({
+  providerType: z.string(),
+  baseUrl: z.string(),
+  modelName: z.string(),
+  coachEnabled: z.boolean(),
+  tone: z.enum(COACH_TONE_KEYS),
+  /** local: bu bilgisayar; cloud: api.openai.com; invalid: izin verilmeyen adres. */
+  endpointKind: z.enum(["local", "cloud", "invalid"]),
+  connectionStatus: z.string().optional(),
+});
+export type AISettingsView = z.infer<typeof AISettingsSchema>;
+
+/** F58: PUT /api/ai/settings. Adres ve sağlayıcı yalnız bağlantı testiyle değişir. */
+export const UpdateAISettingsSchema = z
+  .object({
+    coachEnabled: z.boolean().optional(),
+    tone: z.enum(COACH_TONE_KEYS).optional(),
+  })
+  .strict();
+export type UpdateAISettingsInput = z.infer<typeof UpdateAISettingsSchema>;

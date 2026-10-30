@@ -7,6 +7,7 @@ import { AIActionResponseSchema, type AIActionResponse } from '../ai-schema';
 import { targetsFromProfile } from '../constants';
 import { formatNumberTr } from '../format';
 import { calorieFloor, maxWeeklyLossKg } from '../safety';
+import { tonePrompt } from '../coach-tone';
 
 /** AI koçunun sistem promptu için gereken onaylı kişisel bağlam. */
 export interface CoachContext {
@@ -21,6 +22,8 @@ export interface CoachContext {
   files: Array<{ originalName: string; mimeType: string; summary: string | null; confidence: string; content: string }>;
   /** F56: kullanıcının son mesajında yeme bozukluğu / kendine zarar işareti var. */
   redFlag?: boolean;
+  /** F58: koçun üslubu. */
+  tone?: string;
 }
 
 export async function loadCoachContext(fileIds: string[] = []): Promise<CoachContext> {
@@ -89,7 +92,7 @@ export function buildSystemPrompt(ctx: CoachContext): string {
   const floor = calorieFloor(ctx.profile?.sex);
   const maxLoss = formatNumberTr(maxWeeklyLossKg(ctx.profile?.currentWeightKg ?? 70));
   return `Sen RutinFit uygulamasının kişisel sağlık, beslenme ve antrenman koçusun.
-Türkçe konuşursun. Tonun sakin, destekleyici, gerçekçi ve asla suçlayıcı değildir.
+Türkçe konuşursun. ${tonePrompt(ctx.tone)}
 
 KULLANICININ ONAYLI GÜNCEL VERİLERİ:
 - Boy: ${ctx.profile?.heightCm ?? 181} cm, Yaş: ${ctx.profile?.age ?? 25}, Kilo: ${ctx.profile?.currentWeightKg ?? 112} kg

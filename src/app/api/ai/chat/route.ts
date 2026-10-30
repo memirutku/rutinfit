@@ -60,13 +60,21 @@ export async function POST(req: Request) {
 
     // 1. Ayarlar ve onaylı kişisel bağlam
     const aiSettings = await prisma.aISettings.findFirst();
+    // F58: koç kapalıysa modele hiçbir şey gönderilmez ve sohbet kaydedilmez.
+    if (aiSettings && !aiSettings.coachEnabled) {
+      return NextResponse.json({
+        reply: 'AI koçu kapalı. Açmak için Ayarlar sayfasındaki yapay zekâ bölümünü kullanabilirsin.',
+        isError: true,
+        coachDisabled: true,
+      });
+    }
     const coachContext = await loadCoachContext(fileIds);
     const todayStr = coachContext.today;
     // F56: son kullanıcı mesajında risk işareti varsa güvenlik bölümü eklenir ve öneri üretilmez.
     const lastUserContent = messages.filter((m) => m.role === 'user').pop()?.content;
     const redFlag = detectRedFlags(lastUserContent);
     const safety = redFlag ? { safetyNotice: SAFETY_REFERRAL_TR } : {};
-    const systemPrompt = buildSystemPrompt({ ...coachContext, redFlag });
+    const systemPrompt = buildSystemPrompt({ ...coachContext, redFlag, tone: aiSettings?.tone });
 
     // Persist or find conversation
     let convId = reqConversationId;

@@ -5,6 +5,8 @@ import { apiFetch, errorMessage } from "@/lib/client/api";
 import { queryKeys } from "./keys";
 import type { Profile, ProfileInput } from "@/lib/schemas/profile";
 import type {
+  AISettingsView,
+  UpdateAISettingsInput,
   BackupImportResult,
   Diagnostics,
   OpenGymStatus,
@@ -40,9 +42,28 @@ export function useDiagnostics() {
 }
 
 export function useTestAIConnection() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: TestConnectionInput) =>
       apiFetch<TestConnectionResult>("/api/ai/test-connection", { method: "POST", json: input }),
+    // Başarılı test ayarları kaydeder: uç nokta göstergesi tazelenir.
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.aiSettings }),
+  });
+}
+
+/** F58/F67: kayıtlı yapay zekâ ayarları (koç durumu, üslup, uç nokta türü). */
+export function useAISettings() {
+  return useQuery({
+    queryKey: queryKeys.aiSettings,
+    queryFn: () => apiFetch<AISettingsView>("/api/ai/settings"),
+  });
+}
+
+export function useSaveAISettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateAISettingsInput) => apiFetch<AISettingsView>("/api/ai/settings", { method: "PUT", json: input }),
+    onSuccess: (settings) => qc.setQueryData(queryKeys.aiSettings, settings),
   });
 }
 

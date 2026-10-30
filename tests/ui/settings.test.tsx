@@ -143,6 +143,25 @@ describe("Ayarlar — profil ve hedefler", () => {
   });
 });
 
+describe("Ayarlar — F58 koç kontrolleri", () => {
+  it("kayıtlı sağlayıcıyı gösterir; koçu kapatma ve ton seçimi kaydedilir", async () => {
+    const saved = { providerType: "lmstudio", baseUrl: "http://127.0.0.1:1234/v1", modelName: "qwen", coachEnabled: true, tone: "supportive", endpointKind: "local" };
+    const { calls } = setup([
+      ["/api/ai/settings", (_u, init) => jsonResponse(method(init) === "PUT" ? { ...saved, ...body(init) } : saved)],
+    ]);
+    await waitFor(() => expect(screen.getByLabelText<HTMLSelectElement>("Sağlayıcı").value).toBe("lmstudio"));
+    expect(screen.getByLabelText<HTMLInputElement>("Model Adı").value).toBe("qwen");
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /AI koçu açık/ }));
+    await waitFor(() => expect(callsTo(calls, "/api/ai/settings", "PUT")).toHaveLength(1));
+    expect(body(callsTo(calls, "/api/ai/settings", "PUT")[0].init)).toEqual({ coachEnabled: false });
+
+    fireEvent.change(screen.getByLabelText("Koçun üslubu"), { target: { value: "direct" } });
+    await waitFor(() => expect(callsTo(calls, "/api/ai/settings", "PUT")).toHaveLength(2));
+    expect(body(callsTo(calls, "/api/ai/settings", "PUT")[1].init)).toEqual({ tone: "direct" });
+  });
+});
+
 describe("Ayarlar — yapay zekâ ve openGym bağlantı testi", () => {
   it("AI testi başarılıysa mesajı ve algılanan modelleri gösterir", async () => {
     const { calls } = setup([
