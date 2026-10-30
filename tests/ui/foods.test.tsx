@@ -154,7 +154,7 @@ describe("Tarifler sekmesi", () => {
     expect(screen.getByText("1200 kcal")).toBeTruthy();
     expect(screen.queryByText("600 kcal")).toBeNull(); // gram / 100 hesabı
     expect(screen.getByText("50g")).toBeTruthy();
-    expect(screen.getByText("Hazırlama: 20 dk • 2 porsiyon")).toBeTruthy();
+    expect(screen.getByText("Hazırlama: 20 dk • 2 porsiyon • porsiyonu 600 kcal")).toBeTruthy(); // F74
     expect(screen.getByText("Haşla ve karıştır")).toBeTruthy();
   });
 });
@@ -241,6 +241,18 @@ describe("Paketli gıda sekmesi", () => {
       source: "Etiket",
     });
     expect(await screen.findByText("Köy Tarhanası")).toBeTruthy();
+  });
+
+  it("F74: Türk ev yemekleri paketi kurulmamışsa tarifler sekmesinde eklenebilir", async () => {
+    let installed = 0;
+    const s = setup([
+      ["/api/catalog/turkish", (_u, init) => (init?.method === "POST" ? ((installed = 15), jsonResponse({ foodsCreated: 20, recipesCreated: 15 }, 201)) : jsonResponse({ dishes: 15, installed }))],
+    ]);
+    fireEvent.click(await screen.findByRole("button", { name: "Tarifler (1)" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Türk ev yemeklerini ekle (15 tarif)" }));
+    expect(await screen.findByText(/15 tarif eklendi/)).toBeTruthy();
+    expect(s.calls.some((c) => c.url.includes("/api/catalog/turkish") && c.init?.method === "POST")).toBe(true);
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Türk ev yemeklerini ekle/ })).toBeNull());
   });
 
   it("sunucu hatasında mesaj gösterilir; +100g ürünü katalog dışı anlık değerlerle günlüğe ekler", async () => {
