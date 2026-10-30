@@ -26,6 +26,7 @@ const today = getLocalDateString();
 const PROFILE_FIXTURE = {
   id: "default-user", heightCm: 181, age: 25, sex: "male", currentWeightKg: 112, calorieTarget: 2080, calorieCeiling: 2100,
   proteinTargetG: 165, fatTargetG: 60, carbTargetG: 220, wakeTime: "06:00", workdayHomeTime: "19:30", isOnboarded: true,
+  dayPattern: "office",
 };
 const targets = { calorieTarget: 1950, calorieCeiling: 2100, proteinTargetG: 165, fatTargetG: 60, carbTargetG: 220 };
 
@@ -80,22 +81,25 @@ const template: WorkoutTemplate = {
 
 describe("getRhythmStep", () => {
   it.each([
-    [8, "Sabah Rutini & Hidrasyon", { kind: "creatine" }],
-    [13, "Öğle Beslenmesi & Odak", { kind: "quickAdd", mealType: "lunch" }],
-    [17, "İş Çıkışı & Antrenman Hazırlığı", { kind: "quickAdd", mealType: "workSnack" }],
-    [20, "Toparlanma & Akşam Yemeği", { kind: "quickAdd", mealType: "dinner" }],
+    [8, "Güne Başlangıç", { kind: "scrollToWellbeing" }],
+    [13, "Öğle Öğünü", { kind: "quickAdd", mealType: "lunch" }],
+    [17, "İkindi Ara Öğünü", { kind: "quickAdd", mealType: "workSnack" }],
+    [20, "Akşam Yemeği", { kind: "quickAdd", mealType: "dinner" }],
     [23, "Gece Kapanışı & Kaliteli Uyku", { kind: "scrollToWellbeing" }],
-  ])("saat %i → %s", (hour, title, action) => {
-    const step = getRhythmStep(hour, "20:00");
+  ])("B02: gün düzeni girilmemişse saat %i → %s (iş/kreatin varsayımı yok)", (hour, title, action) => {
+    const step = getRhythmStep(hour);
     expect(step.title).toBe(title);
     expect(step.action).toEqual(action);
+    expect(`${step.title} ${step.description} ${step.badge} ${step.actionText}`).not.toMatch(/kreatin|iş çıkışı|eve varış/i);
   });
 
-  it("eve varış saatini ve kreatin durumunu metne yansıtır", () => {
-    expect(getRhythmStep(17, "20:00").time).toBe("17:00 - 20:00");
-    expect(getRhythmStep(20, "20:00").time).toBe("20:00 - 21:30");
-    expect(getRhythmStep(8, "19:30", false).actionText).toBe("Kreatin İşaretle");
-    expect(getRhythmStep(8, "19:30", true).actionText).toBe("Kreatin Alındı ✓");
+  it("ofis düzeninde eve varış saatini kullanır; okul düzeninde okul çıkışı der", () => {
+    const office = { dayPattern: "office" as const, homeTime: "20:00" };
+    expect(getRhythmStep(17, office).title).toBe("İş Çıkışı & Antrenman Hazırlığı");
+    expect(getRhythmStep(17, office).time).toBe("17:00 - 20:00");
+    expect(getRhythmStep(20, office).time).toBe("20:00 - 21:30");
+    expect(getRhythmStep(17, { dayPattern: "school", homeTime: "16:30" }).title).toBe("Okul Çıkışı & Ara Öğün");
+    expect(getRhythmStep(17, { dayPattern: "shift", homeTime: "08:00" }).title).toBe("İkindi Ara Öğünü");
   });
 });
 
@@ -191,7 +195,7 @@ describe("dashboard kartları", () => {
 
     const l = log({ mealType: "workSnack" });
     rerender(<TodayMealsList logs={[l]} onAdd={onAdd} onDelete={onDelete} />);
-    expect(screen.getByText("İş Çıkışı")).toBeTruthy();
+    expect(screen.getByText("İkindi")).toBeTruthy();
     expect(screen.getByText(/123g · 203 kcal · P: 38g · K: 0g · Y: 4.4g/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Tavuk Göğsü öğününü sil" }));
     expect(onDelete).toHaveBeenCalledWith(l);
@@ -201,7 +205,7 @@ describe("dashboard kartları", () => {
     expect(["breakfast", "lunch", "workSnack", "dinner", "extra", "snack"].map((t) => dashboardMealLabel(t))).toEqual([
       "Kahvaltı",
       "Öğle Yemeği",
-      "İş Çıkışı",
+      "İkindi",
       "Akşam Yemeği",
       "Ara Öğün",
       "Ara Öğün",
@@ -275,7 +279,7 @@ describe("WellbeingCard", () => {
 });
 
 describe("DashboardPage", () => {
-  function stubDashboard(opts: { progressPost?: () => Response | Promise<Response>; supplementPost?: () => Response | Promise<Response>; logs?: FoodLog[] } = {}) {
+  function stubDashboard(opts: { progressPost?: () => Response | Promise<Response>; supplementPost?: () => Response | Promise<Response>; logs?: FoodLog[]; profile?: Record<string, unknown> } = {}) {
     let taken = false;
     const creatine = () => ({ id: "s1", name: "Kreatin Monohidrat", doseAmount: 5, doseUnit: "g", active: true, notes: null, takenToday: taken, takenLast7: taken ? 1 : 0 });
     const foodLogs = (): FoodLogsResponse => ({ date: today, logs: opts.logs ?? [log()], summary: summary(), targets });
@@ -289,7 +293,7 @@ describe("DashboardPage", () => {
           return jsonResponse(progress(taken));
         },
       ],
-      ["/api/profile", () => jsonResponse({ workdayHomeTime: "20:15" })],
+      ["/api/profile", () => jsonResponse({ ...PROFILE_FIXTURE, workdayHomeTime: "20:15", ...opts.profile })],
       ["/api/supplements/log", () => (opts.supplementPost ? opts.supplementPost() : ((taken = !taken), jsonResponse({ success: true })))],
       ["/api/supplements", () => jsonResponse({ supplements: [creatine()] })],
     ]);
@@ -319,12 +323,26 @@ describe("DashboardPage", () => {
     expect(await screen.findByRole("dialog", { name: /Hedeflerini birlikte kuralım/ })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Şimdilik geç" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    // B02: sihirbaz atlanınca hedefler "tahmini" ve kalıcı şerit sihirbazı yeniden açar.
+    expect(screen.getByText(/Hedeflerin tahmini/)).toBeTruthy();
+    expect(screen.getByText("Tahmini hedef")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Profilini tamamla" }));
+    expect(await screen.findByRole("dialog", { name: /Hedeflerini birlikte kuralım/ })).toBeTruthy();
+  });
+
+  it("B02: gün düzeni girilmemişse eve varış saati ve iş çıkışı bandı görünmez", async () => {
+    stubDashboard({ profile: { dayPattern: null } });
+    renderWithQuery(<DashboardPage />);
+    expect(await screen.findByText("/ 1950 kcal")).toBeTruthy();
+    expect(screen.queryByText(/Eve tahmini varış/)).toBeNull();
+    expect(screen.queryByText(/İş Çıkışı &/)).toBeNull();
+    expect(screen.queryByText(/Profilini tamamla/)).toBeNull();
   });
 
   it("istekler başarısız olsa da sayfa varsayılan hedeflerle açılır", async () => {
     restore = stubFetch([[/\/api\//, () => jsonResponse({ error: "Sunucu hatası" }, 500)]]).restore;
     renderWithQuery(<DashboardPage />);
-    expect(await screen.findByText("/ 2080 kcal")).toBeTruthy();
+    expect(await screen.findByText("/ 2000 kcal")).toBeTruthy();
     expect(screen.getByText("Henüz bugün için bir öğün kaydetmediniz")).toBeTruthy();
   });
 

@@ -10,6 +10,8 @@ interface CalorieCardProps {
   targets: DailyTargets;
   /** F56: sayıları gizleme modu. */
   hideNumbers?: boolean;
+  /** B02: profil kurulmadıysa hedef tahminidir. */
+  estimated?: boolean;
 }
 
 /** F56: sayı göstermeden günün ilerlemesi. */
@@ -22,11 +24,18 @@ export function verbalCalorieProgress(summary?: DailySummary): string {
 }
 
 /** Kalori Özeti Kartı */
-export function CalorieCard({ summary, targets, hideNumbers = false }: CalorieCardProps) {
+export function CalorieCard({ summary, targets, hideNumbers = false, estimated = false }: CalorieCardProps) {
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Bugünkü Kalori</span>
+        <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
+          Bugünkü Kalori
+          {estimated && (
+            <span className="ml-2 align-middle normal-case tracking-normal text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+              Tahmini hedef
+            </span>
+          )}
+        </span>
         <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
           <Flame className="w-4 h-4" />
         </div>

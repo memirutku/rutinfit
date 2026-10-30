@@ -82,6 +82,8 @@ describe("/api/profile", () => {
     expect(res.status).toBe(200);
     expect(res.json.id).toBe("default-user");
     expect(res.json.isOnboarded).toBe(false);
+    // B02: yeni kurulumda geliştiricinin değerleri değil, nötr varsayılanlar.
+    expect(res.json).toMatchObject({ heightCm: 170, age: 30, currentWeightKg: 70, calorieTarget: 2000, proteinTargetG: 100, dayPattern: null });
   });
 
   it("F09: aktivite, hedef türü, hız ve hedef kilo kaydedilir; geçersiz aktivite 400", async () => {

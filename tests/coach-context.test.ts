@@ -21,7 +21,7 @@ describe("buildSystemPrompt", () => {
   it("onaylı hedefleri, bugünkü alımı ve antrenman durumunu içerir", () => {
     const p = buildSystemPrompt(ctx());
     expect(p).toContain("Kilo: 110 kg");
-    expect(p).toContain("Alınan Kalori: 500 kcal (Kalan: 1580 kcal)");
+    expect(p).toContain(`Alınan Kalori: 500 kcal (Kalan: ${DEFAULT_TARGETS.calorieTarget - 500} kcal)`);
     expect(p).toContain("Ağırlık A (strength, 45 dk) - Durum: Henüz yapılmadı");
     expect(p).toContain("UYKU: 6.5 saat");
   });

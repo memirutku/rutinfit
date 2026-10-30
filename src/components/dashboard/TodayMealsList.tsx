@@ -16,7 +16,7 @@ export function dashboardMealLabel(mealType: string, ramadan = false): string {
     case "lunch":
       return "Öğle Yemeği";
     case "workSnack":
-      return "İş Çıkışı";
+      return "İkindi";
     case "dinner":
       return "Akşam Yemeği";
     default:

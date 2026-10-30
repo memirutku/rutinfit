@@ -13,7 +13,7 @@ import type { FoodLog } from "@/lib/schemas/food";
 import { useProfile } from "@/lib/client/queries/system";
 import { useCreateFoodLog, useDeleteFoodLog, useFoodLogs, useFoods, useQuickAddFood } from "@/lib/client/queries/nutrition";
 import { useWorkouts } from "@/lib/client/queries/workouts";
-import { useProgress, useSaveProgress, useToggleCreatine } from "@/lib/client/queries/progress";
+import { useProgress, useSaveProgress } from "@/lib/client/queries/progress";
 import { UndoToast, type UndoToastData } from "@/components/dashboard/UndoToast";
 import { QuickAddModal, type QuickAddValues } from "@/components/dashboard/QuickAddModal";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -74,7 +74,6 @@ export default function DashboardPage() {
   const createFoodLog = useCreateFoodLog();
   const deleteFoodLog = useDeleteFoodLog();
   const saveProgress = useSaveProgress();
-  const toggleCreatine = useToggleCreatine();
 
   const { message: actionError, show: flashError } = useTimedMessage<string>(5000);
   const showError = useCallback((e: unknown, fallback: string) => flashError(errorMessage(e, fallback)), [flashError]);
@@ -88,15 +87,6 @@ export default function DashboardPage() {
   useEffect(() => {
     if (foodsError) showError(foodsError, "Besin listesi yüklenemedi.");
   }, [foodsError, showError]);
-
-  function handleToggleCreatine() {
-    const today = progress.data?.today;
-    if (!today) return;
-    toggleCreatine.mutate(
-      { date: todayStr, taken: !today.creatineTaken },
-      { onError: (e) => showError(e, "Kreatin kaydı güncellenemedi.") }
-    );
-  }
 
   async function handleSaveWellbeing(values: WellbeingValues): Promise<boolean> {
     try {
@@ -116,8 +106,7 @@ export default function DashboardPage() {
   }
 
   function handleRhythmAction(action: RhythmAction) {
-    if (action.kind === "creatine") handleToggleCreatine();
-    else if (action.kind === "quickAdd") handleOpenQuickAdd(action.mealType);
+    if (action.kind === "quickAdd") handleOpenQuickAdd(action.mealType);
     else document.getElementById(WELLBEING_SECTION_ID)?.scrollIntoView({ behavior: "smooth" });
   }
 
@@ -168,7 +157,12 @@ export default function DashboardPage() {
     );
   }
 
-  const homeTime = profile.data?.workdayHomeTime;
+  // B02: rutin bandı (eve varış, iş/okul çıkışı) yalnız kullanıcı gün düzenini girdiyse.
+  const dayPattern = profile.data?.dayPattern ?? null;
+  const homeTime = dayPattern === "office" || dayPattern === "school" ? profile.data?.workdayHomeTime : undefined;
+  // B02: sihirbaz tamamlanmadıysa hedefler tahminidir; kalıcı şerit sihirbazı yeniden açar.
+  const estimatedTargets = profile.data?.isOnboarded === false;
+  const lastWeightKg = progress.data?.weights.at(-1)?.weightKg ?? (profile.data?.isOnboarded ? profile.data.currentWeightKg : null);
   const summary = foodLogs.data?.summary;
   const targets = foodLogs.data?.targets || DEFAULT_TARGETS;
 
@@ -178,24 +172,44 @@ export default function DashboardPage() {
   const isWorkoutCompleted = !!workouts.data?.sessions.some((s) => s.date === todayStr && s.completed);
   // F51: kaydedilmiş bugünkü durumdan hazır olma.
   const readiness = progress.data ? computeReadiness(progress.data.today) : null;
-  const step = getRhythmStep(new Date().getHours(), homeTime, !!progress.data?.today.creatineTaken);
+  const step = getRhythmStep(new Date().getHours(), { dayPattern, homeTime });
 
   return (
     <div className="space-y-6">
-      <DashboardHeader homeTime={homeTime || "19:30"} onQuickAdd={() => handleOpenQuickAdd()} />
+      <DashboardHeader homeTime={homeTime} onQuickAdd={() => handleOpenQuickAdd()} />
+      {estimatedTargets && !showWizard && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-amber-200 bg-amber-50 text-amber-900">
+          <p className="text-sm">
+            <span className="font-bold">Hedeflerin tahmini.</span> Boy, kilo ve hedefini girersen kalori ve makrolar sana göre
+            hesaplanır.
+          </p>
+          <button
+            type="button"
+            onClick={() => setWizardDismissed(false)}
+            className="shrink-0 px-3.5 py-2 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700"
+          >
+            Profilini tamamla
+          </button>
+        </div>
+      )}
       <CeilingAlert alert={summary?.ceilingAlert} hideNumbers={hideNumbers} />
       <RhythmStepCard step={step} onAction={handleRhythmAction} />
 
       {/* Ana Metrikler: Kalori & Makrolar */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <CalorieCard summary={summary} targets={targets} hideNumbers={hideNumbers} />
+        <CalorieCard summary={summary} targets={targets} hideNumbers={hideNumbers} estimated={estimatedTargets} />
         <MacroBalanceCard summary={summary} targets={targets} hideNumbers={hideNumbers} />
       </div>
 
       {/* İkinci Sıra: Günün Antrenmanı & İyilik Hali */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <TodayWorkoutCard template={todayTemplate} isCompleted={isWorkoutCompleted} readiness={readiness} />
-        <WellbeingCard today={progress.data?.today} onSave={handleSaveWellbeing} cycleTracking={profile.data?.cycleTracking ?? false} />
+        <WellbeingCard
+          today={progress.data?.today}
+          onSave={handleSaveWellbeing}
+          cycleTracking={profile.data?.cycleTracking ?? false}
+          lastWeightKg={lastWeightKg}
+        />
       </div>
 
       {/* F13: sıvı, kafein ve alkol · F15: takviyeler */}

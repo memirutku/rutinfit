@@ -49,6 +49,8 @@ model UserProfile {
   ramadanIftarAdjust Int     @default(0) // dakika
   fastingTargetHours Int? // null: zamanlayıcı kapalı
   cycleTracking      Boolean @default(false) // F82: isteğe bağlı adet döngüsü notu
+  // B02/B06: gün düzeni (office, school, shift, flexible). null: girilmedi, rutin bandı gösterilmez.
+  dayPattern         String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
