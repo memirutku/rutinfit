@@ -58,9 +58,10 @@ export function WeeklyPlanGrid({ templates, loading, onStart, onEdit, onPickProg
   const doneThisWeek = (t: WorkoutTemplate) => thisWeek.some((x) => sessionMatchesTemplate(x, t));
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="font-bold text-slate-900 text-base">Haftalık Antrenman Planı</h3>
-        <div className="flex items-center gap-2">
+      {/* Recheck (Elif): dar ekranda başlık bölünmesin; düğmeler kendi satırına iner. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="font-bold text-slate-900 text-base whitespace-nowrap">Haftalık Antrenman Planı</h3>
+        <div className="flex flex-wrap items-center gap-2">
         {onTextEntry && (
           <button
             type="button"
@@ -94,6 +95,21 @@ export function WeeklyPlanGrid({ templates, loading, onStart, onEdit, onPickProg
         <p role="status" className="text-sm text-slate-500">
           Antrenman planı yükleniyor...
         </p>
+      )}
+      {/* Recheck (Elif, B06): boş haftada yedi "Dinlenme" kartı yerine önce başlangıç yolu gösterilir. */}
+      {!loading && templates.length === 0 && onPickProgram && (
+        <section
+          aria-label="Henüz antrenman planın yok"
+          className="p-4 rounded-2xl border border-brand-200 bg-brand-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+        >
+          <div>
+            <p className="text-sm font-bold text-slate-900">Henüz antrenman planın yok</p>
+            <p className="text-xs text-slate-600">Başlangıç ya da ev programlarından birini seç; sonra günleri ve hareketleri değiştirebilirsin.</p>
+          </div>
+          <button type="button" onClick={onPickProgram} className="shrink-0 px-4 py-2 rounded-xl bg-brand-600 text-white text-xs font-bold hover:bg-brand-700">
+            Hazır program seç
+          </button>
+        </section>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

@@ -525,6 +525,16 @@ describe("küçük bileşenler", () => {
     expect(onDiscard).toHaveBeenCalled();
   });
 
+  it("recheck (Elif, B06): plan boşsa 'Hazır program seç' çağrısı çıkar; plan varsa çıkmaz", () => {
+    const onPickProgram = vi.fn();
+    const { rerender } = render(<WeeklyPlanGrid templates={[]} loading={false} onStart={vi.fn()} onPickProgram={onPickProgram} />);
+    const cta = screen.getByRole("region", { name: "Henüz antrenman planın yok" });
+    fireEvent.click(within(cta).getByRole("button", { name: "Hazır program seç" }));
+    expect(onPickProgram).toHaveBeenCalled();
+    rerender(<WeeklyPlanGrid templates={[strength]} loading={false} onStart={vi.fn()} onPickProgram={onPickProgram} />);
+    expect(screen.queryByRole("region", { name: "Henüz antrenman planın yok" })).toBeNull();
+  });
+
   it("WeeklyPlanGrid ağırlık, koşu ve dinlenme günlerini gösterir; başlatma düğmeleri doğru şablonu verir", () => {
     const onStart = vi.fn();
     render(<WeeklyPlanGrid templates={[strength, run]} loading={false} onStart={onStart} />);

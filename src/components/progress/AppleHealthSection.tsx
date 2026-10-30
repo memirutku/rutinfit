@@ -87,12 +87,15 @@ export function AppleHealthSection() {
   const [breakdown, setBreakdown] = useState<SourceBreakdown | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Recheck (Can): veri kaldırılınca seçili dosya adı da temizlenir.
+  const [pickedName, setPickedName] = useState<string | null>(null);
   const remove = useMutation({
     mutationFn: () => apiFetch("/api/apple-health", { method: "DELETE" }),
     onSuccess: () => {
       setConfirmDelete(false);
       setResult(null);
       setBreakdown(null);
+      setPickedName(null);
       return qc.invalidateQueries({ queryKey: KEY });
     },
   });
@@ -139,7 +142,11 @@ export function AppleHealthSection() {
         label="Apple Sağlık dışa aktarımı (export.zip)"
         accept=".zip,.xml,application/zip,text/xml"
         disabled={progress !== null}
-        onFile={(file) => void onFile(file)}
+        fileName={pickedName}
+        onFile={(file) => {
+          setPickedName(file?.name ?? null);
+          void onFile(file);
+        }}
       />
       {progress !== null && (
         <div role="progressbar" aria-label="Okunuyor" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
