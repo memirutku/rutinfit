@@ -17,7 +17,8 @@ export const FoodItemInputSchema = z.object({
   carbsG: z.number().nonnegative(),
   fatG: z.number().nonnegative(),
   source: z.string().default("Kullanıcı"),
-  confidence: z.string().default("Yüksek"),
+  // B14: elle eklenen besinin güveni kullanıcının beyanıdır.
+  confidence: z.string().default("Kullanıcı"),
   brand: z.string().trim().max(120).optional().nullable(),
   barcode: barcodeDigits
     .refine((v) => v.length === 0 || (v.length >= 6 && v.length <= 14), "Barkod 6–14 haneli olmalıdır.")

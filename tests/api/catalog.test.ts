@@ -46,6 +46,12 @@ describe("/api/foods", () => {
     expect(names).toEqual(["Çilek", "Elma", "Ispanak", "İncir", "Şeftali", "Zeytin"]);
   });
 
+  it("B14: kategori ve güven verilmezse 'Genel' ve 'Kullanıcı' olur", async () => {
+    const res = await callRoute(foodsPost, { body: { name: "Hurma", calories: 282, proteinG: 2.5, carbsG: 75, fatG: 0.4 } });
+    expect(res.status).toBe(201);
+    expect(res.json).toMatchObject({ category: "Genel", confidence: "Kullanıcı", source: "Kullanıcı" });
+  });
+
   it("negatif makroyu 400, yinelenen barkodu 409 ile reddeder", async () => {
     const base = { name: "X", calories: 10, proteinG: 1, carbsG: 1, fatG: 1 };
     expect((await callRoute(foodsPost, { body: { ...base, calories: -1 } })).status).toBe(400);

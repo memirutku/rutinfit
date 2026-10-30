@@ -19,16 +19,20 @@ interface NewFoodModalProps {
   onCreated?: (food: { barcode: string | null; name: string }) => void;
 }
 
+/**
+ * B14: Elle eklenen besin "Genel" kategoride ve "Kullanıcı" güveniyle başlar; değerler sıfırdır
+ * (örnek değerler yanlışlıkla kaydedilmez, hurma "Kasap & Balık"a düşmez).
+ */
 const INITIAL_FORM = {
   name: "",
-  category: "Kasap & Balık",
+  category: "Genel",
   basisGrams: 100,
-  calories: 120,
-  proteinG: 20,
+  calories: 0,
+  proteinG: 0,
   carbsG: 0,
-  fatG: 2,
+  fatG: 0,
   source: "Kullanıcı",
-  confidence: "Yüksek",
+  confidence: "Kullanıcı",
   brand: "",
   barcode: "",
 };
