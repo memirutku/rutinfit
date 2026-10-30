@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { GET, POST, PATCH, DELETE } from "@/app/api/supplements/route";
 import { POST as LOG } from "@/app/api/supplements/log/route";
 import { GET as PROGRESS } from "@/app/api/progress/route";
+import { GET as FOOD_LOGS } from "@/app/api/food-logs/route";
 import { prisma } from "@/lib/prisma";
 import { callRoute } from "../helpers/route";
 import { resetDatabase } from "../helpers/db";
@@ -52,5 +53,45 @@ describe("/api/supplements (F15)", () => {
     expect(await prisma.supplement.count()).toBe(0);
     expect(await prisma.supplementLog.count()).toBe(1);
     expect((await callRoute(DELETE, { method: "DELETE", query: { id: mg.id } })).status).toBe(404);
+  });
+
+  it("B12: besin değeri olan takviye işaretlenince günlüğe yazılır; geri alınınca silinir", async () => {
+    const today = new Intl.DateTimeFormat("sv-SE").format(new Date());
+    const whey = (await callRoute(POST, { body: { name: "Whey Protein", doseAmount: 30, doseUnit: "g", caloriesPerDose: 120, proteinPerDose: 24 } })).json;
+    expect(whey).toMatchObject({ caloriesPerDose: 120, proteinPerDose: 24 });
+
+    await callRoute(LOG, { body: { supplementId: whey.id, date: today, taken: true } });
+    // İkinci "alındı" işareti ikinci kayıt açmaz.
+    await callRoute(LOG, { body: { supplementId: whey.id, date: today, taken: true } });
+    const logs = await prisma.foodLog.findMany({ where: { date: today } });
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toMatchObject({ name: "Whey Protein (30 g)", grams: 30, caloriesSnapshot: 120, proteinSnapshot: 24, carbsSnapshot: 0, fatSnapshot: 0 });
+    const day = await callRoute(FOOD_LOGS, { query: { date: today } });
+    expect(day.json.summary.consumedProtein).toBe(24);
+    const list = await callRoute(GET, { query: { date: today } });
+    expect(list.json.supplements[0]).toMatchObject({ caloriesPerDose: 120, proteinPerDose: 24, takenToday: true });
+
+    await callRoute(LOG, { body: { supplementId: whey.id, date: today, taken: false } });
+    expect(await prisma.foodLog.count()).toBe(0);
+    expect(await prisma.supplementLog.findFirst({ where: { name: "Whey Protein" } })).toMatchObject({ taken: false, foodLogId: null });
+  });
+
+  it("B12: besin değeri olmayan takviye günlüğe yazılmaz; kullanıcının sildiği öğün geri almayı bozmaz", async () => {
+    const vitd = (await callRoute(POST, { body: { name: "D Vitamini", doseAmount: 1000, doseUnit: "IU" } })).json;
+    await callRoute(LOG, { body: { supplementId: vitd.id, date: "2026-10-30", taken: true } });
+    expect(await prisma.foodLog.count()).toBe(0);
+
+    const gainer = (await callRoute(POST, { body: { name: "Gainer", doseAmount: 1, doseUnit: "ölçek", caloriesPerDose: 380 } })).json;
+    // Geçmiş bir gün için işaretlenen takviye "ara öğün" olarak yazılır.
+    await callRoute(LOG, { body: { supplementId: gainer.id, date: "2026-10-01", taken: true } });
+    const log = await prisma.foodLog.findFirstOrThrow();
+    expect(log).toMatchObject({ name: "Gainer (1 ölçek)", caloriesSnapshot: 380, proteinSnapshot: 0, mealType: "extra" });
+    await prisma.foodLog.delete({ where: { id: log.id } });
+    expect((await callRoute(LOG, { body: { supplementId: gainer.id, date: "2026-10-01", taken: false } })).status).toBe(200);
+
+    // Besin değeri sonradan kaldırılabilir.
+    const upd = await callRoute(PATCH, { method: "PATCH", query: { id: gainer.id }, body: { caloriesPerDose: null } });
+    expect(upd.json.caloriesPerDose).toBeNull();
+    expect((await callRoute(POST, { body: { name: "X", doseAmount: 1, doseUnit: "g", proteinPerDose: -1 } })).status).toBe(400);
   });
 });

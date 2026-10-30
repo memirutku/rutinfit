@@ -82,4 +82,35 @@ test.describe("Dalga 6 · besin", () => {
     await d.getByRole("button", { name: "Çözümle" }).click();
     await expect(d.getByRole("listitem").filter({ hasText: "1 kase mercimek çorbası" })).toContainText(`${kcal} kcal`);
   });
+
+  test("B12: whey 'alındı' işaretlenince protein günlüğe yazılır, geri alınınca silinir; kartta ekleme bağlantısı", async ({ page, api }) => {
+    const name = uniq("E2E Whey");
+    const protein = async () => (await (await api.get(`/api/food-logs?date=${todayStr()}`)).json()).summary.consumedProtein as number;
+
+    await page.goto("/");
+    await page.getByRole("link", { name: "+ Takviye / Düzenle" }).click();
+    await expect(page).toHaveURL(/\/settings#takviyeler$/);
+    const section = page.locator("#takviyeler");
+    await section.getByLabel("Takviye adı").fill(name);
+    await section.getByLabel("Doz", { exact: true }).fill("30");
+    await section.getByLabel("Kalori (doz başına)").fill("120");
+    await section.getByLabel("Protein (g, doz başına)").fill("24");
+    await section.getByRole("button", { name: "Takviye ekle" }).click();
+    await expect(section.getByText(/120 kcal · 24 g protein günlüğe yazılır/)).toBeVisible();
+
+    const before = await protein();
+    await page.goto("/");
+    const chip = page.getByRole("button", { name: new RegExp(name) });
+    let saved = page.waitForResponse((r) => r.url().endsWith("/api/supplements/log") && r.request().method() === "POST");
+    await chip.click();
+    expect((await saved).ok()).toBe(true);
+    await expect(page.getByText(`${name} (30 g)`)).toBeVisible();
+    expect(await protein()).toBeCloseTo(before + 24, 1);
+
+    saved = page.waitForResponse((r) => r.url().endsWith("/api/supplements/log") && r.request().method() === "POST");
+    await chip.click();
+    expect((await saved).ok()).toBe(true);
+    await expect(page.getByText(`${name} (30 g)`)).toBeHidden();
+    expect(await protein()).toBeCloseTo(before, 1);
+  });
 });

@@ -56,7 +56,9 @@ test.describe("Ana panel", () => {
     await expect(toast).toBeHidden();
   });
 
-  test("F15: kreatin (varsayılan takviye) işareti sayfa yenilense de korunur", async ({ page }) => {
+  test("F15: kreatin işareti sayfa yenilense de korunur", async ({ page, request }) => {
+    // B02: yeni kurulumda takviye listesi boştur; kreatini kullanıcı ekler (zaten varsa 409).
+    await request.post("/api/supplements", { data: { name: "Kreatin Monohidrat", doseAmount: 5, doseUnit: "g" } });
     await page.goto("/");
     const toggle = page.getByRole("button", { name: /Kreatin Monohidrat/ });
     await expect(toggle).toBeVisible();
