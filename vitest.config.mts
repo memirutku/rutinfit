@@ -21,7 +21,7 @@ export default defineConfig({
       reporter: ["text-summary", "html", "json-summary"],
       reportsDirectory: "coverage",
       // Taban çizgisi: kapsam bunun altına düşerse test başarısız olur. Yalnız yukarı çekilir.
-      thresholds: { lines: 82, statements: 81, branches: 67, functions: 79 },
+      thresholds: { lines: 86, statements: 85, branches: 72, functions: 83 },
     },
     projects: [
       {
