@@ -1,0 +1,251 @@
+import { test, expect, todayStr, uniq } from "./fixtures";
+import type { Page, Request } from "@playwright/test";
+
+/** Dalga 6, D alanı (antrenman): persona bulguları B17–B20 kilit akışları. */
+
+const DRAFT_KEY = "rutinfit_active_workout_draft";
+
+/** Antrenman sayfasını taslaksız açar; önceki seans ağırlıkları yüklenene kadar bekler. */
+async function openWorkouts(page: Page) {
+  await page.goto("/workouts");
+  await page.evaluate((k) => localStorage.removeItem(k), DRAFT_KEY);
+  const lastSets = page.waitForResponse((r) => r.url().includes("/api/workouts/last-sets"));
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Haftalık Antrenman Planı" })).toBeVisible();
+  await lastSets;
+}
+
+/** "YYYY-MM-DD" ± gün (saat diliminden bağımsız takvim aritmetiği). */
+function shiftDay(date: string, days: number): string {
+  const [y, m, d] = date.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+const trDate = (iso: string) => iso.split("-").reverse().join(".");
+
+const isWorkoutPost = (r: Request) => r.method() === "POST" && new URL(r.url()).pathname === "/api/workouts";
+
+test.describe("Dalga 6 · Antrenman", () => {
+  test("B17: tamamlanmayan setler kaydedilmez; ağırlık 40 kg ile değil boş ya da önceki seansla başlar", async ({ page, api }) => {
+    await openWorkouts(page);
+    await page.getByRole("button", { name: /^Başla \(/ }).first().click();
+    await expect(page.getByRole("button", { name: "Antrenmanı Bitir & Kaydet" })).toBeVisible();
+
+    // Ağırlık alanları ya boş ya da o egzersizin son seansındaki ağırlıkla dolu; sabit 40 yok.
+    const swapLabel = await page.getByRole("button", { name: / egzersizini değiştir$/ }).first().getAttribute("aria-label");
+    const firstExercise = swapLabel!.replace(/ egzersizini değiştir$/, "");
+    const last = await (await api.get(`/api/workouts/last-sets?exercise=${encodeURIComponent(firstExercise)}`)).json();
+    const expected = last[firstExercise]?.sets?.[0]?.weightKg;
+    await expect(page.getByLabel("Ağırlık:").first()).toHaveValue(expected === undefined ? "" : String(expected).replace(".", ","));
+
+    const sets = await page.getByLabel("Ağırlık:").count();
+    await page.getByLabel("Ağırlık:").first().fill("100");
+    await page.getByLabel("Tekrar:").first().fill("5");
+    await page.getByRole("button", { name: "Tamamla" }).first().click();
+
+    await page.getByRole("button", { name: "Antrenmanı Bitir & Kaydet" }).click();
+    const prompt = page.getByRole("group", { name: `${sets - 1} set tamamlanmadı.` });
+    await expect(prompt).toBeVisible();
+
+    const posted = page.waitForRequest(isWorkoutPost);
+    const response = page.waitForResponse((r) => isWorkoutPost(r.request()));
+    await prompt.getByRole("button", { name: "At ve kaydet" }).click();
+    const body = (await posted).postDataJSON();
+    expect(body.setLogs).toHaveLength(1);
+    expect(body.setLogs[0]).toMatchObject({ exerciseName: firstExercise, weightKg: 100, reps: 5, setNumber: 1 });
+
+    const saved = await (await response).json();
+    expect(saved.session.setLogs).toHaveLength(1);
+    expect(saved.session.setLogs[0].weightKg).toBe(100);
+    await expect(page.getByText(/Seans Tamamlandı/)).toBeVisible();
+
+    // Sunucu da tamamlanmamış ya da boş seti kabul etmez.
+    const empty = await api.post("/api/workouts", {
+      data: { date: todayStr(), name: "Boş", durationMinutes: 10, setLogs: [{ exerciseName: "Squat", setNumber: 1, weightKg: 40, reps: 8, completed: false }] },
+    });
+    expect(empty.status()).toBe(400);
+  });
+
+  test("B18: seans şablondaki set sayısıyla (4 ve 2) açılır; set eklenir ve silinir", async ({ page, api }) => {
+    const name = uniq("E2E Üst");
+    const created = await api.post("/api/workouts/templates", {
+      data: {
+        name,
+        type: "strength",
+        dayOfWeek: 7,
+        targetDurationMinutes: 50,
+        exercises: [
+          { exerciseName: "Bench Press", targetSets: 4, repMin: 6, repMax: 8, restSeconds: 150 },
+          { exerciseName: "Tricep Pushdown", targetSets: 2, repMin: 10, repMax: 15, restSeconds: 60 },
+        ],
+      },
+    });
+    expect(created.status()).toBe(201);
+    const templateId = (await created.json()).id;
+    try {
+      await openWorkouts(page);
+      await page.getByRole("article", { name }).getByRole("button", { name: "Başla (50 dk)" }).click();
+
+      const bench = page.getByRole("group", { name: "Bench Press" });
+      const pushdown = page.getByRole("group", { name: "Tricep Pushdown" });
+      await expect(bench.getByLabel("Ağırlık:")).toHaveCount(4);
+      await expect(pushdown.getByLabel("Ağırlık:")).toHaveCount(2);
+
+      await pushdown.getByRole("button", { name: "Tricep Pushdown için set ekle" }).click();
+      await expect(pushdown.getByLabel("Ağırlık:")).toHaveCount(3);
+      await bench.getByRole("button", { name: "Bench Press 4. seti sil" }).click();
+      await expect(bench.getByLabel("Ağırlık:")).toHaveCount(3);
+      await expect(bench.getByRole("button", { name: "Bench Press 3. seti sil" })).toBeVisible();
+
+      await page.getByRole("button", { name: "Vazgeç" }).first().click();
+    } finally {
+      await api.delete(`/api/workouts/templates?id=${templateId}`);
+    }
+  });
+
+  test("B19: metinden eklenen dünkü antrenman düne yazılır; geçmişte görülür, düzenlenir ve onayla silinir", async ({ page, api }) => {
+    const yesterday = shiftDay(todayStr(), -1);
+    const name = uniq("E2E Dünkü");
+    await openWorkouts(page);
+    await page.getByRole("button", { name: "Metinden ekle" }).click();
+    const dialog = page.getByRole("dialog", { name: "Metinden antrenman ekle" });
+    await expect(dialog.getByLabel("Tarih")).toHaveValue(todayStr());
+    await dialog.getByLabel("Antrenman metni").fill("squat 3x8 80 kg");
+    await dialog.getByLabel("Seans adı").fill(name);
+    await dialog.getByLabel("Tarih").fill(yesterday);
+    await dialog.getByRole("button", { name: "Seans olarak kaydet (3 set)" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByRole("status").filter({ hasText: `${trDate(yesterday)} tarihine 3 set kaydedildi.` })).toBeVisible();
+
+    const onYesterday = (await (await api.get(`/api/workouts?date=${yesterday}`)).json()).sessions;
+    expect(onYesterday.some((x: { name: string }) => x.name === name)).toBe(true);
+    const onToday = (await (await api.get(`/api/workouts?date=${todayStr()}`)).json()).sessions;
+    expect(onToday.some((x: { name: string }) => x.name === name)).toBe(false);
+
+    const history = page.getByRole("list", { name: "Seans geçmişi" });
+    const row = history.getByRole("listitem").filter({ hasText: name });
+    await expect(row).toContainText(trDate(yesterday));
+    await expect(row).toContainText("Dün");
+
+    // Düzenle: ad ve bir setin ağırlığı
+    const label = `${name} · ${trDate(yesterday)}`;
+    await page.getByRole("button", { name: `${label} seansını düzenle` }).click();
+    const edit = page.getByRole("dialog", { name: "Seansı düzenle" });
+    const renamed = `${name} düzeltildi`;
+    await edit.getByLabel("Seans adı").fill(renamed);
+    await edit.getByLabel("Squat 1. set ağırlık").fill("82,5");
+    await edit.getByRole("button", { name: "Değişiklikleri kaydet" }).click();
+    await expect(edit).toBeHidden();
+    const renamedLabel = `${renamed} · ${trDate(yesterday)}`;
+    await page.getByRole("button", { name: `${renamedLabel} setlerini gör` }).click();
+    await expect(page.getByRole("list", { name: `${renamedLabel} setleri` })).toContainText("82,5 kg × 8");
+
+    // Sil: önce onay sorulur
+    await page.getByRole("button", { name: `${renamedLabel} seansını sil` }).click();
+    const confirm = page.getByRole("dialog", { name: "Seans silinsin mi?" });
+    await expect(confirm).toContainText(trDate(yesterday));
+    await confirm.getByRole("button", { name: "Sil" }).click();
+    await expect(history.getByRole("listitem").filter({ hasText: renamed })).toHaveCount(0);
+    const after = (await (await api.get(`/api/workouts?date=${yesterday}`)).json()).sessions;
+    expect(after.some((x: { name: string }) => x.name === renamed)).toBe(false);
+  });
+
+  test("B20: pano yapılan şablona göre 'Tamamlandı' der; haftalık planda bugün vurgulanır", async ({ page, api }) => {
+    const today = todayStr();
+    const weekday = new Date(`${today}T12:00:00Z`).getUTCDay() || 7;
+    const otherDay = (weekday % 7) + 1; // bugün olmayan bir gün
+    const name = uniq("E2E Üst A");
+    const created = await api.post("/api/workouts/templates", {
+      data: {
+        name,
+        type: "strength",
+        dayOfWeek: otherDay,
+        targetDurationMinutes: 45,
+        exercises: [{ exerciseName: "Overhead Press", targetSets: 2, repMin: 5, repMax: 8, restSeconds: 120 }],
+      },
+    });
+    const templateId = (await created.json()).id;
+    let sessionId: string | undefined;
+    try {
+      await openWorkouts(page);
+      // Haftalık planda bugünün kartı vurgulu; antrenman gününe "Toparlanma" yazılmaz.
+      const todayCards = page.locator('article[aria-current="date"]');
+      await expect(todayCards.first()).toContainText("Bugün");
+      const myCard = page.getByRole("article", { name });
+      await expect(myCard).toContainText("1 hareket · 2 set: Overhead Press");
+      await expect(myCard).not.toContainText("Toparlanma");
+
+      // Bugünün değil, başka günün şablonu yapılır.
+      await myCard.getByRole("button", { name: "Başla (45 dk)" }).click();
+      await page.getByRole("group", { name: "Overhead Press" }).getByLabel("Ağırlık:").first().fill("60");
+      await page.getByRole("group", { name: "Overhead Press" }).getByRole("button", { name: "Tamamla" }).first().click();
+      const response = page.waitForResponse((r) => isWorkoutPost(r.request()));
+      await page.getByRole("button", { name: "Antrenmanı Bitir & Kaydet" }).click();
+      await page.getByRole("button", { name: "At ve kaydet" }).click();
+      sessionId = (await (await response).json()).session.id;
+      await expect(page.getByRole("article", { name }).getByText("Bu hafta yapıldı ✓")).toBeVisible();
+
+      // Pano: bugünün planlı şablonu, bu seans yüzünden "Tamamlandı" olmaz.
+      const data = await (await api.get(`/api/workouts?date=${today}`)).json();
+      const planned = data.templates.find(
+        (t: { dayOfWeek: number; id: string; name: string }) =>
+          t.dayOfWeek === weekday && data.sessions.some((x: { templateId: string | null; completed: boolean }) => x.completed && x.templateId === t.id)
+      ) ?? data.templates.find((t: { dayOfWeek: number }) => t.dayOfWeek === weekday);
+      const plannedDone = !!planned && data.sessions.some((x: { templateId: string | null; completed: boolean }) => x.completed && x.templateId === planned.id);
+
+      await page.goto("/");
+      const card = page.getByRole("region", { name: "Günün Antrenmanı" });
+      await expect(card).toContainText(`Bugün yapılan:`);
+      await expect(card).toContainText(name);
+      await expect(card.getByRole("heading", { level: 3 })).not.toHaveText(name);
+      if (planned && planned.type !== "rest") {
+        await expect(card.getByRole("heading", { level: 3 })).toHaveText(planned.name);
+        await expect(card.getByText(plannedDone ? "Tamamlandı ✓" : "Bekliyor")).toBeVisible();
+      }
+      await expect(card).not.toContainText("19:40");
+    } finally {
+      if (sessionId) await api.delete(`/api/workouts?id=${sessionId}`);
+      await api.delete(`/api/workouts/templates?id=${templateId}`);
+    }
+  });
+
+  test("B22: seansta ana harekete 'Isınma setleri ekle' ısınma tipinde setler ekler", async ({ page }) => {
+    await openWorkouts(page);
+    await page.getByRole("button", { name: /^Başla \(/ }).first().click();
+    const swapLabel = await page.getByRole("button", { name: / egzersizini değiştir$/ }).first().getAttribute("aria-label");
+    const main = swapLabel!.replace(/ egzersizini değiştir$/, "");
+    const group = page.getByRole("group", { name: main });
+    const warmup = group.getByRole("button", { name: `${main} için ısınma setleri ekle` });
+    // Çalışma ağırlığı ilk çalışma setinden alınır (boşken düğme kapalı; birim testte).
+    await group.getByLabel("Ağırlık:").first().fill("100");
+    await warmup.click();
+    // 100 kg için: boş bar, %40, %60, %80, %90
+    await expect(group.locator("select[id]").filter({ has: page.locator('option[value="warmup"]:checked') })).toHaveCount(5);
+    await expect(group.getByLabel("Ağırlık:").first()).toHaveValue("20");
+    await expect(group.getByText("Isınma · %90")).toBeVisible();
+    await page.getByRole("button", { name: "Vazgeç" }).first().click();
+  });
+
+  test("B23: plaka hesabı 142,5 kg için her tarafa 61,25 kg ve 1,25'lik plakayı virgülle gösterir", async ({ page }) => {
+    await openWorkouts(page);
+    await page.getByRole("button", { name: "Plaka & 1RM" }).click();
+    await page.getByLabel("Hedef Toplam Ağırlık (kg)").fill("142,5");
+    await expect(page.getByText("61,25 kg", { exact: true })).toBeVisible();
+    await expect(page.getByText("1 × 1,25 kg")).toBeVisible();
+    await expect(page.getByText("61,3 kg")).toHaveCount(0);
+  });
+
+  test("B24: Antrenman'dan güç gelişimine kısayol; terimler sade", async ({ page, api }) => {
+    await api.post("/api/workouts", {
+      data: { date: todayStr(), name: uniq("E2E Güç"), durationMinutes: 20, setLogs: [{ exerciseName: "Bench Press", setNumber: 1, weightKg: 60, reps: 5 }] },
+    });
+    await openWorkouts(page);
+    await page.getByRole("link", { name: /Güç gelişimi ve rekorlar/ }).click();
+    await expect(page).toHaveURL(/\/progress#guc$/);
+    const section = page.locator("section#guc");
+    await expect(section.getByRole("heading", { name: "Güç gelişimi" })).toBeVisible();
+    await expect(section.getByRole("heading", { name: "Güç gelişimi" })).toBeInViewport();
+    await page.locator("#strength-exercise").selectOption({ label: "Bench Press" });
+    await expect(section.getByText("Tahmini en iyi tek tekrar")).toBeVisible();
+    await expect(section.getByText("En iyi e1RM")).toHaveCount(0);
+  });
+});

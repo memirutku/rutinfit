@@ -6,7 +6,8 @@ import { RhythmStepCard } from "@/components/dashboard/RhythmStepCard";
 import { CeilingAlert } from "@/components/dashboard/CeilingAlert";
 import { CalorieCard } from "@/components/dashboard/CalorieCard";
 import { MacroBalanceCard } from "@/components/dashboard/MacroBalanceCard";
-import { TodayWorkoutCard } from "@/components/dashboard/TodayWorkoutCard";
+import { TodayWorkoutCard, TodayWorkoutView } from "@/components/dashboard/TodayWorkoutCard";
+import { weekdayOf } from "@/lib/workout-day";
 import { TodayMealsList, dashboardMealLabel } from "@/components/dashboard/TodayMealsList";
 import { WellbeingCard, toWellbeingValues } from "@/components/dashboard/WellbeingCard";
 import { WeightGoalCard } from "@/components/dashboard/WeightGoalCard";
@@ -14,7 +15,7 @@ import { mealTypeForHour } from "@/lib/meal-time";
 import { getLocalDateString } from "@/lib/date-utils";
 import type { DailySummary, FoodLog, FoodLogsResponse } from "@/lib/schemas/food";
 import type { ProgressResponse } from "@/lib/schemas/progress";
-import type { WorkoutTemplate } from "@/lib/schemas/workout";
+import type { WorkoutSession, WorkoutTemplate } from "@/lib/schemas/workout";
 import { jsonResponse, stubFetch } from "../helpers/fetch";
 import { renderWithQuery } from "../helpers/query";
 
@@ -192,23 +193,63 @@ describe("dashboard kartları", () => {
   });
 
   it("F51: hazır olma düşükse antrenman kartı kısaltılmış seansı önerir", () => {
-    const { rerender } = render(<TodayWorkoutCard template={template} isCompleted={false} readiness={{ score: 32, band: "low", contributions: [], drags: ["Uyku 5 sa"] }} />);
+    const todayTpl = { ...template, dayOfWeek: weekdayOf(today) };
+    const { rerender } = render(
+      <TodayWorkoutView status={{ planned: todayTpl, completed: false, doneOther: [] }} readiness={{ score: 32, band: "low", contributions: [], drags: ["Uyku 5 sa"] }} />
+    );
     expect(screen.getByRole("note").textContent).toMatch(/Hazır olma düşük \(32\)/);
-    rerender(<TodayWorkoutCard template={template} isCompleted={false} readiness={{ score: 80, band: "high", contributions: [], drags: [] }} />);
+    rerender(<TodayWorkoutView status={{ planned: todayTpl, completed: false, doneOther: [] }} readiness={{ score: 80, band: "high", contributions: [], drags: [] }} />);
     expect(screen.queryByRole("note")).toBeNull();
   });
 
-  it("TodayWorkoutCard bekleyen ve tamamlanan seansı ayırır; şablon yoksa dinlenme günüdür", () => {
-    const { rerender } = render(<TodayWorkoutCard template={template} isCompleted={false} />);
-    expect(screen.getByText("Ağırlık A")).toBeTruthy();
-    expect(screen.getByText("Bekliyor")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Hafiflet" })).toBeTruthy();
-    rerender(<TodayWorkoutCard template={template} isCompleted />);
-    expect(screen.getByText("Tamamlandı ✓")).toBeTruthy();
-    expect(screen.getByRole("link", { name: /Seansı Gör/ })).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Hafiflet" })).toBeNull();
-    rerender(<TodayWorkoutCard isCompleted={false} />);
-    expect(screen.getByText("Dinlenme & Toparlanma")).toBeTruthy();
+  describe("TodayWorkoutCard (B20: kendi verisini alır)", () => {
+    const sessionOf = (over: Partial<WorkoutSession>): WorkoutSession => ({
+      id: "s1", date: today, templateId: null, name: "x", durationMinutes: 60, rpe: 7, notes: null, completed: true, setLogs: [], ...over,
+    });
+    const lowerB: WorkoutTemplate = {
+      id: "lb", name: "Alt Gövde B", type: "strength", dayOfWeek: weekdayOf(today), targetDurationMinutes: 60, notes: null,
+      exercises: [
+        { id: "e1", exerciseName: "Deadlift", targetSets: 3, repMin: 4, repMax: 6, restSeconds: 180, orderIndex: 0 },
+        { id: "e2", exerciseName: "Leg Press", targetSets: 3, repMin: 10, repMax: 12, restSeconds: 120, orderIndex: 1 },
+      ],
+    };
+    const upperA: WorkoutTemplate = { ...lowerB, id: "ua", name: "Üst Gövde A", dayOfWeek: (weekdayOf(today) % 7) + 1 };
+    function stubToday(sessions: WorkoutSession[], templates: WorkoutTemplate[] = [upperA, lowerB]) {
+      const s = stubFetch([["/api/workouts", () => jsonResponse({ templates, sessions })]]);
+      restore = s.restore;
+      return s;
+    }
+
+    it("Mert: Üst Gövde A yapıldıysa bugünün Alt Gövde B'si 'Tamamlandı' görünmez; yapılan ayrıca yazılır", async () => {
+      const s = stubToday([sessionOf({ templateId: "ua", name: "Üst Gövde A" })]);
+      renderWithQuery(<TodayWorkoutCard readiness={null} />);
+      expect(await screen.findByText("Alt Gövde B")).toBeTruthy();
+      expect(screen.getByText("Bekliyor")).toBeTruthy();
+      expect(screen.queryByText("Tamamlandı ✓")).toBeNull();
+      expect(screen.getByText(/Bugün yapılan: Üst Gövde A ✓/)).toBeTruthy();
+      expect(s.calls[0].url).toContain(`/api/workouts?date=${today}`);
+    });
+
+    it("bugünün şablonu yapıldıysa 'Tamamlandı'; açıklama şablondan gelir, kişisel saat yazmaz", async () => {
+      stubToday([sessionOf({ templateId: "lb", name: "Alt Gövde B" })]);
+      const { container } = renderWithQuery(<TodayWorkoutCard readiness={null} />);
+      expect(await screen.findByText("Tamamlandı ✓")).toBeTruthy();
+      expect(screen.getByText("2 hareket · 6 set: Deadlift, Leg Press")).toBeTruthy();
+      expect(screen.getByRole("link", { name: /Seansı Gör/ }).getAttribute("href")).toBe("/workouts#gecmis");
+      expect(screen.queryByRole("link", { name: "Hafiflet" })).toBeNull();
+      expect(container.textContent).not.toMatch(/İş Çıkışı|19:40|Toparlanma günü/);
+    });
+
+    it("bekleyen seans; şablon yoksa dinlenme günüdür", async () => {
+      stubToday([]);
+      renderWithQuery(<TodayWorkoutCard readiness={null} />);
+      expect(await screen.findByText("Bekliyor")).toBeTruthy();
+      expect(screen.getByRole("link", { name: "Hafiflet" })).toBeTruthy();
+      restore?.();
+      stubToday([], [upperA]);
+      renderWithQuery(<TodayWorkoutCard readiness={null} />);
+      expect(await screen.findByText("Dinlenme günü")).toBeTruthy();
+    });
   });
 
   it("TodayMealsList boş durumu ve silme düğmesi", () => {

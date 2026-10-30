@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useCountdown } from "@/hooks/useCountdown";
+import { useTimedMessage } from "@/hooks/useTimedMessage";
 import { useToday } from "@/hooks/useToday";
 import { errorMessage } from "@/lib/client/api";
-import { useFinishWorkout, useWorkouts } from "@/lib/client/queries/workouts";
+import { useFinishWorkout, useLastSets, useWorkouts } from "@/lib/client/queries/workouts";
 import type { ProgressionFeedback, WorkoutSession, WorkoutTemplate } from "@/lib/schemas/workout";
 import { TemplateEditor } from "@/components/workouts/TemplateEditor";
 import { ProgramPicker } from "@/components/workouts/ProgramPicker";
@@ -18,12 +19,15 @@ import { ProgressionFeedbackPanel } from "@/components/workouts/ProgressionFeedb
 import { DraftResumeBanner } from "@/components/workouts/DraftResumeBanner";
 import { ActiveSessionForm } from "@/components/workouts/ActiveSessionForm";
 import { WeeklyPlanGrid } from "@/components/workouts/WeeklyPlanGrid";
+import { weekdayOf } from "@/lib/workout-day";
+import { SessionHistory } from "@/components/workouts/SessionHistory";
 import { useWorkoutDraft } from "@/components/workouts/useWorkoutDraft";
 import {
   buildSessionForm,
   fromDraft,
   toWorkoutPayload,
   type ActiveWorkout,
+  type SessionForm,
   type SessionTemplate,
 } from "@/components/workouts/session-form";
 
@@ -45,13 +49,21 @@ export default function WorkoutsPage() {
   const [pickingProgram, setPickingProgram] = useState(false);
   const [textEntry, setTextEntry] = useState(false);
   const [editing, setEditing] = useState<{ template: WorkoutTemplate | null; dayOfWeek: number } | null>(null);
+  // B19: metinden eklenen seansın onayı
+  const savedNote = useTimedMessage<string>(8000);
   const submitting = useRef(false);
 
   // Kaldığın Yerden Devam Etme: aktif seans her değiştiğinde taslak kaydedilir
   const draft = useWorkoutDraft(active);
 
+  // B17: şablonlardaki egzersizlerin son seans ağırlıkları önceden yüklenir; seans boş ya da
+  // önceki ağırlıklarla açılır (sabit varsayılan yok).
+  const templates = workouts.data?.templates;
+  const exerciseNames = useMemo(() => (templates ?? []).flatMap((t) => t.exercises.map((e) => e.exerciseName)), [templates]);
+  const lastSets = useLastSets(exerciseNames);
+
   function startSession(template: SessionTemplate, shortened: boolean) {
-    setActive({ template, form: buildSessionForm(template, shortened), shortened });
+    setActive({ template, form: buildSessionForm(template, shortened, lastSets.data), shortened });
     setFeedback(null);
   }
 
@@ -66,13 +78,12 @@ export default function WorkoutsPage() {
     draft.removeStored();
   }
 
-  async function handleFinishSession(e: FormEvent) {
-    e.preventDefault();
+  async function handleFinishSession(form: SessionForm) {
     if (!active || submitting.current) return; // çift gönderim koruması
     submitting.current = true;
     setSaveError(null);
     try {
-      const data = await finish.mutateAsync(toWorkoutPayload(active.form, today));
+      const data = await finish.mutateAsync(toWorkoutPayload(form, today));
       setFeedback(data.progressionFeedbacks);
       setActive(null);
       draft.removeStored();
@@ -101,6 +112,11 @@ export default function WorkoutsPage() {
 
       {tab === "workouts" && (
         <>
+          {savedNote.message && (
+            <p role="status" className="text-sm font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+              {savedNote.message}
+            </p>
+          )}
           {draft.savedDraft && !active && (
             <DraftResumeBanner draft={draft.savedDraft} onResume={resumeDraft} onDiscard={draft.discard} />
           )}
@@ -112,7 +128,7 @@ export default function WorkoutsPage() {
               restTimer={restTimer}
               saving={finish.isPending}
               saveError={saveError}
-              onSubmit={handleFinishSession}
+              onFinish={handleFinishSession}
               onDiscard={discardSession}
               onClose={() => setActive(null)}
             />
@@ -120,14 +136,25 @@ export default function WorkoutsPage() {
 
           <WeeklyPlanGrid
             templates={workouts.data?.templates ?? []}
+            sessions={workouts.data?.sessions ?? NO_SESSIONS}
+            today={today}
             loading={workouts.isPending}
             onStart={startSession}
             onEdit={(template, dayOfWeek) => setEditing({ template, dayOfWeek })}
             onPickProgram={() => setPickingProgram(true)}
             onTextEntry={() => setTextEntry(true)}
           />
-          <TextWorkoutModal open={textEntry} date={today} onClose={() => setTextEntry(false)} />
-          <ProgramPicker open={pickingProgram} onClose={() => setPickingProgram(false)} />
+          <SessionHistory today={today} />
+          <TextWorkoutModal open={textEntry} date={today} onClose={() => setTextEntry(false)} onSaved={(m) => savedNote.show(m)} />
+          <ProgramPicker
+            open={pickingProgram}
+            onClose={() => setPickingProgram(false)}
+            onBuildOwn={() => {
+              // B21: kendi programını kur → bugünün günüyle boş şablon editörü
+              setPickingProgram(false);
+              setEditing({ template: null, dayOfWeek: weekdayOf(today) });
+            }}
+          />
           <TemplateEditor
             open={editing !== null}
             template={editing?.template ?? null}

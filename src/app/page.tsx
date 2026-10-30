@@ -180,10 +180,6 @@ export default function DashboardPage() {
   const summary = foodLogs.data?.summary;
   const targets = foodLogs.data?.targets || DEFAULT_TARGETS;
 
-  // Haftanın gününe göre günün şablonunu belirle (1: Pazartesi ... 7: Pazar)
-  const currentDayOfWeek = new Date().getDay() || 7;
-  const todayTemplate = workouts.data?.templates.find((t) => t.dayOfWeek === currentDayOfWeek);
-  const isWorkoutCompleted = !!workouts.data?.sessions.some((s) => s.date === todayStr && s.completed);
   // F51: kaydedilmiş bugünkü durumdan hazır olma.
   const readiness = progress.data ? computeReadiness(progress.data.today) : null;
   const step = ramadanActive && ramadanStatus ? getRamadanRhythmStep(ramadanStatus) : getRhythmStep(new Date().getHours(), { dayPattern, homeTime });
@@ -244,7 +240,7 @@ export default function DashboardPage() {
 
       {/* İkinci Sıra: Günün Antrenmanı & İyilik Hali */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <TodayWorkoutCard template={todayTemplate} isCompleted={isWorkoutCompleted} readiness={readiness} />
+        <TodayWorkoutCard readiness={readiness} />
         <WellbeingCard
           today={progress.data?.today}
           onSave={handleSaveWellbeing}

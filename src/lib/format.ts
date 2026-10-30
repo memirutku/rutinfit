@@ -7,6 +7,26 @@ export function formatNumberTr(value: number): string {
   return numberFormat.format(value);
 }
 
+const decimalFormats = new Map<number, Intl.NumberFormat>();
+
+/**
+ * B23: Türkçe ondalık, en fazla `maxDigits` (varsayılan 2) basamak, gereksiz sıfırsız:
+ * 1.25 → "1,25", 61.3 → "61,3", 100 → "100", 3320.5 → "3.320,5". Ağırlık, plaka ve mesafe için.
+ */
+export function formatDecimalTr(value: number, maxDigits = 2): string {
+  let fmt = decimalFormats.get(maxDigits);
+  if (!fmt) {
+    fmt = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: maxDigits });
+    decimalFormats.set(maxDigits, fmt);
+  }
+  return fmt.format(value);
+}
+
+/** B23: Ağırlık birimiyle: 1.25 → "1,25 kg". Geçersiz/boş değerde "—". */
+export function formatKg(value: number | null | undefined): string {
+  return typeof value === "number" && Number.isFinite(value) ? `${formatDecimalTr(value)} kg` : "—";
+}
+
 /** Miktarı okunur birimle gösterir: 1500 g → "1,5 kg", 750 ml → "750 ml", 3 adet → "3 adet". */
 export function formatAmount(amount: number, unit: string = "g"): string {
   const u = normalizeUnit(unit);
@@ -48,9 +68,4 @@ export function formatDateTr(iso: string | null | undefined, opts: { short?: boo
   const m = (iso ?? "").match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!m) return iso ?? "";
   return opts.short ? `${m[3]}.${m[2]}` : `${m[3]}.${m[2]}.${m[1]}`;
-}
-
-/** Türkçe ondalıklı sayı, en çok `digits` ondalıkla: formatDecimalTr(0.856, 2) → "0,86". */
-export function formatDecimalTr(value: number, digits: number): string {
-  return new Intl.NumberFormat("tr-TR", { maximumFractionDigits: digits }).format(value);
 }

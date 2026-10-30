@@ -6,7 +6,8 @@ export const SetLogInputSchema = z.object({
   exerciseName: z.string().min(1),
   setNumber: z.number().int().positive(),
   weightKg: z.number().nonnegative(),
-  reps: z.number().int().nonnegative(),
+  /** B17: 0 tekrarlı (boş) set kaydedilmez. */
+  reps: z.number().int().positive(),
   targetRepMin: z.number().int().positive().default(8),
   targetRepMax: z.number().int().positive().default(12),
   isTargetMet: z.boolean().default(false),
@@ -14,6 +15,8 @@ export const SetLogInputSchema = z.object({
   rpe: z.number().min(1).max(10).multipleOf(0.5).optional().nullable(),
   /** F19: set tipi. */
   setType: z.enum(SET_TYPES).default("normal"),
+  /** B17: false gönderilen (tamamlanmamış) set kaydedilmez. Alan yoksa set tamamlanmış sayılır. */
+  completed: z.boolean().optional(),
 });
 
 /** POST /api/workouts */
@@ -38,6 +41,10 @@ export const WorkoutExerciseSchema = z.object({
   restSeconds: z.number(),
   orderIndex: z.number(),
   incrementKg: z.number().optional(),
+  /** B21: %1RM'e bağlı yükleme ("531"); boşsa tekrar aralığı. */
+  loadingScheme: z.string().nullable().optional(),
+  /** B21: antrenman maksimumu (kg). */
+  trainingMaxKg: z.number().nullable().optional(),
 });
 export type WorkoutExercise = z.infer<typeof WorkoutExerciseSchema>;
 
@@ -49,6 +56,8 @@ export const WorkoutTemplateSchema = z.object({
   targetDurationMinutes: z.number(),
   notes: z.string().nullable(),
   exercises: z.array(WorkoutExerciseSchema),
+  /** B21: bu şablondan tamamlanmış seans sayısı (5/3/1 haftası ve döngüsü bundan çıkar). */
+  completedSessions: z.number().optional(),
 });
 export type WorkoutTemplate = z.infer<typeof WorkoutTemplateSchema>;
 
@@ -83,6 +92,15 @@ export const WorkoutsResponseSchema = z.object({
 });
 export type WorkoutsResponse = z.infer<typeof WorkoutsResponseSchema>;
 
+/** B17: GET /api/workouts/last-sets — egzersiz başına son tamamlanmış seansın çalışma setleri. */
+export const LastSetsSchema = z.object({
+  date: z.string(),
+  sets: z.array(z.object({ weightKg: z.number(), reps: z.number() })),
+});
+export type LastSets = z.infer<typeof LastSetsSchema>;
+export const LastSetsResponseSchema = z.record(z.string(), LastSetsSchema);
+export type LastSetsResponse = z.infer<typeof LastSetsResponseSchema>;
+
 export const ProgressionFeedbackSchema = z.object({
   isTargetMetAllSets: z.boolean(),
   currentMaxWeight: z.number(),
@@ -101,6 +119,18 @@ export const FinishWorkoutResponseSchema = z.object({
 });
 export type FinishWorkoutResponse = z.infer<typeof FinishWorkoutResponseSchema>;
 
+/** B21: desteklenen %1RM yüklemeleri. */
+export const LOADING_SCHEMES = ["531"] as const;
+export type LoadingScheme = (typeof LOADING_SCHEMES)[number];
+
+/** B21: POST /api/workouts/programs — 1RM'ler (kg) isteğe bağlı; boşsa e1RM geçmişi kullanılır. */
+export const ApplyProgramSchema = z.object({
+  programId: z.string().min(1),
+  mode: z.enum(["replace", "add"]),
+  oneRepMaxes: z.record(z.string(), z.number().min(0).max(1000)).optional(),
+});
+export type ApplyProgramInput = z.input<typeof ApplyProgramSchema>;
+
 /** F17: şablon egzersizi (şablon editörü). */
 export const TemplateExerciseInputSchema = z
   .object({
@@ -109,8 +139,12 @@ export const TemplateExerciseInputSchema = z
     repMin: z.number().int().min(1).max(100),
     repMax: z.number().int().min(1).max(100),
     restSeconds: z.number().int().min(0).max(600),
-    /** F21: ilerlemede eklenecek ağırlık (kg). */
+    /** F21: ilerlemede eklenecek ağırlık (kg). 5/3/1'de döngü başına antrenman maksimumu artışı. */
     incrementKg: z.number().min(0).max(20).default(2.5),
+    /** B21: %1RM'e bağlı yükleme. */
+    loadingScheme: z.enum(LOADING_SCHEMES).nullable().optional(),
+    /** B21: antrenman maksimumu (kg). */
+    trainingMaxKg: z.number().positive().max(1000).nullable().optional(),
   })
   .refine((e) => e.repMin <= e.repMax, { message: "Tekrar alt sınırı üst sınırdan büyük olamaz.", path: ["repMin"] });
 

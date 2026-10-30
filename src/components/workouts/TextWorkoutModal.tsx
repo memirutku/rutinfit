@@ -4,9 +4,11 @@ import { useMemo, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { errorMessage } from "@/lib/client/api";
 import { useFinishWorkout, useSaveTemplate } from "@/lib/client/queries/workouts";
-import { getLocalWeekday } from "@/lib/date-utils";
+import { isDateString } from "@/lib/date-utils";
+import { formatDateTr } from "@/lib/format";
 import type { TemplateInput } from "@/lib/schemas/workout";
 import { parseWorkoutText } from "@/lib/workout-text";
+import { weekdayOf } from "@/lib/workout-day";
 
 const LABEL = "block text-xs font-semibold text-slate-600 mb-1";
 const INPUT = "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm";
@@ -15,8 +17,20 @@ const INPUT = "w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl t
  * F28: Metinden antrenman. Yazılanlar anında ayrıştırılır ve önizlenir; kullanıcı onaylayınca
  * tamamlanmış seans ya da şablon olarak kaydedilir.
  */
-export function TextWorkoutModal({ open, date, onClose }: { open: boolean; date: string; onClose: () => void }) {
+interface TextWorkoutModalProps {
+  open: boolean;
+  /** Bugün (YYYY-MM-DD): tarih seçicinin varsayılanı ve üst sınırı. */
+  date: string;
+  onClose: () => void;
+  /** B19: kayıttan sonra gösterilecek onay mesajı. */
+  onSaved?: (message: string) => void;
+}
+
+export function TextWorkoutModal({ open, date, onClose, onSaved }: TextWorkoutModalProps) {
   const [text, setText] = useState("");
+  // B19: dünkü antrenman dünün tarihine yazılabilsin; varsayılan bugün.
+  const [sessionDate, setSessionDate] = useState(date);
+  const dateError = !isDateString(sessionDate) ? "Tarih seçin." : sessionDate > date ? "Gelecek bir gün seçilemez." : null;
   const [name, setName] = useState("Serbest antrenman");
   const [duration, setDuration] = useState(45);
   const parsed = useMemo(() => parseWorkoutText(text), [text]);
@@ -33,19 +47,26 @@ export function TextWorkoutModal({ open, date, onClose }: { open: boolean; date:
 
   const close = () => {
     setText("");
+    setSessionDate(date);
     onClose();
   };
 
   function saveSession() {
+    const saved = { date: sessionDate, count };
     finish.mutate(
       {
-        date,
+        date: sessionDate,
         name: name.trim() || "Serbest antrenman",
         durationMinutes: duration,
         completed: true,
         setLogs: parsed.sets.map((s) => ({ exerciseName: s.exerciseName, setNumber: s.setNumber, weightKg: s.weightKg, reps: s.reps, rpe: s.rpe ?? null })),
       },
-      { onSuccess: close }
+      {
+        onSuccess: () => {
+          onSaved?.(`${formatDateTr(saved.date)} tarihine ${saved.count} set kaydedildi.`);
+          close();
+        },
+      }
     );
   }
 
@@ -53,7 +74,7 @@ export function TextWorkoutModal({ open, date, onClose }: { open: boolean; date:
     const input: TemplateInput = {
       name: name.trim() || "Serbest antrenman",
       type: "strength",
-      dayOfWeek: getLocalWeekday(date),
+      dayOfWeek: weekdayOf(sessionDate),
       targetDurationMinutes: duration,
       notes: null,
       exercises: groups.map(([exerciseName, reps]) => ({
@@ -64,7 +85,15 @@ export function TextWorkoutModal({ open, date, onClose }: { open: boolean; date:
         restSeconds: 90,
       })),
     };
-    saveTemplate.mutate({ input }, { onSuccess: close });
+    saveTemplate.mutate(
+      { input },
+      {
+        onSuccess: () => {
+          onSaved?.(`"${input.name}" şablonu kaydedildi.`);
+          close();
+        },
+      }
+    );
   }
 
   return (
@@ -83,7 +112,27 @@ export function TextWorkoutModal({ open, date, onClose }: { open: boolean; date:
             className={`${INPUT} font-mono`}
           />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div>
+            <label htmlFor="text-workout-date" className={LABEL}>
+              Tarih
+            </label>
+            <input
+              id="text-workout-date"
+              type="date"
+              value={sessionDate}
+              max={date}
+              aria-invalid={dateError ? true : undefined}
+              aria-describedby={dateError ? "text-workout-date-error" : undefined}
+              onChange={(e) => setSessionDate(e.target.value)}
+              className={INPUT}
+            />
+            {dateError && (
+              <p id="text-workout-date-error" className="mt-1 text-[11px] font-semibold text-rose-700">
+                {dateError}
+              </p>
+            )}
+          </div>
           <div>
             <label htmlFor="text-workout-name" className={LABEL}>
               Seans adı
@@ -131,7 +180,7 @@ export function TextWorkoutModal({ open, date, onClose }: { open: boolean; date:
         <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-slate-100">
           <button
             type="button"
-            disabled={count === 0 || saveTemplate.isPending}
+            disabled={count === 0 || !!dateError || saveTemplate.isPending}
             onClick={saveAsTemplate}
             className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 disabled:opacity-50"
           >
@@ -139,7 +188,7 @@ export function TextWorkoutModal({ open, date, onClose }: { open: boolean; date:
           </button>
           <button
             type="button"
-            disabled={count === 0 || finish.isPending}
+            disabled={count === 0 || !!dateError || finish.isPending}
             onClick={saveSession}
             className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold disabled:opacity-50"
           >
