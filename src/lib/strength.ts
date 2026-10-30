@@ -73,3 +73,26 @@ export function personalRecords(days: ExerciseDay[], sets: SetPoint[]): Personal
     mostReps: repsSet ? { reps: repsSet.reps, date: repsSet.date } : null,
   };
 }
+
+export interface Plateau {
+  sessions: number;
+  bestE1rm: number;
+  message: string;
+}
+
+/**
+ * F21: Son `window` seansta (varsayılan 3) e1RM önceki en iyiyi geçmediyse durağanlık.
+ * Karar için en az window + 1 seans gerekir.
+ */
+export function detectPlateau(history: ExerciseDay[], window = 3): Plateau | null {
+  const days = history.filter((d) => d.e1rm > 0);
+  if (days.length < window + 1) return null;
+  const before = Math.max(...days.slice(0, -window).map((d) => d.e1rm));
+  const recent = Math.max(...days.slice(-window).map((d) => d.e1rm));
+  if (recent > before) return null;
+  return {
+    sessions: window,
+    bestE1rm: before,
+    message: `Son ${window} seansta yeni rekor yok. Bir hafta ağırlığı yaklaşık %10 azaltıp toparlan (deload) ya da tekrar aralığını değiştirmeyi dene.`,
+  };
+}

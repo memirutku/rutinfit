@@ -11,7 +11,7 @@ export interface MuscleDefinition {
 export interface SessionForLoad {
   date: string;
   completed?: boolean;
-  setLogs?: Array<{ exerciseName: string }>;
+  setLogs?: Array<{ exerciseName: string; setType?: string }>;
 }
 
 const daysBetween = (from: string, to: string) =>
@@ -40,7 +40,10 @@ export function computeMuscleLoad<T extends MuscleDefinition>(
     let sets = 0;
     let lastDaysAgo: number | undefined;
     for (const s of recent) {
-      const hits = (s.setLogs ?? []).filter((set) => m.exercises.some((ex) => exerciseMatches(set.exerciseName, ex))).length;
+      // F19: ısınma setleri yük sayılmaz.
+      const hits = (s.setLogs ?? []).filter(
+        (set) => set.setType !== "warmup" && m.exercises.some((ex) => exerciseMatches(set.exerciseName, ex))
+      ).length;
       if (hits > 0) {
         sets += hits;
         const ago = daysBetween(s.date, today);

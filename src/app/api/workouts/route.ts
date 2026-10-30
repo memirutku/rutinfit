@@ -3,6 +3,9 @@ import { WorkoutSessionInputSchema } from "@/lib/schemas/workout";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
 import { evaluateExerciseProgression } from "@/lib/progression";
+import { isWorkingSet } from "@/lib/set-types";
+import { detectPlateau, exerciseHistory } from "@/lib/strength";
+import { normalizeName } from "@/lib/text";
 
 export async function GET(req: Request) {
   try {
@@ -45,6 +48,19 @@ export async function GET(req: Request) {
   }
 }
 
+/** F21: egzersizin tamamlanmış seans geçmişinde durağanlık (çalışma setleri). */
+async function plateauFor(exerciseName: string) {
+  const key = normalizeName(exerciseName);
+  const rows = await prisma.setLog.findMany({
+    where: { session: { completed: true }, setType: { not: "warmup" } },
+    select: { exerciseName: true, weightKg: true, reps: true, session: { select: { date: true } } },
+  });
+  const sets = rows
+    .filter((r) => normalizeName(r.exerciseName) === key)
+    .map((r) => ({ date: r.session.date, weightKg: r.weightKg, reps: r.reps }));
+  return detectPlateau(exerciseHistory(sets));
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -66,7 +82,9 @@ export async function POST(req: Request) {
             weightKg: set.weightKg,
             reps: set.reps,
             rpe: set.rpe ?? null,
-            isTargetMet: set.reps >= set.targetRepMax,
+            setType: set.setType,
+            // F19: ısınma seti hedef sayılmaz.
+            isTargetMet: isWorkingSet(set.setType) && set.reps >= set.targetRepMax,
           })),
         },
       },
@@ -75,26 +93,37 @@ export async function POST(req: Request) {
       },
     });
 
-    // Her egzersiz için ilerleme tavsiyelerini hesapla
+    // Her egzersiz için ilerleme tavsiyelerini hesapla (F19: yalnız çalışma setleri).
     const exerciseGroups: Record<string, typeof validated.setLogs> = {};
-    for (const set of validated.setLogs) {
+    for (const set of validated.setLogs.filter((s) => isWorkingSet(s.setType))) {
       if (!exerciseGroups[set.exerciseName]) {
         exerciseGroups[set.exerciseName] = [];
       }
       exerciseGroups[set.exerciseName].push(set);
     }
 
+    // F21: şablondaki egzersiz başına artış miktarı.
+    const templateExercises = validated.templateId
+      ? await prisma.workoutExercise.findMany({ where: { templateId: validated.templateId } })
+      : [];
+    const incrementFor = (name: string) =>
+      templateExercises.find((e) => normalizeName(e.exerciseName) === normalizeName(name))?.incrementKg ?? 2.5;
+
     const progressionFeedbacks: Record<string, any> = {};
     for (const [exName, sets] of Object.entries(exerciseGroups)) {
-      progressionFeedbacks[exName] = evaluateExerciseProgression(
-        sets.map((s) => ({
-          setNumber: s.setNumber,
-          weightKg: s.weightKg,
-          reps: s.reps,
-          targetRepMin: s.targetRepMin,
-          targetRepMax: s.targetRepMax,
-        }))
-      );
+      progressionFeedbacks[exName] = {
+        ...evaluateExerciseProgression(
+          sets.map((s) => ({
+            setNumber: s.setNumber,
+            weightKg: s.weightKg,
+            reps: s.reps,
+            targetRepMin: s.targetRepMin,
+            targetRepMax: s.targetRepMax,
+          })),
+          incrementFor(exName)
+        ),
+        plateau: await plateauFor(exName),
+      };
     }
 
     return NextResponse.json(

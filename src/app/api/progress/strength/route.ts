@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
-import { estimate1Rm, exerciseHistory, personalRecords } from "@/lib/strength";
+import { detectPlateau, estimate1Rm, exerciseHistory, personalRecords } from "@/lib/strength";
 import { normalizeName } from "@/lib/text";
 
 /**
@@ -12,7 +12,8 @@ export async function GET(req: Request) {
   try {
     const exercise = new URL(req.url).searchParams.get("exercise");
     const rows = await prisma.setLog.findMany({
-      where: { session: { completed: true } },
+      // F19: ısınma setleri rekor ve geçmişe girmez.
+      where: { session: { completed: true }, setType: { not: "warmup" } },
       select: { exerciseName: true, weightKg: true, reps: true, session: { select: { date: true } } },
     });
     const sets = rows.map((r) => ({ key: normalizeName(r.exerciseName), name: r.exerciseName, date: r.session.date, weightKg: r.weightKg, reps: r.reps }));
@@ -21,7 +22,12 @@ export async function GET(req: Request) {
       const key = normalizeName(exercise);
       const mine = sets.filter((s) => s.key === key);
       const history = exerciseHistory(mine);
-      return NextResponse.json({ name: mine.at(-1)?.name ?? exercise, history, prs: personalRecords(history, mine) });
+      return NextResponse.json({
+        name: mine.at(-1)?.name ?? exercise,
+        history,
+        prs: personalRecords(history, mine),
+        plateau: detectPlateau(history),
+      });
     }
 
     const byKey = new Map<string, { name: string; dates: Set<string>; lastDate: string; bestE1rm: number }>();

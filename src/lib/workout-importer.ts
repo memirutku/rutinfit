@@ -1,4 +1,5 @@
 import { getLocalDateString } from "./date-utils";
+import { normalizeSetType, type SetType } from "./set-types";
 
 export interface ImportedSet {
   exerciseName: string;
@@ -6,7 +7,8 @@ export interface ImportedSet {
   weightKg: number;
   reps: number;
   rpe?: number;
-  isWarmup?: boolean;
+  /** F19: normal, warmup, drop, failure */
+  setType: SetType;
 }
 
 export interface ImportedWorkout {
@@ -29,7 +31,7 @@ export interface WorkoutImportResult {
   warnings: string[];
   /** H2: dolu olduğu hâlde aktarılamayan sütunların özgün başlıkları. */
   ignoredColumns: string[];
-  /** H2: atlanan ısınma seti sayısı (set tipi desteği gelene kadar). */
+  /** Eski sürümlerle uyum için; F19'dan beri ısınma setleri tipiyle aktarılır (her zaman 0). */
   skippedWarmupSets: number;
 }
 
@@ -240,7 +242,7 @@ export function parseWorkoutCsv(csvText: string): WorkoutImportResult {
   const setCounters = new Map<string, number>();
   const noteLines = new Map<string, Set<string>>();
   let skippedRows = 0;
-  let skippedWarmupSets = 0;
+  const skippedWarmupSets = 0;
   const cell = (row: string[], idx: number) => (idx !== -1 ? (row[idx] ?? "").trim() : "");
 
   for (const row of rows.slice(1)) {
@@ -249,11 +251,7 @@ export function parseWorkoutCsv(csvText: string): WorkoutImportResult {
       skippedRows++;
       continue;
     }
-    const setType = col.setType !== -1 ? (row[col.setType] ?? "").toLowerCase() : "";
-    if (setType === "warmup" || setType === "warm_up") {
-      skippedWarmupSets++;
-      continue;
-    }
+    const setType = normalizeSetType(col.setType !== -1 ? row[col.setType] : "");
 
     const rawDate = col.date !== -1 ? row[col.date] ?? "" : "";
     const date = normalizeDate(rawDate) ?? getLocalDateString();
@@ -283,7 +281,7 @@ export function parseWorkoutCsv(csvText: string): WorkoutImportResult {
     const exerciseNote = cell(row, col.exerciseNotes);
     if (exerciseNote) lines.add(`${exerciseName}: ${exerciseNote}`);
 
-    // Isınma setleri atlandığında numaralar boşluksuz olsun: egzersiz başına sayaç.
+    // Egzersiz başına sayaç (set_index 0'dan başlayan dosyalar için).
     const counterKey = `${key}\u0000${exerciseName}`;
     const parsedSet = col.set !== -1 ? parseInt(row[col.set] ?? "", 10) : NaN;
     const nextCount = (setCounters.get(counterKey) ?? 0) + 1;
@@ -297,6 +295,7 @@ export function parseWorkoutCsv(csvText: string): WorkoutImportResult {
       weightKg: weightCol !== -1 ? toKg(parseDecimal(row[weightCol]), weightFactor) : 0,
       reps: col.reps !== -1 ? Math.max(0, Math.round(parseDecimal(row[col.reps]))) : 0,
       rpe: rpe > 0 ? rpe : undefined,
+      setType,
     });
   }
 

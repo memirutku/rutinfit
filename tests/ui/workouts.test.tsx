@@ -230,12 +230,44 @@ describe("ActiveSessionForm", () => {
     stub.restore();
   });
 
+  it("F19: her sette tip seçilir ve API gövdesine gider", () => {
+    const { onChange } = renderForm();
+    const types = screen.getAllByLabelText("Tip:");
+    expect(types).toHaveLength(6);
+    fireEvent.change(types[0], { target: { value: "warmup" } });
+    const changed: SessionForm = onChange.mock.calls[0][0];
+    expect(changed.setLogs[0].setType).toBe("warmup");
+    const payload = toWorkoutPayload(changed, "2026-10-20");
+    expect(payload.setLogs?.[0].setType).toBe("warmup");
+    expect(payload.setLogs?.[1].setType).toBe("normal");
+  });
+
   it("RPE ve süre alanları etiketlidir", () => {
     const { onChange } = renderForm();
     fireEvent.change(screen.getByLabelText("Gerçekleşen Süre (Dakika)"), { target: { value: "33" } });
     expect((onChange.mock.calls[0][0] as SessionForm).durationMinutes).toBe(33);
     fireEvent.change(screen.getByLabelText("Algılanan Zorluk Derecesi (RPE 1 - 10)"), { target: { value: "9" } });
     expect((onChange.mock.calls[1][0] as SessionForm).rpe).toBe(9);
+  });
+});
+
+describe("F21: ilerleme paneli", () => {
+  it("durağanlık varsa uyarı gösterir", () => {
+    render(
+      <ProgressionFeedbackPanel
+        feedback={{
+          "Bench Press": {
+            isTargetMetAllSets: false,
+            currentMaxWeight: 80,
+            recommendedNextWeightKg: 80,
+            message: "Aynı ağırlıkla devam.",
+            badge: "maintain",
+            plateau: { sessions: 3, bestE1rm: 101.3, message: "Son 3 seansta yeni rekor yok. Deload dene." },
+          },
+        }}
+      />
+    );
+    expect(screen.getByRole("note").textContent).toContain("Son 3 seansta yeni rekor yok");
   });
 });
 

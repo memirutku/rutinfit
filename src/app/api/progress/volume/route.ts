@@ -14,7 +14,8 @@ export async function GET(req: Request) {
     const from = addDaysToDateString(startOfWeek(today), -7 * (weeks - 1));
     const sessions = await prisma.workoutSession.findMany({
       where: { completed: true, date: { gte: from, lte: today } },
-      select: { date: true, completed: true, setLogs: { select: { exerciseName: true } } },
+      // F19: ısınma setleri hacme sayılmaz.
+      select: { date: true, completed: true, setLogs: { where: { setType: { not: "warmup" } }, select: { exerciseName: true } } },
     });
     const groups = muscleGroupsWithLibrary(await loadExerciseLibrary());
     return NextResponse.json({ ...weeklyMuscleSets(sessions, groups, today, weeks), target: VOLUME_TARGET });

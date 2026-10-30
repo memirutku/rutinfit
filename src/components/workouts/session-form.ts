@@ -1,5 +1,6 @@
 import { clientId } from "@/lib/client/keys";
 import type { WorkoutSessionInput } from "@/lib/schemas/workout";
+import type { SetType } from "@/lib/set-types";
 
 /** Seansa dönüştürülebilen şablon (gerçek şablon ya da koşu için türetilmiş şablon). */
 export interface SessionExercise {
@@ -27,6 +28,8 @@ export interface SessionSet {
   completed?: boolean;
   /** F20: set başına RPE (boş = girilmedi). */
   rpe?: number | null;
+  /** F19: set tipi (yoksa normal). */
+  setType?: SetType;
 }
 
 export interface SessionForm {
@@ -122,6 +125,7 @@ export function toWorkoutPayload(form: SessionForm, date: string): WorkoutSessio
       targetRepMax: s.targetRepMax,
       isTargetMet: s.completed ?? s.reps >= s.targetRepMin,
       rpe: s.rpe ?? null,
+      setType: s.setType ?? "normal",
     })),
   };
 }

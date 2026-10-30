@@ -54,15 +54,17 @@ describe("POST /api/workouts/import", () => {
     expect(met).toEqual({ "Bench Press#1": true, "Bench Press#2": false, "Squat#1": false });
   });
 
-  it("H1/H2: özet mesajı uyarıları, atlanan ısınma setlerini ve aktarılmayan sütunları söyler", async () => {
+  it("H1/H2: özet mesajı uyarıları ve aktarılmayan sütunları söyler; F19: ısınma seti tipiyle kaydedilir", async () => {
     const csv = `Date,Workout Name,Exercise Name,Set Type,Reps,Distance
 2026-10-15,A,Push Up,warmup,10,
 2026-10-15,A,Push Up,normal,15,1.2`;
     const res = await callRoute(POST, { body: { csvText: csv } });
     expect(res.status).toBe(200);
-    expect(res.json).toMatchObject({ skippedWarmupSets: 1, ignoredColumns: ["Distance"] });
+    expect(res.json).toMatchObject({ ignoredColumns: ["Distance"] });
     expect(res.json.warnings).toHaveLength(1);
-    expect(res.json.message).toMatch(/1 ısınma seti/);
+    expect(res.json.message).not.toMatch(/ısınma/);
+    const sets = await prisma.setLog.findMany({ orderBy: { setNumber: "asc" } });
+    expect(sets.map((s) => [s.setType, s.isTargetMet])).toEqual([["warmup", false], ["normal", false]]);
     expect(res.json.message).toMatch(/Distance/);
     expect(res.json.message).toMatch(/Ağırlık sütunu bulunamadı/);
   });

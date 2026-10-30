@@ -5,6 +5,7 @@ import { CheckCircle2 } from "lucide-react";
 import { RPE_OPTIONS } from "@/lib/rpe";
 import type { SessionSet } from "./session-form";
 import { DecimalInput } from "@/components/ui/DecimalInput";
+import { SET_TYPES, SET_TYPE_LABELS, type SetType } from "@/lib/set-types";
 
 interface SetRowProps {
   set: SessionSet;
@@ -17,6 +18,7 @@ export function SetRow({ set, onChange, onToggle }: SetRowProps) {
   const weightId = useId();
   const repsId = useId();
   const rpeId = useId();
+  const typeId = useId();
 
   return (
     <div
@@ -65,6 +67,24 @@ export function SetRow({ set, onChange, onToggle }: SetRowProps) {
             onChange={(e) => onChange({ reps: parseInt(e.target.value) || 0 })}
             className="w-16 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-900 text-center"
           />
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <label htmlFor={typeId} className="text-xs font-semibold text-slate-600">
+            Tip:
+          </label>
+          <select
+            id={typeId}
+            value={set.setType ?? "normal"}
+            onChange={(e) => onChange({ setType: e.target.value as SetType })}
+            className="px-1.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700"
+          >
+            {SET_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {SET_TYPE_LABELS[t]}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="flex items-center gap-1.5">

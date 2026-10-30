@@ -37,6 +37,7 @@ describe("F17: şablon editörü", () => {
     const s = setup(TPL);
     const dialog = screen.getByRole("dialog", { name: "Şablonu düzenle" });
     fireEvent.change(within(dialog).getByLabelText("Şablon adı"), { target: { value: "Ağırlık A+" } });
+    fireEvent.change(within(dialog).getByLabelText("Squat artış (kg)"), { target: { value: "5" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Bench Press yukarı taşı" }));
     fireEvent.click(within(dialog).getByRole("button", { name: "Plank çıkar" }));
     fireEvent.click(within(dialog).getByRole("button", { name: "Egzersiz ekle" }));
@@ -49,6 +50,9 @@ describe("F17: şablon editörü", () => {
     const body = JSON.parse(String(req(s, "PUT")!.init?.body));
     expect(body).toMatchObject({ name: "Ağırlık A+", type: "strength", dayOfWeek: 1, targetDurationMinutes: 45 });
     expect(body.exercises.map((e: any) => e.exerciseName)).toEqual(["Bench Press", "Squat", "Lateral Raise"]);
+    // F21: egzersiz başına artış (varsayılan 2,5 kg) gönderilir.
+    expect(body.exercises[0].incrementKg).toBe(2.5);
+    expect(body.exercises[1]).toMatchObject({ exerciseName: "Squat", incrementKg: 5 });
     await waitFor(() => expect(s.onClose).toHaveBeenCalled());
   });
 

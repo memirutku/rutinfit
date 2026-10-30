@@ -9,6 +9,7 @@ import { useDeleteTemplate, useSaveTemplate } from "@/lib/client/queries/workout
 import { clientId } from "@/lib/client/keys";
 import type { TemplateInput, WorkoutTemplate } from "@/lib/schemas/workout";
 import { DAYS_OF_WEEK } from "./WeeklyPlanGrid";
+import { DecimalInput } from "@/components/ui/DecimalInput";
 
 interface TemplateEditorProps {
   open: boolean;
@@ -26,6 +27,7 @@ interface Row {
   repMin: number;
   repMax: number;
   restSeconds: number;
+  incrementKg: number;
 }
 
 const LABEL = "block text-xs font-semibold text-slate-600 mb-1";
@@ -37,7 +39,7 @@ const TYPES = [
   { value: "rest", label: "Dinlenme" },
 ] as const;
 
-const newRow = (): Row => ({ key: clientId("row"), exerciseName: "", targetSets: 3, repMin: 8, repMax: 12, restSeconds: 90 });
+const newRow = (): Row => ({ key: clientId("row"), exerciseName: "", targetSets: 3, repMin: 8, repMax: 12, restSeconds: 90, incrementKg: 2.5 });
 const int = (v: string, fallback: number) => (Number.isFinite(parseInt(v, 10)) ? parseInt(v, 10) : fallback);
 
 /** F17: Şablon/program editörü: ad, tür, gün, süre, not ve sıralanabilir egzersiz listesi. */
@@ -48,7 +50,7 @@ export function TemplateEditor({ open, template, dayOfWeek, onClose }: TemplateE
     dayOfWeek: template?.dayOfWeek ?? dayOfWeek,
     targetDurationMinutes: template?.targetDurationMinutes ?? 45,
     notes: template?.notes ?? "",
-    rows: (template?.exercises ?? []).map((e) => ({ ...e, key: e.id })) as Row[],
+    rows: (template?.exercises ?? []).map((e) => ({ ...e, incrementKg: e.incrementKg ?? 2.5, key: e.id })) as Row[],
   });
   const [form, setForm] = useState(init);
   const [seed, setSeed] = useState({ template, dayOfWeek, open });
@@ -81,7 +83,14 @@ export function TemplateEditor({ open, template, dayOfWeek, onClose }: TemplateE
       // Adı boş satırlar (yeni eklenip doldurulmamış) gönderilmez.
       exercises: form.rows
         .filter((r) => r.exerciseName.trim())
-        .map(({ exerciseName, targetSets, repMin, repMax, restSeconds }) => ({ exerciseName: exerciseName.trim(), targetSets, repMin, repMax, restSeconds })),
+        .map(({ exerciseName, targetSets, repMin, repMax, restSeconds, incrementKg }) => ({
+          exerciseName: exerciseName.trim(),
+          targetSets,
+          repMin,
+          repMax,
+          restSeconds,
+          incrementKg,
+        })),
     };
     save.mutate({ id: template?.id, input }, { onSuccess: onClose });
   }
@@ -158,6 +167,7 @@ export function TemplateEditor({ open, template, dayOfWeek, onClose }: TemplateE
                 <th scope="col" className="py-1 w-16 text-center">Min tk</th>
                 <th scope="col" className="py-1 w-16 text-center">Maks tk</th>
                 <th scope="col" className="py-1 w-20 text-center">Dinlenme (sn)</th>
+                <th scope="col" className="py-1 w-16 text-center">Artış (kg)</th>
                 <th scope="col" className="py-1 w-24" />
               </tr>
             </thead>
@@ -186,6 +196,14 @@ export function TemplateEditor({ open, template, dayOfWeek, onClose }: TemplateE
                     </td>
                     <td className="py-1 px-0.5">
                       <input aria-label={`${label} dinlenme`} type="number" value={r.restSeconds} onChange={(e) => setRow(r.key, { restSeconds: int(e.target.value, 90) })} className={CELL} />
+                    </td>
+                    <td className="py-1 px-0.5">
+                      <DecimalInput
+                        aria-label={`${label} artış (kg)`}
+                        value={r.incrementKg}
+                        onValueChange={(v) => setRow(r.key, { incrementKg: Math.max(0, v) })}
+                        className={CELL}
+                      />
                     </td>
                     <td className="py-1 pl-1 whitespace-nowrap">
                       <button type="button" aria-label={`${label} yukarı taşı`} disabled={i === 0} onClick={() => move(i, -1)} className="p-1 text-slate-500 disabled:opacity-30">
