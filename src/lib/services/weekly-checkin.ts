@@ -30,6 +30,8 @@ export interface WeeklyMetrics {
   cardioMinutes: number;
   planAdherencePercent: number | null;
   adaptiveTdee: number | null;
+  /** F82: adet günleri (yalnız döngü notu açıksa; modele gönderilmez). */
+  cycleDays: number | null;
 }
 
 export interface CheckinSuggestion {
@@ -45,7 +47,7 @@ export async function computeWeeklyMetrics(weekStart: string): Promise<WeeklyMet
   const weekEnd = addDaysToDateString(weekStart, 6);
   const prevStart = addDaysToDateString(weekStart, -7);
   const range = { gte: weekStart, lte: weekEnd };
-  const [profile, days, weights, prevWeights, sessions, cardio, planned, strengthTemplates] = await Promise.all([
+  const [profile, days, weights, prevWeights, sessions, cardio, planned, strengthTemplates, cycle] = await Promise.all([
     prisma.userProfile.findFirst(),
     prisma.foodLog.groupBy({ by: ["date"], where: { date: range }, _sum: { caloriesSnapshot: true, proteinSnapshot: true } }),
     prisma.weightLog.findMany({ where: { date: range } }),
@@ -54,6 +56,7 @@ export async function computeWeeklyMetrics(weekStart: string): Promise<WeeklyMet
     prisma.cardioLog.findMany({ where: { date: range } }),
     prisma.plannedMeal.findMany({ where: { mealPlan: { date: range } }, select: { adherence: true } }),
     prisma.workoutTemplate.count({ where: { type: "strength" } }),
+    prisma.dailyWellbeing.count({ where: { date: range, cycleNote: { in: ["period_start", "period"] } } }),
   ]);
   const target = profile?.calorieTarget ?? 2000;
   const ceiling = profile?.calorieCeiling ?? target + 100;
@@ -82,6 +85,7 @@ export async function computeWeeklyMetrics(weekStart: string): Promise<WeeklyMet
     cardioMinutes: Math.round(cardio.reduce((a, c) => a + c.durationMin, 0)),
     planAdherencePercent: adherence.percent,
     adaptiveTdee: adaptive.ok ? adaptive.tdee : null,
+    cycleDays: profile?.cycleTracking ? cycle : null,
   };
 }
 
@@ -171,7 +175,11 @@ export async function createWeeklyCheckin(today = getLocalDateString()) {
   const metrics = await computeWeeklyMetrics(weekStart);
   const suggestion = await chooseSuggestion(metrics);
   const ai = await aiSummary(metrics, suggestion);
-  const summary = ai ?? ruleSummary(metrics, suggestion);
+  let summary = ai ?? ruleSummary(metrics, suggestion);
+  // F82: modele gönderilmez; özetin sonuna kodla eklenir.
+  if (metrics.cycleDays) {
+    summary += ` Bu hafta adet dönemi (${metrics.cycleDays} gün) vardı; su tutma kiloyu birkaç gün geçici olarak artırabilir.`;
+  }
 
   let draft: { draftId: string; approvalToken: string } | null = null;
   if (suggestion.kind === "targets" && suggestion.calorieTarget) {

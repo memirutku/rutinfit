@@ -241,6 +241,16 @@ export function ProfileTargetsSection({ profile }: { profile: Profile | undefine
           </span>
         </label>
 
+        <label className="flex items-start gap-2 text-xs text-slate-700">
+          <input type="checkbox" className="mt-0.5" checked={draft.cycleTracking ?? false} onChange={(e) => set("cycleTracking", e.target.checked)} />
+          <span>
+            <span className="font-bold">Adet döngüsü notu</span>
+            <span className="block text-slate-500">
+              Günlük ritimde isteğe bağlı not. Haftalık değerlendirme kilo dalgalanmasını açıklarken kullanır; yapay zekâ modeline gönderilmez.
+            </span>
+          </span>
+        </label>
+
         <div className="flex justify-end pt-2">
           <button
             type="submit"

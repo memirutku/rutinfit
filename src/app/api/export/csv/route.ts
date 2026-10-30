@@ -1,27 +1,10 @@
-import fs from "node:fs";
-import path from "node:path";
 import { NextResponse } from "next/server";
 import { getLocalDateString, isDateString } from "@/lib/date-utils";
 import { CSV_BUILDERS, CSV_EXPORT_TYPES, type CsvExportType } from "@/lib/services/csv-export";
-import { getStoragePaths } from "@/lib/storage-paths";
+import { saveExportCopy } from "@/lib/services/export-files";
 import { apiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
-
-/** Masaüstü görünümünde indirme engellense bile dosya kaybolmasın: uygulama klasörüne kopya. */
-function saveLocalCopy(csv: string, fileName: string): string | null {
-  try {
-    // turbopackIgnore: kullanıcı veri klasörü; derleyici bu yolu izleyip pakete katmasın.
-    const dir = path.join(/*turbopackIgnore: true*/ getStoragePaths().dataDir, "exports");
-    fs.mkdirSync(/*turbopackIgnore: true*/ dir, { recursive: true });
-    const file = path.join(/*turbopackIgnore: true*/ dir, fileName);
-    fs.writeFileSync(file, csv, "utf8");
-    return file;
-  } catch (error) {
-    console.error("CSV local copy error:", error);
-    return null;
-  }
-}
 
 /** F60: GET /api/export/csv?type=food-log|workouts|body[&from=YYYY-MM-DD][&to=YYYY-MM-DD] */
 export async function GET(req: Request) {
@@ -38,7 +21,7 @@ export async function GET(req: Request) {
     }
     const csv = await CSV_BUILDERS[type]({ from, to });
     const fileName = `rutinfit-${CSV_EXPORT_TYPES[type]}-${getLocalDateString()}.csv`;
-    const saved = saveLocalCopy(csv, fileName);
+    const saved = saveExportCopy(csv, fileName);
     const headers: Record<string, string> = {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="${fileName}"`,

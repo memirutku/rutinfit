@@ -6,7 +6,10 @@ import { formatNumberTr } from "@/lib/format";
 import type { QuickFoodId } from "@/lib/quick-foods";
 
 /** Ana paneldeki kısa öğün etiketleri (Hızlı Ekle penceresindeki uzun adlardan farklıdır). */
-export function dashboardMealLabel(mealType: string): string {
+export function dashboardMealLabel(mealType: string, ramadan = false): string {
+  // F76: Ramazan modunda sahur ve iftar.
+  if (ramadan && mealType === "breakfast") return "Sahur";
+  if (ramadan && mealType === "dinner") return "İftar";
   switch (mealType) {
     case "breakfast":
       return "Kahvaltı";
@@ -33,6 +36,8 @@ interface TodayMealsListProps {
   /** F79: Türk sofrası hızlı ekleme (simit, ekmek dilimi). */
   onQuickFood?: (item: QuickFoodId, count: number) => void;
   onDelete: (log: FoodLog) => void;
+  /** F76: Ramazan modunda sahur/iftar etiketleri. */
+  ramadan?: boolean;
 }
 
 /** Bugün Kaydedilen Öğünler ve Hızlı Yönetim */
@@ -42,7 +47,7 @@ const QUICK_CHIPS: Array<{ label: string; item: QuickFoodId; count: number }> = 
   { label: "+ 2 dilim ekmek", item: "ekmek-dilimi", count: 2 },
 ];
 
-export function TodayMealsList({ logs, onAdd, onDelete, hideNumbers = false, onOpenSavedMeals, onQuickFood, onOpenNaturalLog }: TodayMealsListProps) {
+export function TodayMealsList({ logs, onAdd, onDelete, hideNumbers = false, onOpenSavedMeals, onQuickFood, onOpenNaturalLog, ramadan = false }: TodayMealsListProps) {
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
       <div className="flex items-center justify-between mb-4">
@@ -121,7 +126,7 @@ export function TodayMealsList({ logs, onAdd, onDelete, hideNumbers = false, onO
             >
               <div className="flex items-center gap-3 min-w-0">
                 <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 shrink-0">
-                  {dashboardMealLabel(log.mealType)}
+                  {dashboardMealLabel(log.mealType, ramadan)}
                 </span>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-800 truncate">{log.name}</p>

@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import {
   Scale,
   BatteryMedium,
@@ -18,9 +20,13 @@ import {
 } from "recharts";
 import { useProgress } from "@/lib/client/queries/progress";
 import { formatDateTr } from "@/lib/format";
+import { getLocalDateString } from "@/lib/date-utils";
 import { StrengthSection } from "@/components/progress/StrengthSection";
 import { AdaptiveTdeeCard } from "@/components/progress/AdaptiveTdeeCard";
 import { CheckinCard } from "@/components/progress/CheckinCard";
+import { BodyMetricsSection } from "@/components/progress/BodyMetricsSection";
+import { PhotosSection } from "@/components/progress/PhotosSection";
+import { AppleHealthSection } from "@/components/progress/AppleHealthSection";
 import { VolumeSection } from "@/components/progress/VolumeSection";
 
 export default function ProgressPage() {
@@ -64,6 +70,10 @@ export default function ProgressPage() {
             Günlük dalgalanmalar yerine 7 günlük ortalamalar ve toparlanma eğilimi.
           </p>
         </div>
+        {/* F77 */}
+        <Link href="/report" className="self-start sm:self-auto px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50">
+          Diyetisyen raporu
+        </Link>
       </div>
 
       {/* Kreatin ve Kilo Dalgalanması Bilgilendirme Kartı */}
@@ -261,6 +271,13 @@ export default function ProgressPage() {
 
       {/* F10: Gerçek harcama tahmini (adaptif TDEE) */}
       <AdaptiveTdeeCard />
+
+      {/* F16: Vücut ölçüleri, sağlık metrikleri ve fotoğraflar */}
+      <BodyMetricsSection today={getLocalDateString()} />
+      <PhotosSection />
+
+      {/* F62: Apple Sağlık (salt okunur) */}
+      <AppleHealthSection />
 
       {/* F23: Güç gelişimi ve rekorlar */}
       <StrengthSection />

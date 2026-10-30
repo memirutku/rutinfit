@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { MEAL_TYPES, MEAL_TYPE_LABELS, type MealType } from "@/lib/schemas/enums";
+import { MEAL_TYPES, mealTypeLabel, type MealType } from "@/lib/schemas/enums";
 import type { RecentFood } from "@/lib/recent-foods";
 import { errorMessage } from "@/lib/client/api";
 import { formatNumberTr, parseDecimalTr } from "@/lib/format";
@@ -34,6 +34,8 @@ interface QuickAddModalProps {
   onSubmit: (values: QuickAddValues) => Promise<void>;
   /** F73: kullanıcının besin başına ölçüleri (besin kimliği → ölçüler). */
   customMeasures?: Record<string, Array<{ id: string; name: string; grams: number }>>;
+  /** F76: Ramazan modunda sahur/iftar etiketleri. */
+  ramadan?: boolean;
 }
 
 /** Hızlı öğün kaydı. Makrolar sunucuda katalog değerlerinden hesaplanır; burada yalnız seçim yapılır. */
@@ -46,6 +48,7 @@ export function QuickAddModal({
   initialMealType = "lunch",
   onSubmit,
   customMeasures,
+  ramadan = false,
 }: QuickAddModalProps) {
   const ids = { meal: useId(), search: useId(), food: useId(), grams: useId(), unit: useId() };
   const [mealType, setMealType] = useState<MealType>(initialMealType);
@@ -141,7 +144,7 @@ export function QuickAddModal({
           >
             {MEAL_TYPES.map((t) => (
               <option key={t} value={t}>
-                {MEAL_TYPE_LABELS[t]}
+                {mealTypeLabel(t, ramadan)}
               </option>
             ))}
           </select>

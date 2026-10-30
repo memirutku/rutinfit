@@ -56,18 +56,19 @@ test.describe("Ana panel", () => {
     await expect(toast).toBeHidden();
   });
 
-  test("kreatin işareti sayfa yenilense de korunur", async ({ page }) => {
+  test("F15: kreatin (varsayılan takviye) işareti sayfa yenilense de korunur", async ({ page }) => {
     await page.goto("/");
-    const toggle = page.getByRole("button", { name: "5g Kreatin Alındı" });
+    const toggle = page.getByRole("button", { name: /Kreatin Monohidrat/ });
+    await expect(toggle).toBeVisible();
     const initial = await toggle.getAttribute("aria-pressed");
     // İşaret iyimserdir (anında değişir); yenilemeden önce kaydın sunucuya ulaşması beklenir.
-    const saved = page.waitForResponse((r) => r.url().endsWith("/api/progress") && r.request().method() === "POST");
+    const saved = page.waitForResponse((r) => r.url().endsWith("/api/supplements/log") && r.request().method() === "POST");
     await toggle.click();
     const expected = initial === "true" ? "false" : "true";
     await expect(toggle).toHaveAttribute("aria-pressed", expected);
     expect((await saved).ok()).toBe(true);
     await page.reload();
-    await expect(page.getByRole("button", { name: "5g Kreatin Alındı" })).toHaveAttribute("aria-pressed", expected);
+    await expect(page.getByRole("button", { name: /Kreatin Monohidrat/ })).toHaveAttribute("aria-pressed", expected);
   });
 
   test("kayıt sunucuda başarısız olursa başarı değil hata gösterilir", async ({ page }) => {

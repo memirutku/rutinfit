@@ -28,6 +28,8 @@ const ROWS: EgressRow[] = [
   { feature: "Adresten tarif içe aktarma", what: "Yalnız yapıştırdığın adrese sayfa isteği (veri gönderilmez)", where: "Girdiğin tarif sitesi" },
   { feature: "openGym eşitlemesi", what: "Hiçbir şey; bu bilgisayardaki openGym dosyası okunur", where: "—" },
   { feature: "Yedekler ve dışa aktarma", what: "Hiçbir şey; dosya bu bilgisayara yazılır", where: "—" },
+  { feature: "Apple Sağlık içe aktarma", what: "Hiçbir şey; dışa aktarım dosyası bu bilgisayarda okunur", where: "—" },
+  { feature: "İlerleme fotoğrafları", what: "Hiçbir şey; fotoğraflar yalnız bu bilgisayardaki veri klasöründe durur", where: "—" },
 ];
 
 /**

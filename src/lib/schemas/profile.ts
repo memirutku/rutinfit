@@ -39,6 +39,8 @@ export const UpdateProfileSchema = z.object({
   householdSize: z.number().int().min(1).max(12).optional(),
   /** F52: koça notlar (alerji, sakatlık, ekipman). */
   coachNotes: z.string().max(1000).nullable().optional(),
+  /** F82: günlük ritimde isteğe bağlı döngü notu. */
+  cycleTracking: z.boolean().optional(),
   /** F56: tabanın altındaki hedef bilerek (sağlık profesyoneliyle) seçildi. Saklanmaz. */
   acknowledgeLowCalorie: z.boolean().optional(),
 });
@@ -49,5 +51,11 @@ export const ProfileSchema = UpdateProfileSchema.omit({ acknowledgeLowCalorie: t
   id: z.string(),
   isOnboarded: z.boolean(),
   hideNumbers: z.boolean().optional(),
+  /** F76 + F14: oruç ayarları (ayrı uçtan kaydedilir). */
+  ramadanMode: z.boolean().optional(),
+  ramadanProvince: z.string().optional(),
+  ramadanImsakAdjust: z.number().int().optional(),
+  ramadanIftarAdjust: z.number().int().optional(),
+  fastingTargetHours: z.number().int().nullable().optional(),
 });
 export type Profile = z.output<typeof ProfileSchema>;

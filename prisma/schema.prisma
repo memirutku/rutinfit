@@ -42,6 +42,13 @@ model UserProfile {
   waterTargetMl     Int    @default(2500) // F13: günlük sıvı hedefi
   householdSize     Int    @default(1) // F31: alışveriş listesi kaç kişilik
   coachNotes        String? // F52: alerji, sakatlık, ekipman, çalışma düzeni (koça bilgi)
+  // F76: Ramazan modu (il bazlı, internetsiz imsak/iftar) · F14: aralıklı oruç hedefi
+  ramadanMode        Boolean @default(false)
+  ramadanProvince    String  @default("İstanbul")
+  ramadanImsakAdjust Int     @default(0) // dakika
+  ramadanIftarAdjust Int     @default(0) // dakika
+  fastingTargetHours Int? // null: zamanlayıcı kapalı
+  cycleTracking      Boolean @default(false) // F82: isteğe bağlı adet döngüsü notu
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -313,11 +320,36 @@ model WeightLog {
   createdAt      DateTime @default(now())
 }
 
+/// F16: Vücut ölçüleri ve sağlık metrikleri (her alan isteğe bağlı; gün başına bir kayıt).
 model BodyMeasurement {
+  id             String   @id @default(cuid())
+  date           String   @unique // YYYY-MM-DD
+  waistCm        Float?
+  hipCm          Float?
+  chestCm        Float?
+  armCm          Float?
+  thighCm        Float?
+  neckCm         Float?
+  bodyFatPercent Float?
+  restingHr      Int?
+  systolic       Int?
+  diastolic      Int?
+  notes          String?
+  createdAt      DateTime @default(now())
+}
+
+/// F16: İlerleme fotoğrafı. Dosya veri klasöründe (progress-photos) durur; yedek dosyasına girmez.
+model ProgressPhoto {
   id        String   @id @default(cuid())
-  date      String   @unique // YYYY-MM-DD
-  waistCm   Float
+  date      String // YYYY-MM-DD
+  pose      String // front, side, back
+  fileName  String   @unique
+  mimeType  String
+  sizeBytes Int
+  notes     String?
   createdAt DateTime @default(now())
+
+  @@index([date])
 }
 
 model DailyWellbeing {
@@ -329,7 +361,62 @@ model DailyWellbeing {
   stress1to5   Int      @default(3)
   soreness1to5 Int? // F51: kas ağrısı (1 yok, 5 çok)
   mood1to5     Int? // F51: ruh hâli
+  cycleNote    String? // F82: period_start, period, spotting (yalnız döngü notu açıksa)
   notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+/// F15: Kullanıcının takviye listesi. Günlük kayıtlar ada göre SupplementLog'da tutulur.
+model Supplement {
+  id         String   @id @default(cuid())
+  name       String   @unique
+  doseAmount Float
+  doseUnit   String   @default("g") // g, mg, mcg, IU, kapsül, tablet, damla, ml, ölçek
+  active     Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+/// F62: Apple Sağlık'tan içe aktarılan günlük özetler ve antrenmanlar (salt okunur; kullanıcının
+/// kendi kilo/kardiyo kayıtlarına eklenmez). key: "steps:2026-10-01", "workout:<başlangıç>:<tür>".
+model HealthRecord {
+  id         String   @id @default(cuid())
+  key        String   @unique
+  type       String // steps, active_kcal, resting_hr, weight_kg, workout
+  date       String // YYYY-MM-DD
+  value      Float
+  unit       String
+  source     String
+  detail     String? // JSON (antrenman: tür, süre, mesafe, kalori)
+  importedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([type, date])
+}
+
+/// F14: Aralıklı oruç kayıtları.
+model FastingSession {
+  id          String    @id @default(cuid())
+  startedAt   DateTime
+  endedAt     DateTime?
+  targetHours Int
+  createdAt   DateTime  @default(now())
+}
+
+/// F83: Uygulama açıkken gösterilen hatırlatmalar (öğün, su, tartı, takviye, antrenman, serbest).
+model Reminder {
+  id           String   @id @default(cuid())
+  kind         String // meal, water, weigh, supplement, workout, custom
+  title        String
+  time         String // HH:MM
+  days         String   @default("1234567") // ISO hafta günleri (1 = Pazartesi)
+  enabled      Boolean  @default(true)
+  mealType     String?
+  supplementId String?
+  lastFiredOn  String? // YYYY-MM-DD: aynı gün ikinci kez gösterilmez
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -338,7 +425,8 @@ model SupplementLog {
   id        String   @id @default(cuid())
   date      String // YYYY-MM-DD
   name      String   @default("Kreatin Monohidrat")
-  doseGrams Float    @default(5.0)
+  doseGrams Float    @default(5.0) // doz miktarı (birimi doseUnit)
+  doseUnit  String   @default("g") // F15
   taken     Boolean  @default(true)
   createdAt DateTime @default(now())
 

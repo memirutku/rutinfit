@@ -31,6 +31,8 @@ import { SavedMealsModal } from "@/components/dashboard/SavedMealsModal";
 import { computeReadiness } from "@/lib/readiness";
 import { useAllCustomMeasures } from "@/lib/client/queries/measures";
 import { NaturalLogModal } from "@/components/dashboard/NaturalLogModal";
+import { SupplementsCard } from "@/components/dashboard/SupplementsCard";
+import { FastingCard } from "@/components/dashboard/FastingCard";
 import { mealTypeForHour } from "@/lib/meal-time";
 
 interface UndoState {
@@ -44,6 +46,8 @@ export default function DashboardPage() {
   const todayStr = useToday();
   const profile = useProfile();
   const hideNumbers = profile.data?.hideNumbers ?? false;
+  // F76: Ramazan modunda öğün adları sahur/iftar olur.
+  const ramadan = profile.data?.ramadanMode ?? false;
   // F09: kurulmamış profilde sihirbaz açılır; "Şimdilik geç" bu oturum için kapatır.
   const [wizardDismissed, setWizardDismissed] = useState(false);
   const [savedMealsOpen, setSavedMealsOpen] = useState(false);
@@ -188,16 +192,23 @@ export default function DashboardPage() {
         <MacroBalanceCard summary={summary} targets={targets} hideNumbers={hideNumbers} />
       </div>
 
-      {/* İkinci Sıra: Günün Antrenmanı & Kreatin / İyilik Hali */}
+      {/* İkinci Sıra: Günün Antrenmanı & İyilik Hali */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <TodayWorkoutCard template={todayTemplate} isCompleted={isWorkoutCompleted} readiness={readiness} />
-        <WellbeingCard today={progress.data?.today} onToggleCreatine={handleToggleCreatine} onSave={handleSaveWellbeing} />
+        <WellbeingCard today={progress.data?.today} onSave={handleSaveWellbeing} cycleTracking={profile.data?.cycleTracking ?? false} />
       </div>
 
-      {/* F13: sıvı, kafein ve alkol */}
-      <DrinksCard date={todayStr} />
+      {/* F13: sıvı, kafein ve alkol · F15: takviyeler */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <DrinksCard date={todayStr} />
+        <SupplementsCard date={todayStr} />
+      </div>
+
+      {/* F76 + F14: Ramazan vakitleri ve aralıklı oruç (açıksa) */}
+      <FastingCard />
 
       <TodayMealsList
+        ramadan={ramadan}
         logs={foodLogs.data?.logs ?? []}
         onAdd={() => handleOpenQuickAdd()}
         onDelete={handleDeleteFoodLog}
@@ -233,6 +244,7 @@ export default function DashboardPage() {
         initialMealType={quickAddMealType}
         onSubmit={handleQuickAddSubmit}
         customMeasures={customMeasures.data}
+        ramadan={ramadan}
       />
 
       <UndoToast toast={undo?.toast ?? null} onUndo={handleUndo} onDismiss={() => setUndo(null)} />

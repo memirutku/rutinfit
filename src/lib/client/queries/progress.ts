@@ -47,6 +47,7 @@ export function useToggleCreatine() {
     onError: (_error, _vars, context) => {
       if (context?.previous) qc.setQueryData(queryKeys.progress, context.previous);
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.progress }),
+    onSettled: () =>
+      Promise.all([qc.invalidateQueries({ queryKey: queryKeys.progress }), qc.invalidateQueries({ queryKey: queryKeys.supplements })]),
   });
 }

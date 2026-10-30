@@ -8,6 +8,9 @@ import { OpenGymSection } from "@/components/settings/OpenGymSection";
 import { BackupSection } from "@/components/settings/BackupSection";
 import { DiagnosticsSection } from "@/components/settings/DiagnosticsSection";
 import { TransparencySection } from "@/components/settings/TransparencySection";
+import { SupplementsSection } from "@/components/settings/SupplementsSection";
+import { RemindersSection } from "@/components/settings/RemindersSection";
+import { FastingSection } from "@/components/settings/FastingSection";
 
 export default function SettingsPage() {
   const profile = useProfile();
@@ -35,6 +38,15 @@ export default function SettingsPage() {
 
       {/* 1. PROFİL VE HEDEFLER (profil yüklenemediyse varsayılanlarla) */}
       <ProfileTargetsSection profile={profile.data} />
+
+      {/* F15: TAKVİYELER */}
+      <SupplementsSection />
+
+      {/* F83: HATIRLATMALAR */}
+      <RemindersSection />
+
+      {/* F76 + F14: ORUÇ VE RAMAZAN */}
+      <FastingSection />
 
       {/* 2. YEREL YAPAY ZEKÂ YAPILANDIRMASI */}
       <AIProviderSection />

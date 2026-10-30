@@ -47,10 +47,16 @@ export const BACKUP_TABLES = [
   'AIMessage',
   'AuditEvent',
   'WeeklyCheckin',
+  'Supplement',
+  'Reminder',
+  'FastingSession',
+  'HealthRecord',
 ] as const;
 
 /** Yeniden üretilebilir önbellekler ve makineye özgü ayarlar (otomatik yedek klasörü) yedeğe alınmaz. */
-export const EXCLUDED_TABLES = ['OpenFoodFactsCache', 'AutoBackupSettings'] as const;
+// F16: İlerleme fotoğrafları dosya olarak veri klasöründe durur; kayıtları yedeğe alınırsa geri
+// yüklemede dosyası olmayan satırlar oluşur. Fotoğraflar ayrıca (klasör olarak) yedeklenir.
+export const EXCLUDED_TABLES = ['OpenFoodFactsCache', 'AutoBackupSettings', 'ProgressPhoto'] as const;
 
 /**
  * Üst kayıt geri yüklenince alt kayıtları yedektekiyle birebir aynı olur
