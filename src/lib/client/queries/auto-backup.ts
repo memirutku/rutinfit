@@ -16,11 +16,12 @@ export interface AutoBackupView {
   suggestedFolder: string;
 }
 
+/** B34: her ayar kendi alanıyla kaydedilir; gönderilmeyen alanlar sunucuda aynı kalır. */
 export interface AutoBackupInput {
-  enabled: boolean;
-  folderPath: string | null;
-  frequency: "daily" | "weekly";
-  keepCount: number;
+  enabled?: boolean;
+  folderPath?: string | null;
+  frequency?: "daily" | "weekly";
+  keepCount?: number;
 }
 
 /** F61: otomatik yedek ayarları. */

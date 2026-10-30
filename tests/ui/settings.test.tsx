@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import SettingsPage from "@/app/settings/page";
 import { queryKeys } from "@/lib/client/queries/keys";
@@ -114,11 +114,15 @@ describe("Ayarlar — profil ve hedefler", () => {
     fireEvent.change(calories, { target: { value: "1400" } });
     expect(screen.getByText(/1\.500 kcal altında/)).toBeTruthy();
     fireEvent.click(screen.getByRole("checkbox", { name: /doktor ya da diyetisyenle/ }));
+    // B34: gizleme anahtarı kendi başına kaydedilir (kayıtlı hedefle); form kaydı sonra gelir.
     fireEvent.click(screen.getByRole("checkbox", { name: /Kalori ve makro sayılarını gizle/ }));
+    await waitFor(() => expect(callsTo(calls, "/api/profile", "PUT")).toHaveLength(1));
+    expect(body(callsTo(calls, "/api/profile", "PUT")[0].init)).toMatchObject({ calorieTarget: 2080, hideNumbers: true });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Hedefleri Güncelle" }).hasAttribute("disabled")).toBe(false));
     fireEvent.click(screen.getByRole("button", { name: "Hedefleri Güncelle" }));
 
     await screen.findByText("Profil ve hedefler başarıyla güncellendi! ✓");
-    expect(body(callsTo(calls, "/api/profile", "PUT")[0].init)).toMatchObject({
+    expect(body(callsTo(calls, "/api/profile", "PUT")[1].init)).toMatchObject({
       calorieTarget: 1400,
       acknowledgeLowCalorie: true,
       hideNumbers: true,
@@ -347,15 +351,18 @@ describe("Ayarlar — yedekleme", () => {
       ],
     ]);
     const folder = (await screen.findByLabelText("Yedek klasörü")) as HTMLInputElement;
-    expect(folder.placeholder).toBe("/Users/ben/Documents/RutinFit Yedekleri");
-    fireEvent.click(screen.getByRole("checkbox", { name: /Otomatik yedek açık/ }));
+    expect(folder.value).toBe("");
+    expect(screen.getByText(/Önerilen: \/Users\/ben\/Documents\/RutinFit Yedekleri/)).toBeTruthy();
+    // Elle yazılan klasör alandan çıkınca kaydedilir (B34: ayrı Kaydet düğmesi yok).
     fireEvent.change(folder, { target: { value: "/Users/ben/iCloud" } });
-    fireEvent.change(screen.getByLabelText("Sıklık"), { target: { value: "weekly" } });
-    fireEvent.change(screen.getByLabelText("Saklanacak yedek sayısı"), { target: { value: "5" } });
-    fireEvent.click(screen.getByRole("button", { name: "Otomatik yedeği kaydet" }));
+    fireEvent.blur(folder);
     await waitFor(() => expect(callsTo(calls, "/api/backup/auto", "PUT")).toHaveLength(1));
-    expect(body(callsTo(calls, "/api/backup/auto", "PUT")[0].init)).toEqual({ enabled: true, folderPath: "/Users/ben/iCloud", frequency: "weekly", keepCount: 5 });
+    expect(body(callsTo(calls, "/api/backup/auto", "PUT")[0].init)).toEqual({ folderPath: "/Users/ben/iCloud" });
+    fireEvent.click(screen.getByRole("checkbox", { name: /Otomatik yedek açık/ }));
+    await waitFor(() => expect(callsTo(calls, "/api/backup/auto", "PUT")).toHaveLength(2));
+    expect(body(callsTo(calls, "/api/backup/auto", "PUT")[1].init)).toEqual({ enabled: true, folderPath: "/Users/ben/iCloud" });
 
+    await waitFor(() => expect(screen.getByRole("button", { name: "Şimdi yedekle" }).hasAttribute("disabled")).toBe(false));
     fireEvent.click(screen.getByRole("button", { name: "Şimdi yedekle" }));
     expect(await screen.findByText(/Yedek alındı\. .*rutinfit-otomatik-yedek-1\.json/)).toBeTruthy();
   });
@@ -412,6 +419,101 @@ describe("Ayarlar — yedekleme", () => {
     failExport = true;
     fireEvent.click(exportButton);
     expect((await screen.findByRole("alert")).textContent).toBe("Hata: Disk dolu");
+  });
+});
+
+describe("Ayarlar — B34 içindekiler, Gelişmiş ve anında kaydeden anahtarlar", () => {
+  const profileRoute = (puts: unknown[], fail = false): [string, Responder] => [
+    "/api/profile",
+    (_u, init) => {
+      if (method(init) !== "PUT") return jsonResponse(PROFILE);
+      puts.push(body(init));
+      return fail ? jsonResponse({ error: "Disk dolu" }, 500) : jsonResponse({ ...PROFILE, ...body(init) });
+    },
+  ];
+
+  afterEach(() => {
+    window.location.hash = "";
+  });
+
+  it("içindekiler her bölüme bağlanır; teknik bölümler kapalı 'Gelişmiş' altında durur ve bağlantıyla açılır", async () => {
+    setup();
+    const nav = await screen.findByRole("navigation", { name: "Ayarlar bölümleri" });
+    const links = within(nav).getAllByRole("link");
+    expect(links.map((l) => l.textContent)).toEqual(["Profil", "Takviyeler", "Hatırlatmalar", "Oruç", "AI koçu", "Yedek", "Gelişmiş"]);
+    for (const link of links) expect(document.getElementById(link.getAttribute("href")!.slice(1))).toBeTruthy();
+
+    const advanced = document.getElementById("gelismis") as HTMLDetailsElement;
+    expect(advanced.tagName).toBe("DETAILS");
+    expect(advanced.open).toBe(false);
+    for (const id of ["seffaflik", "yedek-ayrintilari", "opengym", "tanilama"]) expect(advanced.querySelector(`#${id}`)).toBeTruthy();
+    // Kişisel bölümler Gelişmiş'in dışında kalır.
+    for (const id of ["profil", "takviyeler", "hatirlatmalar", "yedek"]) expect(advanced.contains(document.getElementById(id))).toBe(false);
+
+    fireEvent.click(within(nav).getByRole("link", { name: "Gelişmiş" }));
+    expect(advanced.open).toBe(true);
+  });
+
+  it("adres bir gelişmiş bölümü gösteriyorsa (#tanilama) Gelişmiş açık gelir", async () => {
+    window.location.hash = "#tanilama";
+    setup();
+    await screen.findByRole("navigation", { name: "Ayarlar bölümleri" });
+    expect((document.getElementById("gelismis") as HTMLDetailsElement).open).toBe(true);
+  });
+
+  it("döngü notu anahtarı dokununca kaydeder; formdaki kaydedilmemiş düzenleme gönderilmez ve korunur", async () => {
+    const puts: Array<Record<string, unknown>> = [];
+    setup([profileRoute(puts)]);
+    const calories = await screen.findByLabelText<HTMLInputElement>("Kalori Hedefi (kcal)");
+    fireEvent.change(calories, { target: { value: "1950" } });
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /Adet döngüsü notu/ }));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]).toMatchObject({ cycleTracking: true, calorieTarget: 2080 });
+    const saved = await screen.findByText("Kaydedildi ✓");
+    expect(saved.closest("label")?.textContent).toContain("Adet döngüsü notu");
+    expect(screen.getByRole("checkbox", { name: /Adet döngüsü notu/ })).toHaveProperty("checked", true);
+    expect(calories.value).toBe("1950");
+  });
+
+  it("sayıları gizle anahtarı kaydedilemezse eski hâline döner ve hata yanında görünür", async () => {
+    const puts: Array<Record<string, unknown>> = [];
+    setup([profileRoute(puts, true)]);
+    const toggle = await screen.findByRole("checkbox", { name: /Kalori ve makro sayılarını gizle/ });
+    fireEvent.click(toggle);
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0]).toMatchObject({ hideNumbers: true });
+    expect((await screen.findByRole("alert")).textContent).toContain("Disk dolu");
+    expect(toggle).toHaveProperty("checked", false);
+  });
+
+  it("otomatik yedek anahtarı ve sıklık dokununca kaydeder (klasör seçilmemişse önerilen klasörle); ayrı 'Kaydet' düğmesi yok", async () => {
+    const state = { enabled: false, folderPath: null as string | null, frequency: "daily", keepCount: 10, lastRunAt: null, lastStatus: null, lastMessage: null, lastFile: null, suggestedFolder: "/Users/ben/Documents/RutinFit Yedekleri", exportCopies: true };
+    const { calls } = setup([
+      [
+        "/api/backup/auto",
+        (_u, init) => {
+          if (method(init) === "PUT") Object.assign(state, body(init));
+          return jsonResponse(state);
+        },
+      ],
+    ]);
+    fireEvent.click(await screen.findByRole("checkbox", { name: /Otomatik yedek açık/ }));
+    await waitFor(() => expect(callsTo(calls, "/api/backup/auto", "PUT")).toHaveLength(1));
+    expect(body(callsTo(calls, "/api/backup/auto", "PUT")[0].init)).toEqual({ enabled: true, folderPath: "/Users/ben/Documents/RutinFit Yedekleri" });
+
+    fireEvent.change(screen.getByLabelText("Sıklık"), { target: { value: "weekly" } });
+    await waitFor(() => expect(callsTo(calls, "/api/backup/auto", "PUT")).toHaveLength(2));
+    expect(body(callsTo(calls, "/api/backup/auto", "PUT")[1].init)).toEqual({ frequency: "weekly" });
+    expect(screen.queryByRole("button", { name: "Otomatik yedeği kaydet" })).toBeNull();
+
+    // Saklama sayısı teknik ayrıntıdır: Gelişmiş › Yedek ayrıntıları altında, alandan çıkınca kaydedilir.
+    const keep = screen.getByLabelText("Saklanacak otomatik yedek sayısı");
+    expect(document.getElementById("gelismis")!.contains(keep)).toBe(true);
+    fireEvent.change(keep, { target: { value: "5" } });
+    fireEvent.blur(keep);
+    await waitFor(() => expect(callsTo(calls, "/api/backup/auto", "PUT")).toHaveLength(3));
+    expect(body(callsTo(calls, "/api/backup/auto", "PUT")[2].init)).toEqual({ keepCount: 5 });
   });
 });
 
