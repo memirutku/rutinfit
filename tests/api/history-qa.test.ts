@@ -45,11 +45,41 @@ describe("F50: geçmiş sorguları", () => {
     expect(pr!.answer).toMatch(/101,3 kg/);
     expect((await answerHistoryQuestion("bu ay en çok ne yemişim", TODAY))!.rows[0]).toEqual({ label: "Yulaf", value: "2 kez" });
     expect((await answerHistoryQuestion("dün ne kadar su içtim", TODAY))!.answer).toMatch(/1.700 ml/);
-    expect((await answerHistoryQuestion("bu ay kaç km koştum", TODAY))!.answer).toMatch(/2 kardiyo · 90 dk · 10,5 km/);
+    // B31: soru koşu hakkındaysa yürüyüş toplama girmez.
+    expect((await answerHistoryQuestion("bu ay kaç km koştum", TODAY))!.answer).toMatch(/1 koşu · 30 dk · 5 km/);
   });
 
   it("kayıt yoksa bunu söyler; geçmiş sorusu değilse null", async () => {
     expect((await answerHistoryQuestion("son 7 günde kaç kalori aldım", TODAY))!.answer).toMatch(/kayıt yok/);
     expect(await answerHistoryQuestion("akşama ne pişireyim", TODAY)).toBeNull();
+  });
+
+  it("B31: koşu sorusu yalnız koşuyu toplar; genel kardiyo sorusu türlere ayrılır", async () => {
+    await prisma.cardioLog.createMany({
+      data: [
+        { date: "2026-10-26", kind: "run", durationMin: 30, distanceKm: 5 },
+        { date: "2026-10-27", kind: "walk", durationMin: 60, distanceKm: 5.5 },
+        { date: "2026-10-28", kind: "cycle", durationMin: 45, distanceKm: 15 },
+        { date: "2026-10-29", kind: "run", durationMin: 25, distanceKm: 4.2 },
+      ],
+    });
+    const run = (await answerHistoryQuestion("Bu hafta kaç km koştum?", TODAY))!;
+    expect(run.title).toBe("Koşu · Bu hafta");
+    expect(run.answer).toBe("Bu hafta: 2 koşu · 55 dk · 9,2 km.");
+    expect(run.rows).toEqual([
+      { label: "26.10.2026", value: "Koşu · 30 dk · 5 km" },
+      { label: "29.10.2026", value: "Koşu · 25 dk · 4,2 km" },
+    ]);
+
+    const all = (await answerHistoryQuestion("bu hafta toplam kaç km kardiyo yaptım", TODAY))!;
+    expect(all.title).toBe("Kardiyo · Bu hafta");
+    expect(all.answer).toBe("Bu hafta: 4 kardiyo · 160 dk · 29,7 km (Koşu 9,2 km · Yürüyüş 5,5 km · Bisiklet 15 km).");
+    expect(all.rows).toHaveLength(4);
+  });
+
+  it("B31: istenen türde kayıt yoksa bunu söyler, diğer kardiyoyu ayrıca belirtir", async () => {
+    await prisma.cardioLog.create({ data: { date: "2026-10-27", kind: "walk", durationMin: 60, distanceKm: 5.5 } });
+    const run = (await answerHistoryQuestion("bu hafta kaç km koştum", TODAY))!;
+    expect(run.answer).toBe("Bu hafta koşu kaydı yok. Diğer kardiyo: 1 yürüyüş · 5,5 km.");
   });
 });

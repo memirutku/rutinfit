@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formatNumberTr } from "@/lib/format";
 import {
   ActionProposalSchema,
   DeterministicMacrosSchema,
@@ -124,8 +125,45 @@ export function toAttachedFile(data: UploadResponse): AttachedFile {
   };
 }
 
-export const WELCOME_MESSAGE =
-  "Merhaba! Ben RutinFit yapay zekâ koçunuzum. Hedeflerinize (2.080 kcal hedefi, 2.100 kcal sakin tavanı), bugünkü kalan makrolarınıza ve antrenman durumunuza göre beslenme veya antrenman uyarlamaları önerebilirim. Ayrıca PDF, Excel, Word veya metin formatında beslenme/antrenman programı yükleyebilirsiniz.";
+/** B03: karşılama ve hazır sorular için profildeki hedef (sabit sayı yok). */
+export interface CoachTargets {
+  calorieTarget: number;
+  proteinTargetG: number;
+  /** Sihirbaz atlandı: hedef kullanıcının girdiği değil, tahmindir. */
+  estimated?: boolean;
+}
+
+/** Profilden hedefi çıkarır; profil yoksa null (metin sayısız kurulur). */
+export function coachTargetsFrom(
+  profile: { calorieTarget?: number; proteinTargetG?: number; isOnboarded?: boolean } | null | undefined
+): CoachTargets | null {
+  if (!profile?.calorieTarget || profile.proteinTargetG == null) return null;
+  return { calorieTarget: profile.calorieTarget, proteinTargetG: profile.proteinTargetG, estimated: profile.isOnboarded === false };
+}
+
+/**
+ * B03: karşılama mesajı. Sayılar profildeki hedeften gelir; "sayıları gizle" açıksa ya da
+ * profil yoksa metinde hiç sayı geçmez.
+ */
+export function welcomeMessage(targets: CoachTargets | null, hideNumbers: boolean): string {
+  const goal =
+    targets && !hideNumbers
+      ? `Hedefine (${targets.estimated ? "tahmini: " : ""}günlük ${formatNumberTr(targets.calorieTarget)} kcal, ${formatNumberTr(targets.proteinTargetG)} g protein${targets.estimated ? "; profilini tamamlayınca kişiselleşir" : ""})`
+      : "Hedeflerine";
+  return `Merhaba! Ben RutinFit yapay zekâ koçunum. ${goal}, bugün kalan makrolarına ve antrenman durumuna göre beslenme ya da antrenman önerileri verebilirim. PDF, Excel, Word veya metin biçiminde beslenme ya da antrenman programı da yükleyebilirsin.`;
+}
+
+/**
+ * B28: hata balonları düz metin çizilir; eski sunucu mesajlarındaki **kalın**, `kod` ve
+ * başlık işaretleri metinden ayıklanır.
+ */
+export function plainText(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/__(.+?)__/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "");
+}
 
 export const NEW_CHAT_MESSAGE =
   "Yeni bir sohbet başlattık. Size nasıl yardımcı olabilirim? Öğün önerisi, antrenman ayarlaması veya program dosyanızı yükleyebilirsiniz.";

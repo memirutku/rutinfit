@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createActionDraft } from '@/lib/ai-tools/action-tools';
 import { calculateRecipeNutrition } from '@/lib/ai-tools/draft-tools';
+import { stripActionBlocks } from '@/lib/ai-schema';
 import { ChatRequestSchema } from '@/lib/schemas/chat';
 import { checkAIBaseUrl, shouldSendOpenAIKey, DEFAULT_AI_BASE_URL } from '@/lib/security/ai-endpoint';
 import { buildSystemPrompt, extractActionProposal, loadCoachContext } from '@/lib/services/coach-context';
@@ -123,9 +124,10 @@ export async function POST(req: Request) {
     const endpointCheck = checkAIBaseUrl(baseUrl);
     if (!endpointCheck.ok) {
       return NextResponse.json({
-        reply: `⚠️ Kayıtlı yapay zekâ adresi güvenli değil (${endpointCheck.reason}) Lütfen Ayarlar sekmesinden yeniden yapılandırın.`,
+        reply: `Kayıtlı yapay zekâ adresi güvenli değil (${endpointCheck.reason}) Ayarlar'daki yapay zekâ bölümünden yeniden yapılandırabilirsin.`,
         conversationId: convId,
         isError: true,
+        errorKind: 'invalid_url',
         ...safety,
       });
     }
@@ -174,9 +176,10 @@ export async function POST(req: Request) {
         const fallback = dataFallback(convId);
         if (fallback) return fallback;
         return NextResponse.json({
-          reply: `⚠️ Yerel yapay zekâ sunucusu hata verdi (${aiRes.status}). Lütfen Ayarlar sekmesinden model bağlantısını kontrol edin.`,
+          reply: `Yerel yapay zekâ sunucusu hata verdi (${aiRes.status}). Seçili model (${model}) yüklü olmayabilir; Ayarlar'daki yapay zekâ bölümünden bağlantıyı test edebilirsin.`,
           conversationId: convId,
           isError: true,
+          errorKind: 'server_error',
         });
       }
 
@@ -254,12 +257,15 @@ export async function POST(req: Request) {
         }
       }
 
+      // B29: öneri JSON'u sohbet metninden çıkarılır (kartta gösterilir); kayda da temiz metin yazılır.
+      const replyText = stripActionBlocks(rawContent);
+
       // Persist assistant message in AIMessage
       await prisma.aIMessage.create({
         data: {
           conversationId: convId,
           role: 'assistant',
-          content: rawContent,
+          content: replyText,
           draftId,
           // Ham onay anahtarı kalıcı olarak saklanmaz; yalnız bu yanıtta istemciye verilir.
           actionProposal: actionProposal
@@ -275,7 +281,7 @@ export async function POST(req: Request) {
       });
 
       return NextResponse.json({
-        reply: rawContent,
+        reply: replyText,
         conversationId: convId,
         actionProposal,
         isError: false,
@@ -286,11 +292,13 @@ export async function POST(req: Request) {
       const fallback = dataFallback(convId);
       if (fallback) return fallback;
       return NextResponse.json({
-        reply: `🔌 Yerel yapay zekâ modeline ulaşılamadı (${baseUrl}).
-Lütfen bilgisayarınızda **Ollama** veya **LM Studio** uygulamasının açık ve modelin (${model}) yüklü olduğunu kontrol edin.
-Çevrimdışı olsanız bile RutinFit'in tüm takip özellikleri normal şekilde çalışmaya devam eder.`,
+        // B28: düz metin (balon markdown çizmez); çözüm adımları sayfadaki durum satırında.
+        reply: `Yerel yapay zekâ modeline ulaşılamadı (${baseUrl}).
+Ollama ya da LM Studio açık mı ve ${model} modeli yüklü mü? Ayarlar'daki yapay zekâ bölümünden bağlantıyı test edebilirsin.
+Model olmadan da takip özelliklerin çalışır; geçmiş soruların kayıtlarından yanıtlanır.`,
         conversationId: convId,
         isError: true,
+        errorKind: 'unreachable',
         ...safety,
       });
     }

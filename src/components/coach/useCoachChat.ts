@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { errorMessage } from "@/lib/client/api";
+import { stripActionBlocks } from "@/lib/ai-schema";
 import { clientId } from "@/lib/client/keys";
 import { useTimedMessage } from "@/hooks/useTimedMessage";
 import {
@@ -14,7 +15,6 @@ import {
 import {
   NEW_CHAT_MESSAGE,
   SEND_ERROR_MESSAGE,
-  WELCOME_MESSAGE,
   parseProposal,
   parseStoredProposal,
   toAttachedFile,
@@ -25,6 +25,9 @@ import {
 
 const assistant = (content: string): CoachMessage => ({ id: clientId("msg"), role: "assistant", content });
 
+/** Karşılama mesajının kimliği: metni her çizimde profilden yeniden kurulur (B03). */
+const WELCOME_ID = "welcome";
+
 /** Öneri kartının düzenleme alanı: öğün taslağında "title", antrenmanda "name". */
 export const editFieldFor = (proposal: CardProposal) => (proposal.type === "meal_proposal" ? "title" : "name");
 
@@ -32,8 +35,10 @@ export const editFieldFor = (proposal: CardProposal) => (proposal.type === "meal
  * Koç sohbetinin tüm durumu: mesajlar, ekler ve iki aşamalı onaylı eylem taslakları.
  * Taslak durumları (onaylandı / iptal / düzenleniyor) mesaj kimliğine göre tutulur.
  */
-export function useCoachChat() {
-  const [messages, setMessages] = useState<CoachMessage[]>(() => [assistant(WELCOME_MESSAGE)]);
+export function useCoachChat(welcome: string) {
+  const [stored, setMessages] = useState<CoachMessage[]>(() => [{ id: WELCOME_ID, role: "assistant", content: "" }]);
+  // Profil sonradan yüklenir ya da hedef değişir: karşılama metni durumda değil, çizimde kurulur.
+  const messages = stored.map((m) => (m.id === WELCOME_ID ? { ...m, content: welcome } : m));
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -74,7 +79,8 @@ export function useCoachChat() {
         return {
           id: m.id,
           role: m.role === "user" ? "user" : "assistant",
-          content: m.content,
+          // B29: eski kayıtlarda öneri JSON'u metnin içinde kalmış olabilir.
+          content: m.role === "user" ? m.content : stripActionBlocks(m.content),
           proposal: parseStoredProposal(m.actionProposal),
           aiGenerated: m.role === "assistant",
         };

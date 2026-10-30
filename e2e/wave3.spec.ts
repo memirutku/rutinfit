@@ -70,7 +70,9 @@ test.describe("Dalga 3", () => {
     await page.goto("/coach");
     await page.getByPlaceholder(/Sorunuzu yazın/).fill("Bu hafta kaç km koştum?");
     await page.getByRole("button", { name: /Gönder/ }).click();
-    await expect(page.getByText("Kardiyo · Bu hafta").last()).toBeVisible();
+    // B31: koşu sorusu yalnız koşuyu toplar; başlık türü söyler, kart kaynağını belirtir.
+    await expect(page.getByText("Koşu · Bu hafta").last()).toBeVisible();
+    await expect(page.getByText("Kayıtlarından hesaplandı").last()).toBeVisible();
     await page.getByText("Kaynak kayıtlar").last().click();
     await expect(page.getByText(/5,5 km/).last()).toBeVisible();
   });

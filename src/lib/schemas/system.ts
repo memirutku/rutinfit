@@ -13,6 +13,9 @@ export const TestConnectionResultSchema = z.object({
   success: z.boolean(),
   message: z.string(),
   models: z.array(z.string()).optional(),
+  /** B30: ayar kaydedildi mi, hangi modelle. */
+  saved: z.boolean().optional(),
+  modelName: z.string().optional(),
 });
 export type TestConnectionResult = z.infer<typeof TestConnectionResultSchema>;
 

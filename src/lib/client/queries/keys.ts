@@ -6,6 +6,10 @@ export const queryKeys = {
   profile: ["profile"] as const,
   aiSettings: ["ai-settings"] as const,
   aiExposure: ["ai-exposure"] as const,
+  /** B28: model sunucusunun gerçek durumu. */
+  aiStatus: ["ai-status"] as const,
+  /** B42: model olmadan kural tabanlı öğün önerisi. */
+  mealSuggestions: ["meal-suggestions"] as const,
   progress: ["progress"] as const,
   supplements: ["supplements"] as const,
   reminders: ["reminders"] as const,

@@ -239,7 +239,9 @@ describe("Ayarlar — yapay zekâ ve openGym bağlantı testi", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Bağlantıyı Test Et" })[0]);
 
     expect(await screen.findByText("Bağlantı kuruldu.")).toBeTruthy();
-    expect(screen.getByText(/llama3.2, mistral/)).toBeTruthy();
+    // B30: algılanan modeller seçilebilir düğmelerdir.
+    expect(screen.getByRole("button", { name: "llama3.2" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "mistral" })).toBeTruthy();
     expect(body(callsTo(calls, "/api/ai/test-connection", "POST")[0].init)).toEqual({
       providerType: "lmstudio",
       baseUrl: "http://127.0.0.1:1234/v1",

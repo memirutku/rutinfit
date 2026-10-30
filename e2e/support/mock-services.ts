@@ -19,6 +19,8 @@ export const OFF_PRODUCTS: Record<string, unknown> = {
 export async function startMockServices(port = 0) {
   const llmQueue: Array<{ content?: string; status?: number }> = [];
   const llmRequests: unknown[] = [];
+  /** true iken /v1/* bağlantısı yanıtsız kapatılır: "yerel model yok" durumu (kapalı port gibi). */
+  let llmOffline = false;
 
   const server = http.createServer((req, res) => {
     let raw = "";
@@ -39,9 +41,20 @@ export async function startMockServices(port = 0) {
       if (url.pathname === "/__control/reset" && req.method === "POST") {
         llmQueue.length = 0;
         llmRequests.length = 0;
+        llmOffline = false;
         return send(200, { ok: true });
       }
       if (url.pathname === "/__control/llm/requests") return send(200, llmRequests);
+      if (url.pathname === "/__control/llm/offline" && req.method === "POST") {
+        llmOffline = Boolean((body as { offline?: boolean } | undefined)?.offline);
+        return send(200, { offline: llmOffline });
+      }
+
+      // ---- sahte LLM kapalı: istemci bağlantı hatası alır (ECONNRESET), yanıt yok
+      if (llmOffline && url.pathname.startsWith("/v1/")) {
+        req.socket.destroy();
+        return;
+      }
 
       // ---- sahte LLM
       if (url.pathname === "/v1/models") return send(200, { object: "list", data: [{ id: "mock-llama" }] });

@@ -5,6 +5,7 @@
  */
 import { addDaysToDateString, startOfWeek } from "./date-utils";
 import { foldTr } from "./food-search";
+import type { CardioKind } from "./cardio";
 
 export const HISTORY_QUERY_TYPES = [
   "avg_calories",
@@ -75,6 +76,23 @@ const RULES: Array<[HistoryQueryType, RegExp]> = [
 export interface HistoryQuery {
   type: HistoryQueryType;
   range: DateRange;
+  /** B31: kardiyo sorusu tek bir türü soruyorsa (ör. "kaç km koştum") o tür. */
+  cardioKind?: CardioKind;
+}
+
+const CARDIO_KIND_PATTERNS: Array<[CardioKind, RegExp]> = [
+  ["run", /\bkos/],
+  ["walk", /\byuru/],
+  ["cycle", /bisiklet|pedal/],
+  // "yüz" tek başına sayı ya da yüz (surat) olabilir; yalnız yüzme fiilleri.
+  ["swim", /\byuz(me|du|uyor|ecek|mek)/],
+];
+
+/** B31: soruda tek bir kardiyo türü geçiyorsa onu döner; hiç ya da birden çok tür varsa undefined. */
+export function detectCardioKind(question: string): CardioKind | undefined {
+  const q = foldTr(question);
+  const kinds = CARDIO_KIND_PATTERNS.filter(([, re]) => re.test(q)).map(([kind]) => kind);
+  return kinds.length === 1 ? kinds[0] : undefined;
 }
 
 export function detectHistoryQuery(question: string, today: string): HistoryQuery | null {
@@ -84,5 +102,6 @@ export function detectHistoryQuery(question: string, today: string): HistoryQuer
   if (!rule) return null;
   const type = rule[0];
   const range = type === "best_lift" ? { from: "2000-01-01", to: today, label: "Tüm zamanlar" } : parseRange(question, today);
-  return { type, range };
+  const cardioKind = type === "cardio_total" ? detectCardioKind(question) : undefined;
+  return cardioKind ? { type, range, cardioKind } : { type, range };
 }

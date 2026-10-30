@@ -1,22 +1,33 @@
 "use client";
 
-export const QUICK_PROMPTS = [
-  "Bugünkü protein hedefimi tamamlamak için akşam ne yiyebilirim?",
-  "Evde yumurta, yoğurt, tavuk ve bulgur var; 2.080 kcal hedefine uyan bir yemek öner.",
-  "Bugün işten çok yorgun geldim, antrenmanımı 25 dakikalık daha hafif bir sürüme çevir.",
-  "OpenGym antrenman durumumu ve bu haftaki ilerlememi özetle.",
-] as const;
+import { formatNumberTr } from "@/lib/format";
+import type { CoachTargets } from "./types";
+
+/**
+ * Tek tıkla gönderilen hazır sorular. B03: kalori sayısı profildeki hedeften gelir; "sayıları gizle"
+ * açıksa ya da profil yoksa soru sayısız sorulur (model hedefi zaten sistem isteminden bilir).
+ */
+export function quickPrompts(targets: CoachTargets | null, hideNumbers: boolean): string[] {
+  const goal = targets && !hideNumbers ? `günlük ${formatNumberTr(targets.calorieTarget)} kcal hedefime` : "kalori hedefime";
+  return [
+    "Bugünkü protein hedefimi tamamlamak için akşam ne yiyebilirim?",
+    `Evde yumurta, yoğurt, tavuk ve bulgur var; ${goal} uyan bir yemek öner.`,
+    "Bugün çok yorgunum, antrenmanımı 25 dakikalık daha hafif bir sürüme çevir.",
+    "OpenGym antrenman durumumu ve bu haftaki ilerlememi özetle.",
+  ];
+}
 
 interface QuickPromptsProps {
+  prompts: string[];
   disabled: boolean;
   onSend: (prompt: string) => void;
 }
 
-/** Tek tıkla gönderilen hazır sorular. */
-export function QuickPrompts({ disabled, onSend }: QuickPromptsProps) {
+export function QuickPrompts({ prompts, disabled, onSend }: QuickPromptsProps) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1">
-      {QUICK_PROMPTS.map((p) => (
+    // B27: şerit kendi içinde yatay kayar; içerik genişliği sayfayı genişletmez (inline-size containment).
+    <div role="group" aria-label="Hazır sorular" className="flex gap-2 overflow-x-auto pb-1 max-w-full [contain:inline-size]">
+      {prompts.map((p) => (
         <button
           key={p}
           disabled={disabled}
