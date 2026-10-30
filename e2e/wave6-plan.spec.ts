@@ -205,4 +205,20 @@ test.describe("Dalga 6 · plan, alışveriş ve rapor", () => {
     expect(wb.SheetNames).toEqual(expect.arrayContaining(["Ölçüler", "Plana uyum", "Plan ve gerçekleşen"]));
     expect(XLSX.utils.sheet_to_json(wb.Sheets["Ölçüler"])).toContainEqual(expect.objectContaining({ Ölçü: "Bel (cm)", İlk: 93, Son: 91, Fark: -2 }));
   });
+
+  test("B15: kalori hedefi düşünce makro uyuşmazlığı gösterilir ve oranla dağıtılır", async ({ page }) => {
+    await page.goto("/settings");
+    const kcal = page.getByLabel("Kalori Hedefi (kcal)");
+    await expect(kcal).not.toHaveValue("");
+    await page.getByLabel("Protein Hedefi (g)").fill("165");
+    await page.getByLabel("Karbonhidrat (g)").fill("220");
+    await page.getByLabel("Yağ Hedefi (g)").fill("60");
+    await kcal.fill("1500");
+    await expect(page.getByRole("status", { name: "Makro dengesi" })).toContainText("2.080 kcal");
+    await page.getByRole("button", { name: "Makroları oranla dağıt" }).click();
+    await expect(page.getByLabel("Protein Hedefi (g)")).toHaveValue("119");
+    await expect(page.getByLabel("Karbonhidrat (g)")).toHaveValue("159");
+    await expect(page.getByLabel("Yağ Hedefi (g)")).toHaveValue("43");
+    await expect(page.getByRole("status", { name: "Makro dengesi" })).toHaveCount(0);
+  });
 });
