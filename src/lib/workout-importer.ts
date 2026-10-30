@@ -25,7 +25,15 @@ export interface WorkoutImportResult {
   workouts: ImportedWorkout[];
   errors?: string[];
   skippedRows?: number;
+  /** H1: kullanıcıya gösterilecek uyarılar (örn. ağırlık sütunu yok). */
+  warnings: string[];
+  /** H2: dolu olduğu hâlde aktarılamayan sütunların özgün başlıkları. */
+  ignoredColumns: string[];
+  /** H2: atlanan ısınma seti sayısı (set tipi desteği gelene kadar). */
+  skippedWarmupSets: number;
 }
+
+const LB_TO_KG = 0.45359237;
 
 /**
  * RFC 4180 CSV ayrıştırıcı: "" kaçışı, tırnaklı alanda virgül/satır sonu desteklenir.
@@ -78,7 +86,14 @@ function detectDelimiter(firstLine: string): string {
   return semis > commas ? ";" : ",";
 }
 
-const normalizeHeader = (h: string) => h.replace(/^﻿/, "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+const cleanHeader = (h: string) => h.replace(/^\uFEFF/, "").trim();
+
+/** "Weight (kg)" → "weight_kg", "Exercise Name" → "exercise_name". */
+const normalizeHeader = (h: string) =>
+  cleanHeader(h)
+    .toLowerCase()
+    .replace(/\s*\(([^)]*)\)/g, "_$1")
+    .replace(/[\s-]+/g, "_");
 
 function findColumn(headers: string[], candidates: string[]): number {
   for (const c of candidates) {
@@ -86,6 +101,12 @@ function findColumn(headers: string[], candidates: string[]): number {
     if (idx !== -1) return idx;
   }
   return -1;
+}
+
+/** Negatif olmayan kg; lbs'den çevrilen değer 0,1 kg'a yuvarlanır. */
+function toKg(value: number, factor: number): number {
+  const kg = Math.max(0, value) * factor;
+  return factor === 1 ? kg : Math.round(kg * 10) / 10;
 }
 
 /** "62,5" ve "62.5" ikisini de okur. */
@@ -168,6 +189,9 @@ export function parseWorkoutCsv(csvText: string): WorkoutImportResult {
       totalSetsCount: 0,
       workouts: [],
       errors: ["CSV dosyası boş veya başlık satırı içermiyor."],
+      warnings: [],
+      ignoredColumns: [],
+      skippedWarmupSets: 0,
     };
   }
 
@@ -180,10 +204,16 @@ export function parseWorkoutCsv(csvText: string): WorkoutImportResult {
     set: findColumn(headers, ["set_order", "set_index", "set", "set_no"]),
     setType: findColumn(headers, ["set_type"]),
     weight: findColumn(headers, ["weight_kg", "weight", "ağırlık", "agirlik", "kg"]),
+    weightLbs: findColumn(headers, ["weight_lbs", "weight_lb", "lbs", "lb"]),
     reps: findColumn(headers, ["reps", "tekrar"]),
     rpe: findColumn(headers, ["rpe"]),
     duration: findColumn(headers, ["duration", "süre", "sure"]),
+    workoutNotes: findColumn(headers, ["description", "workout_notes"]),
+    exerciseNotes: findColumn(headers, ["exercise_notes", "notes", "not"]),
   };
+  // kg sütunu yoksa lbs sütunu kullanılır ve kg'a çevrilir.
+  const weightCol = col.weight !== -1 ? col.weight : col.weightLbs;
+  const weightFactor = col.weight === -1 && col.weightLbs !== -1 ? LB_TO_KG : 1;
 
   const appType: WorkoutImportResult["appType"] = headers.includes("exercise_title")
     ? "hevy"
@@ -191,7 +221,7 @@ export function parseWorkoutCsv(csvText: string): WorkoutImportResult {
       ? "strong"
       : "generic_csv";
 
-  if (col.exercise === -1 || (col.weight === -1 && col.reps === -1)) {
+  if (col.exercise === -1 || (weightCol === -1 && col.reps === -1)) {
     return {
       success: false,
       appType,
@@ -199,13 +229,19 @@ export function parseWorkoutCsv(csvText: string): WorkoutImportResult {
       totalSetsCount: 0,
       workouts: [],
       errors: ["CSV içinde 'Exercise' ve 'Weight'/'Reps' sütunları bulunamadı."],
+      warnings: [],
+      ignoredColumns: [],
+      skippedWarmupSets: 0,
     };
   }
 
   const zeroBasedSets = headers[col.set] === "set_index";
   const workoutsMap = new Map<string, ImportedWorkout>();
   const setCounters = new Map<string, number>();
+  const noteLines = new Map<string, Set<string>>();
   let skippedRows = 0;
+  let skippedWarmupSets = 0;
+  const cell = (row: string[], idx: number) => (idx !== -1 ? (row[idx] ?? "").trim() : "");
 
   for (const row of rows.slice(1)) {
     const exerciseName = row[col.exercise];
@@ -214,7 +250,10 @@ export function parseWorkoutCsv(csvText: string): WorkoutImportResult {
       continue;
     }
     const setType = col.setType !== -1 ? (row[col.setType] ?? "").toLowerCase() : "";
-    if (setType === "warmup" || setType === "warm_up") continue;
+    if (setType === "warmup" || setType === "warm_up") {
+      skippedWarmupSets++;
+      continue;
+    }
 
     const rawDate = col.date !== -1 ? row[col.date] ?? "" : "";
     const date = normalizeDate(rawDate) ?? getLocalDateString();
@@ -236,6 +275,14 @@ export function parseWorkoutCsv(csvText: string): WorkoutImportResult {
     }
     const workout = workoutsMap.get(key)!;
 
+    // H2: seans ve egzersiz notları tekrarsız biriktirilir.
+    const lines = noteLines.get(key) ?? new Set<string>();
+    noteLines.set(key, lines);
+    const workoutNote = cell(row, col.workoutNotes);
+    if (workoutNote) lines.add(workoutNote);
+    const exerciseNote = cell(row, col.exerciseNotes);
+    if (exerciseNote) lines.add(`${exerciseName}: ${exerciseNote}`);
+
     // Isınma setleri atlandığında numaralar boşluksuz olsun: egzersiz başına sayaç.
     const counterKey = `${key}\u0000${exerciseName}`;
     const parsedSet = col.set !== -1 ? parseInt(row[col.set] ?? "", 10) : NaN;
@@ -247,11 +294,24 @@ export function parseWorkoutCsv(csvText: string): WorkoutImportResult {
     workout.sets.push({
       exerciseName,
       setNumber,
-      weightKg: col.weight !== -1 ? Math.max(0, parseDecimal(row[col.weight])) : 0,
+      weightKg: weightCol !== -1 ? toKg(parseDecimal(row[weightCol]), weightFactor) : 0,
       reps: col.reps !== -1 ? Math.max(0, Math.round(parseDecimal(row[col.reps]))) : 0,
       rpe: rpe > 0 ? rpe : undefined,
     });
   }
+
+  for (const [key, w] of workoutsMap) {
+    const lines = noteLines.get(key);
+    if (lines?.size) w.notes = [w.notes, ...lines].join("\n");
+  }
+
+  // H2: dolu olduğu hâlde hiçbir alana yazılmayan sütunlar.
+  const used = new Set<number>(Object.values(col).filter((i) => i !== -1));
+  const ignoredColumns = rows[0]
+    .map((h, idx) => ({ h: cleanHeader(h), idx }))
+    .filter(({ idx }) => !used.has(idx) && rows.slice(1).some((r) => (r[idx] ?? "").trim() !== ""))
+    .map(({ h }) => h);
+  const warnings = weightCol === -1 ? ["Ağırlık sütunu bulunamadı; setler 0 kg olarak aktarılır."] : [];
 
   const workouts = Array.from(workoutsMap.values()).filter((w) => w.sets.length > 0);
   const totalSetsCount = workouts.reduce((acc, w) => acc + w.sets.length, 0);
@@ -264,5 +324,8 @@ export function parseWorkoutCsv(csvText: string): WorkoutImportResult {
     workouts,
     skippedRows,
     errors: workouts.length > 0 ? undefined : ["CSV içinde aktarılabilir set bulunamadı."],
+    warnings,
+    ignoredColumns,
+    skippedWarmupSets,
   };
 }
