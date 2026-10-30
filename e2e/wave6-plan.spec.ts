@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import * as XLSX from "xlsx";
 import type { APIRequestContext, Page } from "@playwright/test";
 import { test, expect, uniq } from "./fixtures";
 
@@ -142,5 +144,65 @@ test.describe("Dalga 6 · plan, alışveriş ve rapor", () => {
 
     await page.getByRole("button", { name: `${item} sil` }).click();
     await expect(page.getByRole("checkbox", { name: new RegExp(item) })).toHaveCount(0);
+  });
+
+  test("B43: rapor ölçüleri, haftalık uyumu ve plan–gerçekleşeni gösterir; yazdırma ve Excel'de de var", async ({ page, api }) => {
+    // Paylaşılan veritabanında başka testlerin dokunmadığı geçmiş iki hafta (Pazartesi başlangıçlı).
+    const monday = new Date(Date.UTC(2016, 0, 4) + Math.floor(Math.random() * 400) * 7 * 86_400_000).toISOString().slice(0, 10);
+    const day = (offset: number) => new Date(Date.parse(`${monday}T00:00:00Z`) + offset * 86_400_000).toISOString().slice(0, 10);
+    const from = day(0);
+    const to = day(13);
+    const breakfast = uniq("2 yumurta, 5 zeytin");
+
+    await api.put("/api/body-metrics", { data: { date: day(0), waistCm: 93, hipCm: 108 } });
+    await api.put("/api/body-metrics", { data: { date: day(13), waistCm: 91, hipCm: 107 } });
+    const lunch = await recipeMeal(api, day(1), "lunch", "E2E Bulgur pilavı"); // 400 kcal
+    const planned = await (await api.post("/api/meal-plans/meals", { data: { date: day(1), mealType: "breakfast", customName: breakfast, servings: 1 } })).json();
+    const plan = (await (await api.get(`/api/meal-plans?date=${day(1)}`)).json())[0];
+    const lunchMeal = plan.meals.find((m: { recipeId: string | null }) => m.recipeId === lunch.id);
+    await api.patch("/api/meal-plans/adherence", { data: { plannedMealId: planned.id, adherence: "done" } });
+    await api.patch("/api/meal-plans/adherence", { data: { plannedMealId: lunchMeal.id, adherence: "partial" } });
+    await api.post("/api/food-logs", { data: { date: day(1), time: "08:00", mealType: "breakfast", name: breakfast, caloriesSnapshot: 350, proteinSnapshot: 20 } });
+    await api.post("/api/food-logs", { data: { date: day(1), time: "12:30", mealType: "lunch", recipeId: lunch.id, name: lunch.name, servings: 1.5 } });
+    await api.post("/api/food-logs", { data: { date: day(8), time: "19:00", mealType: "dinner", name: uniq("Taze fasulye"), caloriesSnapshot: 300 } });
+
+    await page.goto("/report");
+    await page.getByLabel("Başlangıç").fill(from);
+    await page.getByLabel("Bitiş").fill(to);
+    await expect(page.getByRole("heading", { name: "Beslenme ve aktivite raporu" })).toBeVisible();
+
+    const waist = page.getByRole("region", { name: "Vücut ölçüleri" }).getByRole("row", { name: /^Bel \d/ });
+    await expect(waist).toContainText("93 cm");
+    await expect(waist).toContainText("91 cm");
+    await expect(waist).toContainText("-2 cm");
+
+    await expect(page.getByRole("region", { name: "Plana uyum" }).getByRole("row", { name: dayLabel(from) })).toContainText("%75");
+    const lunchRow = page.getByRole("region", { name: "Plan ve gerçekleşen" }).getByRole("row", { name: new RegExp(lunch.name) });
+    await expect(lunchRow).toContainText("400");
+    await expect(lunchRow).toContainText("600");
+    await expect(lunchRow).toContainText("+200");
+    await expect(lunchRow).toContainText("Kısmen");
+
+    const summary = page.getByRole("region", { name: "Özet" });
+    await expect(summary.getByRole("group", { name: "Ort. kalori" })).toHaveAttribute("data-status", /ok|warn|off/);
+    await expect(summary.getByRole("group", { name: "Plana uyum" })).toContainText("%75");
+
+    const log = page.getByRole("region", { name: "Öğün günlüğü" });
+    await expect(log.getByRole("group")).toHaveCount(2);
+    await expect(log.getByRole("group", { name: dayLabel(day(1)) })).toContainText("950 kcal");
+
+    // Yazdırma görünümü: kontroller gizlenir, yeni bölümler kalır.
+    await page.emulateMedia({ media: "print" });
+    await expect(page.getByRole("button", { name: /Excel indir/ })).toBeHidden();
+    await expect(page.getByRole("region", { name: "Vücut ölçüleri" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Plan ve gerçekleşen" })).toBeVisible();
+    await page.emulateMedia({ media: "screen" });
+
+    const download = page.waitForEvent("download");
+    await page.getByRole("button", { name: /Excel indir/ }).click();
+    // xlsx'in ESM derlemesi dosya sistemi taşımaz: dosya Node ile okunur.
+    const wb = XLSX.read(fs.readFileSync((await (await download).path())!), { type: "buffer" });
+    expect(wb.SheetNames).toEqual(expect.arrayContaining(["Ölçüler", "Plana uyum", "Plan ve gerçekleşen"]));
+    expect(XLSX.utils.sheet_to_json(wb.Sheets["Ölçüler"])).toContainEqual(expect.objectContaining({ Ölçü: "Bel (cm)", İlk: 93, Son: 91, Fark: -2 }));
   });
 });
