@@ -32,13 +32,13 @@ describe("F62: Apple Sağlık bölümü", () => {
     const batches: number[] = [];
     let total = 0;
     restore = stubFetch([
-      ["/api/health/import", (_u, init) => {
+      ["/api/apple-health/import", (_u, init) => {
         const n = JSON.parse(String(init?.body)).records.length;
         batches.push(n);
         total += n;
         return jsonResponse({ created: n, updated: 0 });
       }],
-      ["/api/health", () => jsonResponse(summary(total))],
+      ["/api/apple-health", () => jsonResponse(summary(total))],
     ]).restore;
     renderWithQuery(<AppleHealthSection />);
     expect(await screen.findByText(/Henüz Apple Sağlık verisi yok/)).toBeTruthy();
@@ -54,7 +54,7 @@ describe("F62: Apple Sağlık bölümü", () => {
   it("silme iki adımda onaylanır", async () => {
     let deleted = false;
     restore = stubFetch([
-      ["/api/health", (_u, init) => {
+      ["/api/apple-health", (_u, init) => {
         if (init?.method === "DELETE") {
           deleted = true;
           return jsonResponse({ deleted: 5 });

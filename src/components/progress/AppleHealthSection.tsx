@@ -19,13 +19,13 @@ const BATCH = 5000;
  */
 export function AppleHealthSection() {
   const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: KEY, queryFn: () => apiFetch<Summary>("/api/health") });
+  const { data } = useQuery({ queryKey: KEY, queryFn: () => apiFetch<Summary>("/api/apple-health") });
   const [progress, setProgress] = useState<number | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const remove = useMutation({
-    mutationFn: () => apiFetch("/api/health", { method: "DELETE" }),
+    mutationFn: () => apiFetch("/api/apple-health", { method: "DELETE" }),
     onSuccess: () => {
       setConfirmDelete(false);
       setResult(null);
@@ -43,7 +43,7 @@ export function AppleHealthSection() {
       let created = 0;
       let updated = 0;
       for (let i = 0; i < records.length; i += BATCH) {
-        const res = await apiFetch<{ created: number; updated: number }>("/api/health/import", { method: "POST", json: { records: records.slice(i, i + BATCH) } });
+        const res = await apiFetch<{ created: number; updated: number }>("/api/apple-health/import", { method: "POST", json: { records: records.slice(i, i + BATCH) } });
         created += res.created;
         updated += res.updated;
       }

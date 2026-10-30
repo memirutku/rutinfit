@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { GET, DELETE } from "@/app/api/health/route";
-import { POST as IMPORT } from "@/app/api/health/import/route";
+import { GET, DELETE } from "@/app/api/apple-health/route";
+import { POST as IMPORT } from "@/app/api/apple-health/import/route";
 import { prisma } from "@/lib/prisma";
 import { callRoute } from "../helpers/route";
 import { resetDatabase } from "../helpers/db";
