@@ -2,6 +2,7 @@ import { Flame } from "lucide-react";
 import { calculateRecipeMacros } from "@/lib/nutrition-calculator";
 import type { Macros, Recipe } from "@/lib/schemas/food";
 import { formatNumberTr } from "@/lib/format";
+import { TurkishCatalogBanner } from "./TurkishCatalogBanner";
 
 /**
  * Kartta gösterilen tarif toplamı: sunucunun katalogdan hesapladığı `calculatedMacros`
@@ -14,10 +15,13 @@ export function recipeTotals(recipe: Recipe): Macros {
 
 export function RecipesTab({ recipes }: { recipes: Recipe[] }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {recipes.map((r) => (
-        <RecipeCard key={r.id} recipe={r} />
-      ))}
+    <div className="space-y-4">
+      <TurkishCatalogBanner />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {recipes.map((r) => (
+          <RecipeCard key={r.id} recipe={r} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -31,6 +35,7 @@ function RecipeCard({ recipe: r }: { recipe: Recipe }) {
           <h3 className="font-bold text-slate-900 text-base">{r.name}</h3>
           <p className="text-xs text-slate-500">
             Hazırlama: {r.prepMinutes} dk • {r.servings} porsiyon
+            {r.servings > 1 && ` • porsiyonu ${Math.round(totals.calories / r.servings)} kcal`}
           </p>
         </div>
         <div className="flex items-center gap-1.5 px-2.5 py-1 bg-brand-50 text-brand-700 font-bold rounded-lg text-xs">

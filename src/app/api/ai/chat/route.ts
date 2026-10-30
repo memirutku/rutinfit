@@ -6,6 +6,7 @@ import { ChatRequestSchema } from '@/lib/schemas/chat';
 import { checkAIBaseUrl, shouldSendOpenAIKey, DEFAULT_AI_BASE_URL } from '@/lib/security/ai-endpoint';
 import { buildSystemPrompt, extractActionProposal, loadCoachContext } from '@/lib/services/coach-context';
 import { detectRedFlags, SAFETY_REFERRAL_TR } from '@/lib/safety';
+import { answerHistoryQuestion } from '@/lib/services/history-qa';
 
 // GET: Retrieve conversation list or conversation history
 export async function GET(req: Request) {
@@ -74,7 +75,21 @@ export async function POST(req: Request) {
     const lastUserContent = messages.filter((m) => m.role === 'user').pop()?.content;
     const redFlag = detectRedFlags(lastUserContent);
     const safety = redFlag ? { safetyNotice: SAFETY_REFERRAL_TR } : {};
-    const systemPrompt = buildSystemPrompt({ ...coachContext, redFlag, tone: aiSettings?.tone });
+    // F50: geçmiş sorusu ise sonuç koda hesaplatılır ve modele kesin veri olarak verilir.
+    const dataAnswer = redFlag ? null : await answerHistoryQuestion(lastUserContent ?? '', todayStr);
+    const data = dataAnswer ? { dataAnswer } : {};
+    const systemPrompt = buildSystemPrompt({ ...coachContext, redFlag, tone: aiSettings?.tone, dataAnswer });
+    /** Model yanıt veremezse geçmiş sorusu yine kayıtlardan yanıtlanır. */
+    const dataFallback = (convId: string) =>
+      dataAnswer
+        ? NextResponse.json({
+            reply: `${dataAnswer.answer}\n\n(Yapay zekâ modeline ulaşılamadı; yanıt doğrudan kayıtlarından hesaplandı.)`,
+            conversationId: convId,
+            isError: false,
+            ...data,
+            ...safety,
+          })
+        : null;
 
     // Persist or find conversation
     let convId = reqConversationId;
@@ -156,6 +171,8 @@ export async function POST(req: Request) {
       }
 
       if (!aiRes.ok) {
+        const fallback = dataFallback(convId);
+        if (fallback) return fallback;
         return NextResponse.json({
           reply: `⚠️ Yerel yapay zekâ sunucusu hata verdi (${aiRes.status}). Lütfen Ayarlar sekmesinden model bağlantısını kontrol edin.`,
           conversationId: convId,
@@ -262,9 +279,12 @@ export async function POST(req: Request) {
         conversationId: convId,
         actionProposal,
         isError: false,
+        ...data,
         ...safety,
       });
     } catch {
+      const fallback = dataFallback(convId);
+      if (fallback) return fallback;
       return NextResponse.json({
         reply: `🔌 Yerel yapay zekâ modeline ulaşılamadı (${baseUrl}).
 Lütfen bilgisayarınızda **Ollama** veya **LM Studio** uygulamasının açık ve modelin (${model}) yüklü olduğunu kontrol edin.

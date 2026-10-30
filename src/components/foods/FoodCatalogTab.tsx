@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { Search } from "lucide-react";
 import { rankFoods } from "@/lib/food-search";
 import type { FoodItem } from "@/lib/schemas/food";
 import { FOOD_CATEGORIES } from "./constants";
 import { formatNumberTr } from "@/lib/format";
+import { MeasuresModal } from "./MeasuresModal";
 
 interface FoodCatalogTabProps {
   foods: FoodItem[];
@@ -32,6 +34,7 @@ export function FoodCatalogTab({
   onCategoryChange,
 }: FoodCatalogTabProps) {
   const filtered = filterFoods(foods, search, category);
+  const [measuresFor, setMeasuresFor] = useState<FoodItem | null>(null);
 
   return (
     <div className="space-y-4">
@@ -79,14 +82,15 @@ export function FoodCatalogTab({
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {filtered.map((f) => (
-          <FoodCard key={f.id} food={f} />
+          <FoodCard key={f.id} food={f} onMeasures={() => setMeasuresFor(f)} />
         ))}
       </div>
+      <MeasuresModal open={measuresFor !== null} food={measuresFor} onClose={() => setMeasuresFor(null)} />
     </div>
   );
 }
 
-function FoodCard({ food: f }: { food: FoodItem }) {
+function FoodCard({ food: f, onMeasures }: { food: FoodItem; onMeasures: () => void }) {
   return (
     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs hover:border-slate-300 transition-colors space-y-2">
       <div className="flex items-start justify-between">
@@ -123,7 +127,10 @@ function FoodCard({ food: f }: { food: FoodItem }) {
       </div>
 
       <div className="flex justify-between items-center text-[10px] text-slate-400 pt-1 border-t border-slate-100">
-        <span>100g bazında</span>
+        <span>{formatNumberTr(f.basisGrams)}g bazında</span>
+        <button type="button" aria-label={`${f.name} ölçüleri`} onClick={onMeasures} className="font-semibold text-brand-700 hover:underline">
+          Ölçüler
+        </button>
         <span>{f.source}</span>
       </div>
     </div>

@@ -96,6 +96,8 @@ export interface CoachMessage {
   safetyNotice?: string;
   /** F58: metin bir dil modelinden geldi (etiketlenir). */
   aiGenerated?: boolean;
+  /** F50: kayıtlardan hesaplanan yanıt kartı. */
+  dataAnswer?: { title: string; answer: string; rows: Array<{ label: string; value: string }> };
 }
 
 export interface AttachedFile {

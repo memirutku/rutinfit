@@ -39,10 +39,13 @@ export async function collectWeeklyNeeds(weekStart: string): Promise<ShoppingNee
     }
   }
 
+  // F31: plan bir kişilik porsiyon; alışveriş hane büyüklüğü kadar.
+  const profile = await prisma.userProfile.findFirst({ select: { householdSize: true } });
+  const household = Math.max(1, profile?.householdSize ?? 1);
   const aggregated = aggregateShoppingList(planned);
   return Object.values(aggregated)
     .flat()
-    .map((item) => ({ name: item.name, amount: item.totalGrams, unit: 'g', category: item.category }));
+    .map((item) => ({ name: item.name, amount: Math.round(item.totalGrams * household * 10) / 10, unit: 'g', category: item.category }));
 }
 
 function groupByCategory<T extends { category: string }>(items: T[]): Record<string, T[]> {

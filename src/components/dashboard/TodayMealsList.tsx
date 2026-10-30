@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, Plus, Trash2, Utensils } from "lucide-react";
+import { Bookmark, PenLine, Plus, Trash2, Utensils } from "lucide-react";
 import type { FoodLog } from "@/lib/schemas/food";
 import { formatNumberTr } from "@/lib/format";
 import type { QuickFoodId } from "@/lib/quick-foods";
@@ -28,6 +28,8 @@ interface TodayMealsListProps {
   hideNumbers?: boolean;
   /** F01: kayıtlı öğünler ve kopyalama penceresi. */
   onOpenSavedMeals?: () => void;
+  /** F06: yazarak öğün ekleme penceresi. */
+  onOpenNaturalLog?: () => void;
   /** F79: Türk sofrası hızlı ekleme (simit, ekmek dilimi). */
   onQuickFood?: (item: QuickFoodId, count: number) => void;
   onDelete: (log: FoodLog) => void;
@@ -40,7 +42,7 @@ const QUICK_CHIPS: Array<{ label: string; item: QuickFoodId; count: number }> = 
   { label: "+ 2 dilim ekmek", item: "ekmek-dilimi", count: 2 },
 ];
 
-export function TodayMealsList({ logs, onAdd, onDelete, hideNumbers = false, onOpenSavedMeals, onQuickFood }: TodayMealsListProps) {
+export function TodayMealsList({ logs, onAdd, onDelete, hideNumbers = false, onOpenSavedMeals, onQuickFood, onOpenNaturalLog }: TodayMealsListProps) {
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
       <div className="flex items-center justify-between mb-4">
@@ -55,7 +57,17 @@ export function TodayMealsList({ logs, onAdd, onDelete, hideNumbers = false, onO
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {onOpenNaturalLog && (
+            <button
+              type="button"
+              onClick={onOpenNaturalLog}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors"
+            >
+              <PenLine className="w-3.5 h-3.5" />
+              <span>Yazarak ekle</span>
+            </button>
+          )}
           {onOpenSavedMeals && (
             <button
               type="button"

@@ -1,18 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, ShoppingCart, Utensils } from "lucide-react";
+import { Calendar, CalendarDays, ShoppingCart, Utensils } from "lucide-react";
 import { getLocalDateString } from "@/lib/date-utils";
 import { useTimedMessage } from "@/hooks/useTimedMessage";
 import { useShoppingList } from "@/lib/client/queries/shopping";
 import { MealPlanTab } from "@/components/nutrition/MealPlanTab";
 import { ShoppingListTab } from "@/components/nutrition/ShoppingListTab";
 import { MealPrepGuide } from "@/components/nutrition/MealPrepGuide";
+import { WeekPlanEditor } from "@/components/nutrition/WeekPlanEditor";
 
-type NutritionTab = "plan" | "shopping" | "prep";
+type NutritionTab = "plan" | "week" | "shopping" | "prep";
 
 const TABS: { id: NutritionTab; label: string; Icon: typeof Utensils }[] = [
   { id: "plan", label: "Yemek Planı", Icon: Utensils },
+  { id: "week", label: "Hafta", Icon: CalendarDays },
   { id: "shopping", label: "Alışveriş Listesi", Icon: ShoppingCart },
   { id: "prep", label: "Meal-Prep Rehberi", Icon: Calendar },
 ];
@@ -59,6 +61,9 @@ export default function NutritionPage() {
           {notice.message}
         </div>
       )}
+
+      {/* F30: HAFTALIK PLAN EDİTÖRÜ */}
+      {activeTab === "week" && <WeekPlanEditor selectedDate={selectedDate} />}
 
       {/* 1. SEKME: YEMEK PLANI */}
       {activeTab === "plan" && (

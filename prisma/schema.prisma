@@ -40,6 +40,8 @@ model UserProfile {
   goalRateKgPerWeek Float  @default(0.5)
   targetWeightKg    Float?
   waterTargetMl     Int    @default(2500) // F13: günlük sıvı hedefi
+  householdSize     Int    @default(1) // F31: alışveriş listesi kaç kişilik
+  coachNotes        String? // F52: alerji, sakatlık, ekipman, çalışma düzeni (koça bilgi)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -63,6 +65,19 @@ model FoodItem {
   recipeIngredients RecipeIngredient[]
   foodLogs          FoodLog[]
   savedMealItems    SavedMealItem[]
+  measures          FoodMeasure[]
+}
+
+/// F73: Kullanıcının kendi tartımıyla eklediği ev ölçüsü (yerleşik ölçüler kodda: src/lib/measures.ts).
+model FoodMeasure {
+  id         String @id @default(cuid())
+  foodItemId String
+  name       String // yemek kaşığı, su bardağı, kase, dilim, adet...
+  grams      Float
+
+  foodItem FoodItem @relation(fields: [foodItemId], references: [id], onDelete: Cascade)
+
+  @@unique([foodItemId, name])
 }
 
 model Recipe {
@@ -465,6 +480,19 @@ model AutoBackupSettings {
   lastMessage String?
   lastFile    String?
   updatedAt   DateTime  @updatedAt
+}
+
+/// F49: Haftalık değerlendirme. Metrikler kodda hesaplanır; özeti model (ya da kural) yazar.
+model WeeklyCheckin {
+  id          String   @id @default(cuid())
+  weekStart   String   @unique // Pazartesi
+  metrics     String // JSON
+  summary     String
+  aiGenerated Boolean  @default(false)
+  suggestion  String? // JSON: tek öneri
+  draftId     String? // hedef değişikliği önerisinin onay taslağı
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model OpenFoodFactsCache {

@@ -8,6 +8,8 @@ interface FoodsHeaderProps {
   recipesCount: number;
   onNewFood: () => void;
   onNewRecipe: () => void;
+  /** F33: adresten tarif içe aktarma. */
+  onImportRecipe?: () => void;
   /** Paketli gıda sekmesinde: aranan adla manuel besin ekleme. */
   onManualAdd: () => void;
 }
@@ -24,6 +26,7 @@ export function FoodsHeader({
   recipesCount,
   onNewFood,
   onNewRecipe,
+  onImportRecipe,
   onManualAdd,
 }: FoodsHeaderProps) {
   return (
@@ -61,13 +64,24 @@ export function FoodsHeader({
             <span>Yeni Besin</span>
           </button>
         ) : activeTab === "recipes" ? (
-          <button
-            onClick={onNewRecipe}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand-600 text-white text-xs font-semibold hover:bg-brand-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Yeni Tarif</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {onImportRecipe && (
+              <button
+                type="button"
+                onClick={onImportRecipe}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors"
+              >
+                <span>Adresten tarif</span>
+              </button>
+            )}
+            <button
+              onClick={onNewRecipe}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand-600 text-white text-xs font-semibold hover:bg-brand-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Yeni Tarif</span>
+            </button>
+          </div>
         ) : (
           <button
             onClick={onManualAdd}

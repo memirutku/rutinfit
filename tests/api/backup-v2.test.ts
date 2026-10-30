@@ -57,8 +57,14 @@ async function seedRichData() {
   });
   await prisma.drinkLog.create({ data: { date: "2026-10-19", time: "20:00", kind: "alcohol", name: "Bira", ml: 330, alcoholG: 13, kcal: 143, foodLogId: beerLog.id } });
   await prisma.drinkLog.create({ data: { date: "2026-10-19", time: "09:00", kind: "water", name: "Su", ml: 500 } });
+  // F73: kullanıcının ölçüsü.
+  await prisma.foodMeasure.create({ data: { foodItemId: food.id, name: "kase", grams: 60 } });
   // F27: kardiyo kaydı.
   await prisma.cardioLog.create({ data: { date: "2026-10-19", kind: "run", durationMin: 30, distanceKm: 5, avgHr: 150, kcal: 380 } });
+  // F49: haftalık değerlendirme.
+  await prisma.weeklyCheckin.create({
+    data: { weekStart: "2026-10-12", metrics: JSON.stringify({ loggedDays: 6 }), summary: "İyi hafta.", aiGenerated: true, suggestion: JSON.stringify({ kind: "keep", text: "Devam" }) },
+  });
   // F01: kayıtlı öğün, katalog gıdasına bağlı kalemiyle.
   await prisma.savedMeal.create({
     data: {

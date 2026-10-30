@@ -284,6 +284,30 @@ describe("Koç sayfası", () => {
     expect((screen.getByPlaceholderText(/Sorunuzu yazın/) as HTMLTextAreaElement).disabled).toBe(true);
   });
 
+  it("F50: veri yanıtı kartta kaynak kayıtlarıyla gösterilir", async () => {
+    stubCoach({
+      reply: () =>
+        jsonResponse({
+          reply: "Bu ay 2 antrenman yaptın.",
+          conversationId: "c1",
+          dataAnswer: {
+            type: "workouts_count",
+            title: "Antrenmanlar · Bu ay",
+            answer: "Bu ay 2 antrenman tamamladın.",
+            rows: [{ label: "20.10.2026", value: "A · 6 set" }],
+            range: { from: "2026-10-01", to: "2026-10-30", label: "Bu ay" },
+          },
+        }),
+    });
+    const user = userEvent.setup();
+    renderWithQuery(<CoachPage />);
+    await ask(user, "bu ay kaç antrenman yaptım");
+    expect(await screen.findByText("Antrenmanlar · Bu ay")).toBeTruthy();
+    expect(screen.getByText("Bu ay 2 antrenman tamamladın.")).toBeTruthy();
+    expect(screen.getByText("Kaynak kayıtlar")).toBeTruthy();
+    expect(screen.getByText("A · 6 set")).toBeTruthy();
+  });
+
   it("F56: yanıt güvenlik notu taşıyorsa mesajın altında not olarak gösterilir", async () => {
     stubCoach({
       reply: () => jsonResponse({ reply: "Seni dinliyorum.", conversationId: "c1", safetyNotice: "Bir uzmanla konuş. Acilse 112." }),

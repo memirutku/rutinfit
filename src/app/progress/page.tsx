@@ -19,6 +19,8 @@ import {
 import { useProgress } from "@/lib/client/queries/progress";
 import { formatDateTr } from "@/lib/format";
 import { StrengthSection } from "@/components/progress/StrengthSection";
+import { AdaptiveTdeeCard } from "@/components/progress/AdaptiveTdeeCard";
+import { CheckinCard } from "@/components/progress/CheckinCard";
 import { VolumeSection } from "@/components/progress/VolumeSection";
 
 export default function ProgressPage() {
@@ -253,6 +255,12 @@ export default function ProgressPage() {
           )}
         </div>
       </div>
+
+      {/* F49: Haftalık değerlendirme */}
+      <CheckinCard />
+
+      {/* F10: Gerçek harcama tahmini (adaptif TDEE) */}
+      <AdaptiveTdeeCard />
 
       {/* F23: Güç gelişimi ve rekorlar */}
       <StrengthSection />
