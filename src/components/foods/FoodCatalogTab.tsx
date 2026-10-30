@@ -1,5 +1,5 @@
 import { Search } from "lucide-react";
-import { includesTr } from "@/lib/text";
+import { rankFoods } from "@/lib/food-search";
 import type { FoodItem } from "@/lib/schemas/food";
 import { FOOD_CATEGORIES } from "./constants";
 import { formatNumberTr } from "@/lib/format";
@@ -15,11 +15,10 @@ interface FoodCatalogTabProps {
 }
 
 /** Türkçe büyük/küçük harf duyarsız ad/marka araması ve kategori filtresi. */
+/** F02: kategori süzgeci + Türkçe karakter gerektirmeyen, eşleşme kalitesine göre sıralı arama. */
 export function filterFoods(foods: FoodItem[], search: string, category: string): FoodItem[] {
-  return foods.filter(
-    (f) =>
-      (includesTr(f.name, search) || includesTr(f.brand, search)) && (category === "all" || f.category === category)
-  );
+  const inCategory = foods.filter((f) => category === "all" || f.category === category);
+  return search.trim() ? rankFoods(inCategory, search) : inCategory;
 }
 
 /** Besin kataloğu sekmesi: arama, kategori düğmeleri ve 100 g bazındaki besin kartları. */

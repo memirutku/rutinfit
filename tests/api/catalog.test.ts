@@ -23,6 +23,23 @@ describe("/api/foods", () => {
     expect((await callRoute(foodsGet, { query: { search: "inek" } })).json.map((f: any) => f.name)).toEqual(["İnek Sütü"]);
   });
 
+  it("F02: aramada Türkçe karakter gerekmez; sort=usage son kullanılanları öne alır", async () => {
+    const milk = await createFood({ name: "Süt" });
+    await createFood({ name: "İnek Sütü" });
+    const oats = await createFood({ name: "Yulaf" });
+    expect((await callRoute(foodsGet, { query: { search: "sut" } })).json.map((f: any) => f.name)).toEqual(["Süt", "İnek Sütü"]);
+
+    const today = new Date().toISOString().slice(0, 10);
+    for (let i = 0; i < 3; i++) {
+      await prisma.foodLog.create({
+        data: { date: today, time: "08:00", mealType: "breakfast", foodItemId: oats.id, name: "Yulaf", grams: 50, caloriesSnapshot: 1, proteinSnapshot: 1, carbsSnapshot: 1, fatSnapshot: 1 },
+      });
+    }
+    const byUsage = (await callRoute(foodsGet, { query: { sort: "usage" } })).json.map((f: any) => f.id);
+    expect(byUsage[0]).toBe(oats.id);
+    expect(byUsage).toContain(milk.id);
+  });
+
   it("F80: listeyi Türk alfabesine göre sıralar (Ç, I/İ, Ş yerinde)", async () => {
     for (const name of ["Zeytin", "Şeftali", "İncir", "Ispanak", "Çilek", "Elma"]) await createFood({ name });
     const names = (await callRoute(foodsGet)).json.map((f: any) => f.name);

@@ -53,7 +53,8 @@ export default function DashboardPage() {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddRequested, setQuickAddRequested] = useState(false);
   const [quickAddMealType, setQuickAddMealType] = useState<MealType>("lunch");
-  const foods = useFoods(50, { enabled: quickAddRequested });
+  // F02: hızlı eklemede sık ve yakın zamanda kullanılanlar önce gelir.
+  const foods = useFoods(200, { enabled: quickAddRequested, sort: "usage" });
 
   // Son kullanılan besinler ve Geri Alma (Undo) state'i
   const [recentFoods, setRecentFoods] = useLocalStorage<RecentFood[]>(RECENT_FOODS_KEY, [], parseRecentFoods);

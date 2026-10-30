@@ -13,7 +13,7 @@ export const queryKeys = {
   },
   foods: {
     all: ["foods"] as const,
-    list: (limit: number) => ["foods", { limit }] as const,
+    list: (limit: number, sort?: "usage") => ["foods", { limit, sort }] as const,
   },
   recipes: ["recipes"] as const,
   mealPlans: {

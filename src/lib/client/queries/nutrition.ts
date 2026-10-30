@@ -26,12 +26,12 @@ export function useFoodLogs(date: string) {
   });
 }
 
-export function useFoods(limit: number, options: { enabled?: boolean } = {}) {
+export function useFoods(limit: number, options: { enabled?: boolean; sort?: "usage" } = {}) {
   return useQuery({
-    queryKey: queryKeys.foods.list(limit),
+    queryKey: queryKeys.foods.list(limit, options.sort),
     // Hata gövdesi (ör. { error }) diziye yazılırsa .filter çöküyordu; yalnız dizi kabul edilir.
     queryFn: async () => {
-      const data = await apiFetch<FoodItem[]>(`/api/foods?limit=${limit}`);
+      const data = await apiFetch<FoodItem[]>(`/api/foods?limit=${limit}${options.sort ? `&sort=${options.sort}` : ""}`);
       return Array.isArray(data) ? data : [];
     },
     enabled: options.enabled ?? true,
